@@ -1,0 +1,10 @@
+{
+"SpaProxyServer": {
+"ServerUrl": "https://localhost:55751",
+"RedirectUrl": "",
+"LaunchCommand": "npm start",
+"WorkingDirectory": "C:\\Users\\andre\\repos\\RngHelpdesk\\RngHelpdesk.Api\\..\\rnghelpdesk.client",
+"MaxTimeoutInSeconds": "120",
+"KeepRunning": "false"
+}
+}

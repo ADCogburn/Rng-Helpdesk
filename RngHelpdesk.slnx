@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/Api/">
+    <Project Path="RngHelpdesk.Api/RngHelpdesk.Api.csproj" />
+  </Folder>
+  <Folder Name="/Applications/">
+    <Project Path="RngHelpdesk.Website/RngHelpdesk.Website.esproj">
+      <Build />
+      <Deploy />
+    </Project>
+  </Folder>
+  <Folder Name="/Core/">
+    <Project Path="RngHelpdesk.Contracts/RngHelpdesk.Contracts.csproj" />
+    <Project Path="RngHelpdesk.Domain/RngHelpdesk.Domain.csproj" />
+  </Folder>
+</Solution>
