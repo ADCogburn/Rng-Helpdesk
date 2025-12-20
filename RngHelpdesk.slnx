@@ -12,4 +12,7 @@
     <Project Path="RngHelpdesk.Contracts/RngHelpdesk.Contracts.csproj" />
     <Project Path="RngHelpdesk.Domain/RngHelpdesk.Domain.csproj" />
   </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".gitignore" />
+  </Folder>
 </Solution>

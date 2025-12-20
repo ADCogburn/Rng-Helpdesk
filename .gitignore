@@ -38,6 +38,7 @@ obj/
 x64/
 x86/
 
+launchSettings.json
 appsettings.Development.json
 appsettings.*.Development.json
 appsettings.*.Local.json
