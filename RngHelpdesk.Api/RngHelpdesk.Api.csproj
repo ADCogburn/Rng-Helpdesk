@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <SpaRoot>..\rnghelpdesk.client</SpaRoot>
+    <SpaRoot>..\RngHelpdesk.Website\</SpaRoot>
     <SpaProxyLaunchCommand>npm start</SpaProxyLaunchCommand>
     <SpaProxyServerUrl>https://localhost:55751</SpaProxyServerUrl>
   </PropertyGroup>
@@ -17,11 +17,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\rnghelpdesk.client\rnghelpdesk.client.esproj">
-      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-    </ProjectReference>
     <ProjectReference Include="..\RngHelpdesk.Domain\RngHelpdesk.Domain.csproj" />
     <ProjectReference Include="..\RngHelpdesk.Contracts\RngHelpdesk.Contracts.csproj" />
+    <ProjectReference Include="..\RngHelpdesk.Infrastructure\RngHelpdesk.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -66,3 +66,9 @@ logs/
 /.vs/RngHelpdesk.slnx/DesignTimeBuild/.dtbcache.v2
 /RngHelpdesk.Api/obj/Debug/net10.0/RngHelpdesk.Api.AssemblyInfo.cs
 /RngHelpdesk.Api/obj/Debug/net10.0/RngHelpdesk.Api.AssemblyInfoInputs.cache
+
+# Angular / Vite build cache
+.angular/
+.vite/
+vite/
+*.tsbuildinfo
