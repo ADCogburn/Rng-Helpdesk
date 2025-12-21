@@ -12,6 +12,22 @@ public sealed class User
 
     public bool IsActive { get; private set; } = true;
 
+    public User(
+        int id,
+        AuthorityRole role,
+        IEnumerable<DiscordAccount> discordAccounts,
+        IEnumerable<RunescapeAccount> runescapeAccounts)
+    {
+        Id = id;
+        AuthorityRole = role;
+        ClanPoints = 0;
+        IsActive = true;
+
+        DiscordAccounts = new List<DiscordAccount>(discordAccounts);
+        RunescapeAccounts = new List<RunescapeAccount>(runescapeAccounts);
+    }
+
+
 
     public void Deactivate()
     {
@@ -28,6 +44,9 @@ public sealed class User
         if (points <= 0)
             throw new ArgumentException("Points to add must be greater than zero.", nameof(points));
 
+        if (reason is null || reason == string.Empty)
+            throw new ArgumentException("Reason for adding points must be provided.", nameof(reason));
+
         ClanPoints += points;
 
         return new PointsEvent(
@@ -38,14 +57,15 @@ public sealed class User
         );
     }
 
-    public void RemoveClanPoints(int points)
+    public void DeductClanPoints(int points)
     {
         if (points <= 0)
             throw new ArgumentException("Points to remove must be greater than zero.", nameof(points));
-        if (points > ClanPoints)
-            throw new InvalidOperationException("Cannot remove more points than the user currently has.");
 
-        ClanPoints -= points;
+        if (ClanPoints - points < 0)
+            ClanPoints = 0;
+        else
+            ClanPoints -= points;
     }
 
     public void LinkDiscordAccount(ulong discordId)
@@ -73,5 +93,18 @@ public sealed class User
             RunescapeAccounts.Remove(account);
             PreviousRunescapeAccounts.Add(account);
         }
+    }
+
+    public void ChangeRunescapeUsername(string currentUsername, string newUsername)
+    {
+        var account = RunescapeAccounts.FirstOrDefault(ra => ra.Username.Equals(currentUsername, StringComparison.OrdinalIgnoreCase));
+        if (account == null)
+            throw new ArgumentException("Runescape account not found.", nameof(currentUsername));
+
+        RunescapeAccounts.Remove(account);
+        PreviousRunescapeAccounts.Add(account);
+
+        var newAccount = new RunescapeAccount(newUsername);
+        RunescapeAccounts.Add(newAccount);
     }
 }
