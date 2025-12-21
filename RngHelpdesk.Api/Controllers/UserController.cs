@@ -1,54 +1,55 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using RngHelpdesk.Contracts.Users;
-using RngHelpdesk.Domain.Ranks;
-using RngHelpdesk.Domain.Users;
+using RngHelpdesk.Contracts.Users.Queries;
+using RngHelpdesk.UseCases.Handlers.Users;
 
 namespace RngHelpdesk.Api.Controllers;
 
 [ApiController]
-[Route("api/users")]
+[Route("users")]
 public sealed class UsersController : ControllerBase
 {
-    [HttpGet("{id:int}")]
-    public ActionResult<UserResponse> GetById(int id)
+    private readonly GetUserHandler _getUserHandler;
+    private readonly GetRunescapeAccountHandler _getRunescapeHandler;
+    private readonly LinkRunescapeAccountHandler _linkRunescapeHandler;
+    private readonly LinkDiscordAccountHandler _linkDiscordHandler;
+
+    public UsersController(
+        GetUserHandler _getUserHandler,
+        GetRunescapeAccountHandler _getRunescapeHandler,
+        LinkRunescapeAccountHandler _linkRunescapeAccountHandler,
+        LinkDiscordAccountHandler _linkDiscordAccountHanlder)
     {
-        // TEMP: fake domain object
-        const ulong fakeDiscordId = 123456789012345678;
-        var fakeRunescapeAccounts = new[]
-        {
-            new RunescapeAccount("FakeRSN_One"),
-            new RunescapeAccount("FakeRSN_Two")
-        };
+        this._getUserHandler = _getUserHandler;
+        this._getRunescapeHandler = _getRunescapeHandler;
+        this._linkRunescapeHandler = _linkRunescapeAccountHandler;
+        this._linkDiscordHandler = _linkDiscordAccountHanlder;
+    }
 
-        var user = new User(
-            id: id,
-            role: AuthorityRole.Member,
-            discordAccounts: new[] { new DiscordAccount(fakeDiscordId) },
-            runescapeAccounts: fakeRunescapeAccounts
-        );
+    [HttpGet("{id:int}")]
+    public ActionResult<GetUserResponse> GetUser(int id)
+    {
+        var response = _getUserHandler.Handle(id);
+        return Ok(response);
+    }
 
-        // TEMP: inline rank resolver (refactor to pull from config in DB later)
-        var thresholds = new[]
-        {
-            new RankThreshold(Rank.Bronze, 0),
-            new RankThreshold(Rank.Iron, 10),
-            new RankThreshold(Rank.Steel, 50),
-            new RankThreshold(Rank.Mithril, 100),
-            new RankThreshold(Rank.Adamant, 175),
-            new RankThreshold(Rank.Rune, 265),
-            new RankThreshold(Rank.Dragon, 375),
-        };
+    [HttpGet("{id:int}/runescape-accounts")]
+    public IActionResult GetRunescapeAccount(int id)
+    {
+        var response = _getRunescapeHandler.Handle(id);
+        return Ok(response);
+    }
 
-        var rankResolver = new RankResolver(thresholds);
-        var rank = rankResolver.Resolve(user);
+    [HttpPost("{id:int}/runescape-accounts")]
+    public IActionResult LinkRunescapeAccount(int id, LinkRunescapeAccountRequest request)
+    {
+        _linkRunescapeHandler.Handle(id, request.Username);
+        return NoContent();
+    }
 
-        // Map Domain → Contract
-        return Ok(new UserResponse
-        {
-            Id = user.Id,
-            ClanPoints = user.ClanPoints,
-            Rank = rank.ToString(),
-            IsActive = user.IsActive
-        });
+    [HttpPost("{id:int}/discord-accounts")]
+    public IActionResult LinkDiscordAccount(int id, LinkDiscordAccountRequest request)
+    {
+        _linkDiscordHandler.Handle(id, request.DiscordId);
+        return NoContent();
     }
 }

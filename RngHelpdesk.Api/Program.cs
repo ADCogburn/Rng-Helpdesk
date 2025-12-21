@@ -1,13 +1,30 @@
+using FluentValidation;
+using FluentValidation.AspNetCore;
+using RngHelpdesk.Api.Validators.Users;
+using RngHelpdesk.UseCases.Handlers.Users;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
 builder.Services.AddControllers();
+
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<LinkRunescapeAccountRequestValidator>();
+
+// DI Container
+
+builder.Services.AddScoped<GetUserHandler>();
+builder.Services.AddScoped<GetRunescapeAccountHandler>();
+builder.Services.AddScoped<LinkRunescapeAccountHandler>();
+builder.Services.AddScoped<LinkDiscordAccountHandler>();
+
 
 var app = builder.Build();
 

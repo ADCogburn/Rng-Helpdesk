@@ -4,7 +4,6 @@ public sealed class RunescapeAccount
 {
     public int Id { get; private set; }
     public string Username { get; private set; }
-    public bool IsActiveUsername { get; private set; }
 
     public RunescapeAccount(string username)
     {

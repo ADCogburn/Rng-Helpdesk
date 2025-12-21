@@ -11,6 +11,7 @@
   <Folder Name="/Core/">
     <Project Path="RngHelpdesk.Contracts/RngHelpdesk.Contracts.csproj" />
     <Project Path="RngHelpdesk.Domain/RngHelpdesk.Domain.csproj" />
+    <Project Path="RngHelpdesk.Handlers/RngHelpdesk.UseCases.csproj" Id="473ceed2-84d7-4167-a459-7aec018386e4" />
   </Folder>
   <Folder Name="/Infrastructure/">
     <Project Path="RngHelpdesk.Infrastructure/RngHelpdesk.Infrastructure.csproj" Id="d8314984-1cee-432d-968f-95249eb1bd7f" />
