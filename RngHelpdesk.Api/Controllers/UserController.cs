@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using RngHelpdesk.Contracts.Users.Queries;
-using RngHelpdesk.UseCases.Handlers.Users;
+using RngHelpdesk.Operations.Handlers.Users;
 
 namespace RngHelpdesk.Api.Controllers;
 

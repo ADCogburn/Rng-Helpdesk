@@ -1,6 +1,6 @@
 ﻿using RngHelpdesk.Domain.Users;
 
-namespace RngHelpdesk.UseCases.Handlers.Users;
+namespace RngHelpdesk.Operations.Handlers.Users;
 
 public sealed class LinkRunescapeAccountHandler
 {

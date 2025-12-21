@@ -23,7 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\RngHelpdesk.Domain\RngHelpdesk.Domain.csproj" />
     <ProjectReference Include="..\RngHelpdesk.Contracts\RngHelpdesk.Contracts.csproj" />
-    <ProjectReference Include="..\RngHelpdesk.Handlers\RngHelpdesk.UseCases.csproj" />
+    <ProjectReference Include="..\RngHelpdesk.Handlers\RngHelpdesk.Operations.csproj" />
     <ProjectReference Include="..\RngHelpdesk.Infrastructure\RngHelpdesk.Infrastructure.csproj" />
   </ItemGroup>
 

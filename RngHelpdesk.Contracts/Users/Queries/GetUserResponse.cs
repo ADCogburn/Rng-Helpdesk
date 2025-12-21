@@ -1,7 +1,9 @@
-﻿namespace RngHelpdesk.Contracts.Users.Queries;
+﻿using RngHelpdesk.Contracts.Users.Views;
+
+namespace RngHelpdesk.Contracts.Users.Queries;
 
 /// <summary>
-/// The data promised to a client regarding a user.
+/// The promise data of a user.
 /// </summary>
 public sealed class GetUserResponse
 {
@@ -10,6 +12,6 @@ public sealed class GetUserResponse
     public string Rank { get; init; } = default!;
     public bool IsActive { get; init; }
     public DateTimeOffset DateCreated { get; init; }
-    public GetDiscordAccountsResponse DiscordAccounts { get; init; } = new();
-    public GetRunescapeAccountsResponse RunescapeAccounts { get; init; } = new();
+    public List<DiscordAccountView> DiscordAccounts { get; init; } = new();
+    public List<RunescapeAccountView> RunescapeAccounts { get; init; } = new();
 }

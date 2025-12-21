@@ -1,6 +1,6 @@
 ﻿using RngHelpdesk.Domain.Users;
 
-namespace RngHelpdesk.UseCases.Handlers.Users;
+namespace RngHelpdesk.Operations.Handlers.Users;
 
 public sealed class LinkDiscordAccountHandler
 {
@@ -12,7 +12,10 @@ public sealed class LinkDiscordAccountHandler
             discordAccounts: [],
             runescapeAccounts: []);
 
-        var account = new DiscordAccount(discordId);
+        // TODO: do I pass this in, or hit discord api for this or what?
+        var fakeusername = "FakeUser";
+
+        var account = new DiscordAccount(discordId, fakeusername);
 
         user.DiscordAccounts.Add(account);
 

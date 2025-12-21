@@ -68,12 +68,21 @@ public sealed class User
             ClanPoints -= points;
     }
 
-    public void LinkDiscordAccount(ulong discordId)
+    public void AddDiscordAccount(ulong discordId, string username)
     {
         if (DiscordAccounts.Any(da => da.DiscordId == discordId))
             return;
 
-        DiscordAccounts.Add(new DiscordAccount(discordId));
+        DiscordAccounts.Add(new DiscordAccount(discordId, username));
+    }
+
+    public void RemoveDiscordAccount(ulong discordId)
+    {
+        var account = DiscordAccounts.FirstOrDefault(da => da.DiscordId == discordId);
+        if (account != null)
+        {
+            DiscordAccounts.Remove(account);
+        }
     }
 
     public void AddRunescapeAccount(string username)

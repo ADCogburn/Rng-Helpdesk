@@ -1,7 +1,7 @@
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using RngHelpdesk.Api.Validators.Users;
-using RngHelpdesk.UseCases.Handlers.Users;
+using RngHelpdesk.Operations.Handlers.Users;
 
 var builder = WebApplication.CreateBuilder(args);
 
