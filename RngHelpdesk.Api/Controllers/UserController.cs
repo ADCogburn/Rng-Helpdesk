@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using RngHelpdesk.Api.Security;
 using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Queries;
-using RngHelpdesk.Operations.Handlers.Users;
+using RngHelpdesk.Operations.Users;
 
 namespace RngHelpdesk.Api.Controllers;
 

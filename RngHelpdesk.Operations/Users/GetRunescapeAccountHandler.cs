@@ -3,7 +3,7 @@ using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Contracts.Users.Views;
 using RngHelpdesk.Domain.Users;
 
-namespace RngHelpdesk.Operations.Handlers.Users;
+namespace RngHelpdesk.Operations.Users;
 
 public class GetRunescapeAccountHandler
 {

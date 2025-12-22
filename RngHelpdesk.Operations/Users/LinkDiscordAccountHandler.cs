@@ -1,7 +1,7 @@
 ﻿using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Domain.Users;
 
-namespace RngHelpdesk.Operations.Handlers.Users;
+namespace RngHelpdesk.Operations.Users;
 
 public sealed class LinkDiscordAccountHandler
 {

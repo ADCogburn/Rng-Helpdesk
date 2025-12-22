@@ -4,7 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using RngHelpdesk.Api.Security;
 using RngHelpdesk.Api.Validators.Users;
-using RngHelpdesk.Operations.Handlers.Users;
+using RngHelpdesk.Operations.Users;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);

@@ -4,7 +4,7 @@ using RngHelpdesk.Contracts.Users.Views;
 using RngHelpdesk.Domain.Ranks;
 using RngHelpdesk.Domain.Users;
 
-namespace RngHelpdesk.Operations.Handlers.Users;
+namespace RngHelpdesk.Operations.Users;
 
 public sealed class GetUserHandler
 {
