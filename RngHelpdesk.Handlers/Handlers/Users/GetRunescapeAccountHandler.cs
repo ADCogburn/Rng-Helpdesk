@@ -1,4 +1,5 @@
-﻿using RngHelpdesk.Contracts.Users.Queries;
+﻿using RngHelpdesk.Contracts.Security;
+using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Contracts.Users.Views;
 using RngHelpdesk.Domain.Users;
 
@@ -6,8 +7,10 @@ namespace RngHelpdesk.Operations.Handlers.Users;
 
 public class GetRunescapeAccountHandler
 {
-    public GetRunescapeAccountsResponse Handle(int id)
+    public GetRunescapeAccountsResponse Handle(int id, IRequestContext requestContext)
     {
+        AuthorizationRules.RequireMember(requestContext);
+
         // TEMP: fake data
 
         var exampledDisabledAccount = new RunescapeAccount("Disabled_Account");

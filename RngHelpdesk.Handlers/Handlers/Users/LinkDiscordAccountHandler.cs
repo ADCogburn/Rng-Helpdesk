@@ -1,11 +1,15 @@
-﻿using RngHelpdesk.Domain.Users;
+﻿using RngHelpdesk.Contracts.Security;
+using RngHelpdesk.Domain.Users;
 
 namespace RngHelpdesk.Operations.Handlers.Users;
 
 public sealed class LinkDiscordAccountHandler
 {
-    public void Handle(int userId, ulong discordId)
+    public void Handle(int userId, ulong discordId, IRequestContext requestContext)
     {
+        AuthorizationRules.RequireMember(requestContext);
+        AuthorizationRules.RequireRole(requestContext, SystemRoles.ClanOwner);
+
         var user = new User(
             id: userId,
             role: AuthorityRole.Member,
