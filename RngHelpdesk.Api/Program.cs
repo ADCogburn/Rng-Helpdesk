@@ -52,6 +52,18 @@ builder.Services
         };
     });
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("DevCors", policy =>
+    {
+        policy
+            .WithOrigins("http://localhost:55751")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
+    
 builder.Services.AddAuthorization();
 
 builder.Services.AddFluentValidationAutoValidation();
@@ -81,6 +93,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("DevCors");
 
 app.UseAuthentication();
 app.UseAuthorization();
