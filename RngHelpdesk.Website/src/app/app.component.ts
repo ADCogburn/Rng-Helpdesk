@@ -1,6 +1,8 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ApiService } from './api.service';
+import { AuthService } from './auth.service';
+import { switchMap } from 'rxjs';
 
 @Component({
   selector: 'app-root',
@@ -10,31 +12,25 @@ import { ApiService } from './api.service';
 })
 export class AppComponent {
 
-  token: string | null = null;
   user: any = null;
   error: string | null = null;
 
-  constructor(private api: ApiService) {}
+  constructor(
+    private api: ApiService,
+    private auth: AuthService
+  ) {}
 
   getUser() {
-    this.error = null;
+  this.error = null;
 
-    this.api.getDevToken().subscribe({
-      next: auth => {
-        this.token = auth.token;
-
-        this.api.getUser(1, auth.token).subscribe({
-          next: user => {
-            this.user = user;
-          },
-          error: err => {
-            this.error = 'Unauthorized or failed user call';
-            console.error(err);
-          }
-        });
+  this.auth.ensureAuthenticated().pipe(
+    switchMap(() => this.api.getUser(1))
+    ).subscribe({
+      next: user => {
+        this.user = user;
       },
       error: err => {
-        this.error = 'Failed to get token';
+        this.error = 'Unauthorized or failed user call';
         console.error(err);
       }
     });

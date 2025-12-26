@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
@@ -9,7 +9,10 @@ export class ApiService {
 
   constructor(private http: HttpClient) {}
 
-  /** DEV ONLY */
+  // --------------------
+  // TEMP: Auth (dev only)
+  // --------------------
+
   getDevToken(): Observable<{ token: string }> {
     return this.http.post<{ token: string }>(
       `${this.baseUrl}/dev/auth/token`,
@@ -17,14 +20,13 @@ export class ApiService {
     );
   }
 
-  getUser(userId: number, token: string): Observable<any> {
-    const headers = new HttpHeaders({
-      Authorization: `Bearer ${token}`
-    });
+  // --------------------
+  // Users
+  // --------------------
 
-    return this.http.get(
-      `${this.baseUrl}/users/${userId}`,
-      { headers }
+  getUser(userId: number): Observable<any> {
+    return this.http.get<any>(
+      `${this.baseUrl}/users/${userId}`
     );
   }
 }
