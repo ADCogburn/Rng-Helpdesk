@@ -7,7 +7,7 @@ public static class RankHelper
         role switch
         {
             AuthorityRole.Administrator => Rank.Administrator,
-            AuthorityRole.DeputyOwner => Rank.DeputyOwner,
+            AuthorityRole.SuperAdministrator => Rank.DeputyOwner,
             AuthorityRole.Owner => Rank.Owner,
             _ => throw new InvalidOperationException()
         };

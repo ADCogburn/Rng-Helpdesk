@@ -7,9 +7,11 @@ namespace RngHelpdesk.Operations.Users;
 
 public class GetRunescapeAccountHandler
 {
-    public GetRunescapeAccountsResponse Handle(int id, IRequestContext requestContext)
+    public GetRunescapeAccountsResponse Handle(
+        IRequestContext requestContext,
+        int userId)
     {
-        AuthorizationRules.RequireMember(requestContext);
+        AuthorizationRules.RequireAuthentication(requestContext);
 
         // TEMP: fake data
 
@@ -17,7 +19,7 @@ public class GetRunescapeAccountHandler
         exampledDisabledAccount.Deactivate();
 
         var user = new User(
-            id: id,
+            id: userId,
             role: AuthorityRole.Member,
             discordAccounts: new[] {
                 new DiscordAccount(123456789012345678, "FakeDiscordId"),

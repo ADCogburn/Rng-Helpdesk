@@ -5,22 +5,20 @@ namespace RngHelpdesk.Operations.Users;
 
 public sealed class LinkRunescapeAccountHandler
 {
-    public void Handle(int userId, string username, IRequestContext requestContext)
+    public void Handle(
+        IRequestContext requestContext,
+        LinkRunescapeAccountRequest request)
     {
-        AuthorizationRules.RequireMember(requestContext);
-        AuthorizationRules.RequireRole(requestContext, SystemRoles.Admin);
+        AuthorizationRules.RequireRole(requestContext, AuthorityRole.Administrator);
 
         // TEMP fake user (later: repository)
         var user = new User(
-            id: userId,
+            id: request.UserId,
             role: AuthorityRole.Member,
             discordAccounts: [],
             runescapeAccounts: []);
 
-        // Domain behavior (eventually this becomes a method)
-        var account = new RunescapeAccount(username);
-
-        user.RunescapeAccounts.Add(account);
+        user.AddRunescapeAccount(request.Username);
 
         // Later:
         // _userRepository.Save(user);

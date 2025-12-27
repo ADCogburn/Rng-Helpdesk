@@ -41,7 +41,7 @@ public sealed class UsersController : ControllerBase
     [HttpGet("{id:int}")]
     public ActionResult<GetUserResponse> GetUser(int id)
     {
-        var response = _getUserHandler.Handle(id, _requestContext);
+        var response = _getUserHandler.Handle(_requestContext, id);
         return Ok(response);
     }
 
@@ -53,7 +53,7 @@ public sealed class UsersController : ControllerBase
     [HttpGet("{id:int}/runescape-accounts")]
     public IActionResult GetRunescapeAccount(int id)
     {
-        var response = _getRunescapeHandler.Handle(id, _requestContext);
+        var response = _getRunescapeHandler.Handle(_requestContext, id);
         return Ok(response);
     }
 
@@ -64,9 +64,15 @@ public sealed class UsersController : ControllerBase
     /// <param name="request"></param>
     /// <returns></returns>
     [HttpPost("{id:int}/runescape-accounts")]
-    public IActionResult LinkRunescapeAccount(int id, LinkRunescapeAccountRequest request)
+    public IActionResult LinkRunescapeAccount(int id, [FromBody] string username)
     {
-        _linkRunescapeHandler.Handle(id, request.Username, _requestContext);
+        var request = new LinkRunescapeAccountRequest()
+        {
+            UserId = id,
+            Username = username
+        };
+
+        _linkRunescapeHandler.Handle(_requestContext, request);
         return NoContent();
     }
 
@@ -77,9 +83,15 @@ public sealed class UsersController : ControllerBase
     /// <param name="request"></param>
     /// <returns></returns>
     [HttpPost("{id:int}/discord-accounts")]
-    public IActionResult LinkDiscordAccount(int id, LinkDiscordAccountRequest request)
+    public IActionResult LinkDiscordAccount(int id, [FromBody] ulong discordId)
     {
-        _linkDiscordHandler.Handle(id, request.DiscordId, _requestContext);
+        var request = new LinkDiscordAccountRequest()
+        {
+            UserId = id,
+            DiscordId = discordId
+        };
+
+        _linkDiscordHandler.Handle(_requestContext, request);
         return NoContent();
     }
 }

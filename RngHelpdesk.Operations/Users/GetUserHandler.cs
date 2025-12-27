@@ -8,9 +8,11 @@ namespace RngHelpdesk.Operations.Users;
 
 public sealed class GetUserHandler
 {
-    public GetUserResponse Handle(int id, IRequestContext requestContext)
+    public GetUserResponse Handle(
+        IRequestContext requestContext,
+        int userId)
     {
-        AuthorizationRules.RequireMember(requestContext);
+        AuthorizationRules.RequireAuthentication(requestContext);
 
         // TEMP: fake data
 
@@ -18,7 +20,7 @@ public sealed class GetUserHandler
         exampledDisabledAccount.Deactivate();
 
         var user = new User(
-            id: id,
+            id: userId,
             role: AuthorityRole.Member,
             discordAccounts: new[] {
                 new DiscordAccount(123456789012345678, "FakeDiscordId"),

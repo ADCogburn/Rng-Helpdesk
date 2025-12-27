@@ -1,7 +1,7 @@
 ﻿namespace RngHelpdesk.Contracts.Security;
 
 /// <summary>
-/// Actor is any entity making a request to the system.
+/// The type of actor making the request.
 /// </summary>
 public enum ActorType
 {

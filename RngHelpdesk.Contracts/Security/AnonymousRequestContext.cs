@@ -1,4 +1,7 @@
-﻿namespace RngHelpdesk.Contracts.Security;
+﻿using RngHelpdesk.Domain.Common;
+using RngHelpdesk.Domain.Users;
+
+namespace RngHelpdesk.Contracts.Security;
 
 /// <summary>
 /// Unauthenticated request context.
@@ -8,9 +11,7 @@ public sealed class AnonymousRequestContext : IRequestContext
     public Guid ActorId => Guid.Empty;
     public ActorType ActorType => ActorType.Unknown;
 
-    public IReadOnlySet<string> Roles => new HashSet<string>();
-    public IReadOnlySet<string> Claims => new HashSet<string>();
+    public AuthorityRole AuthorityRole => AuthorityRole.Guest;
 
     public bool IsAuthenticated => false;
-    public bool IsMember => false;
 }

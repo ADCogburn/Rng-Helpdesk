@@ -5,13 +5,14 @@ namespace RngHelpdesk.Operations.Users;
 
 public sealed class LinkDiscordAccountHandler
 {
-    public void Handle(int userId, ulong discordId, IRequestContext requestContext)
+    public void Handle(
+        IRequestContext requestContext,
+        LinkDiscordAccountRequest request)
     {
-        AuthorizationRules.RequireMember(requestContext);
-        AuthorizationRules.RequireRole(requestContext, SystemRoles.ClanOwner);
+        AuthorizationRules.RequireRole(requestContext, AuthorityRole.Owner);
 
         var user = new User(
-            id: userId,
+            id: request.UserId,
             role: AuthorityRole.Member,
             discordAccounts: [],
             runescapeAccounts: []);
@@ -19,9 +20,7 @@ public sealed class LinkDiscordAccountHandler
         // TODO: do I pass this in, or hit discord api for this or what?
         var fakeusername = "FakeUser";
 
-        var account = new DiscordAccount(discordId, fakeusername);
-
-        user.DiscordAccounts.Add(account);
+        user.AddDiscordAccount(request.DiscordId, fakeusername);
 
         // Later:
         // _userRepository.Save(user);
