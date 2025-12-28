@@ -6,11 +6,18 @@ using RngHelpdesk.Domain.Users;
 
 namespace RngHelpdesk.Operations.Users;
 
+/// <summary>
+/// Get a single user by their Id, DiscordId, or Runescape username.
+/// </summary>
 public sealed class GetUserHandler
 {
-    public GetUserResponse Handle(
-        IRequestContext requestContext,
-        int userId)
+    /// <summary>
+    /// Get a single user by their Id.
+    /// </summary>
+    /// <param name="requestContext"></param>
+    /// <param name="query"></param>
+    /// <returns></returns>
+    public GetUserResponse Handle(IRequestContext requestContext, GetUserByIdQuery query)
     {
         AuthorizationRules.RequireAuthentication(requestContext);
 
@@ -20,7 +27,7 @@ public sealed class GetUserHandler
         exampledDisabledAccount.Deactivate();
 
         var user = new User(
-            id: userId,
+            id: query.userId,
             role: AuthorityRole.Member,
             discordAccounts: new[] {
                 new DiscordAccount(123456789012345678, "FakeDiscordId"),
@@ -72,5 +79,35 @@ public sealed class GetUserHandler
                 })
                 .ToList()
         };
+    }
+
+    /// <summary>
+    /// Get a single user by their DiscordId
+    /// </summary>
+    /// <param name="requestContext"></param>
+    /// <param name="query"></param>
+    /// <returns></returns>
+    /// <exception cref="NotImplementedException"></exception>
+    public GetUserResponse Handle(IRequestContext requestContext, GetUserByDiscordIdQuery query)
+    {
+        AuthorizationRules.RequireAuthentication(requestContext);
+        // Implementation would be similar to the GetUserByIdQuery handler,
+        // but would retrieve the user based on the provided DiscordId.
+        throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// Get a single user by their Runescape username.
+    /// </summary>
+    /// <param name="requestContext"></param>
+    /// <param name="query"></param>
+    /// <returns></returns>
+    /// <exception cref="NotImplementedException"></exception>
+    public GetUserResponse Handle(IRequestContext requestContext, GetUserByRunescapeUsernameQuery query)
+    {
+        AuthorizationRules.RequireAuthentication(requestContext);
+        // Implementation would be similar to the GetUserByIdQuery handler,
+        // but would retrieve the user based on the provided Runescape username.
+        throw new NotImplementedException();
     }
 }

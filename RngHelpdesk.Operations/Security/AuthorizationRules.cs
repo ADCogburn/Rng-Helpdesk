@@ -29,6 +29,19 @@ public static class AuthorizationRules
     }
 
     /// <summary>
+    /// Requires any level of Admin role.
+    /// </summary>
+    /// <param name="context"></param>
+    /// <exception cref="UnauthorizedAccessException"></exception>
+    public static void RequireAdminRole(this IRequestContext context)
+    {
+        if (!context.IsRole(AuthorityRole.Administrator) && !context.IsRole(AuthorityRole.SuperAdministrator) && !context.IsRole(AuthorityRole.Owner))
+            throw new UnauthorizedAccessException(
+                $"Required role 'Owner' or 'Administrator' was not present."
+            );
+    }
+
+    /// <summary>
     /// Requires SuperAdmin (i.e. "DeputyOwner") or Owner auth role.
     /// </summary>
     /// <param name="context"></param>

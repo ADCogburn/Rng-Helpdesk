@@ -1,13 +1,14 @@
 ﻿using RngHelpdesk.Contracts.Security;
+using RngHelpdesk.Contracts.Users.Commands;
 using RngHelpdesk.Domain.Users;
 
 namespace RngHelpdesk.Operations.Users;
 
-public sealed class LinkDiscordAccountHandler
+public sealed class DelinkRunescapeAccountHandler
 {
     public void Handle(
         IRequestContext requestContext,
-        LinkDiscordAccountRequest request)
+        DelinkRunescapeAccountRequest request)
     {
         AuthorizationRules.RequireAdminRole(requestContext);
 
@@ -18,9 +19,8 @@ public sealed class LinkDiscordAccountHandler
             runescapeAccounts: []);
 
         // TODO: do I pass this in, or hit discord api for this or what?
-        var fakeusername = "FakeUser";
 
-        user.AddDiscordAccount(request.DiscordId, fakeusername);
+        user.RemoveRunescapeAccount(request.Username);
 
         // Later:
         // _userRepository.Save(user);

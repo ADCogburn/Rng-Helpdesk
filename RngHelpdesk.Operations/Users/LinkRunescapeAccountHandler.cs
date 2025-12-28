@@ -9,7 +9,7 @@ public sealed class LinkRunescapeAccountHandler
         IRequestContext requestContext,
         LinkRunescapeAccountRequest request)
     {
-        AuthorizationRules.RequireRole(requestContext, AuthorityRole.Administrator);
+        AuthorizationRules.RequireAdminRole(requestContext);
 
         // TEMP fake user (later: repository)
         var user = new User(

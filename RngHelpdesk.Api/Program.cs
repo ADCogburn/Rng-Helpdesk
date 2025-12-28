@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using RngHelpdesk.Api.Security;
 using RngHelpdesk.Api.Validators.Users;
+using RngHelpdesk.Operations.Points;
 using RngHelpdesk.Operations.Security;
 using RngHelpdesk.Operations.Users;
 using System.Text;
@@ -64,7 +65,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-    
+
 builder.Services.AddAuthorization();
 
 builder.Services.AddFluentValidationAutoValidation();
@@ -79,10 +80,15 @@ builder.Services.AddScoped<AuthorizationService>();
 
 builder.Services.AddScoped<ChangeAdminStatusHandler>();
 
+builder.Services.AddScoped<GetAllUsersHandler>();
 builder.Services.AddScoped<GetUserHandler>();
 builder.Services.AddScoped<GetRunescapeAccountHandler>();
 builder.Services.AddScoped<LinkRunescapeAccountHandler>();
 builder.Services.AddScoped<LinkDiscordAccountHandler>();
+
+builder.Services.AddScoped<AddPointsToUserHandler>();
+builder.Services.AddScoped<RemovePointsFromUserHandler>();
+builder.Services.AddScoped<GetPointHistoryForUserHandler>();
 
 var app = builder.Build();
 
