@@ -1,6 +1,6 @@
 ﻿using RngHelpdesk.Domain.Users;
 
-namespace RngHelpdesk.Domain.Ranks;
+namespace RngHelpdesk.Operations.Ranks;
 
 public sealed class RankResolver
 {
@@ -19,20 +19,20 @@ public sealed class RankResolver
     /// <param name="user"></param>
     /// <returns></returns>
     /// <exception cref="InvalidOperationException"></exception>
-    public Rank Resolve(User user)
+    public Rank Resolve(
+       AuthorityRole authorityRole,
+       int totalClanPoints)
     {
-        if (user.AuthorityRole != AuthorityRole.Member)
+        if (authorityRole != AuthorityRole.Member)
         {
-            return RankHelper.FromAuthority(user.AuthorityRole);
+            return RankHelper.FromAuthority(authorityRole);
         }
 
-        var match = _thresholds
-            .FirstOrDefault(t => user.ClanPoints >= t.PointsRequired);
+        var match = _thresholds.FirstOrDefault(t => totalClanPoints >= t.PointsRequired);
 
         if (match is null)
             throw new InvalidOperationException("No rank threshold matched.");
 
         return match.Rank;
     }
-
 }

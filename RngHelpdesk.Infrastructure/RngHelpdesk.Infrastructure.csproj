@@ -3,7 +3,6 @@
   <ItemGroup>
     <ProjectReference Include="..\RngHelpdesk.Contracts\RngHelpdesk.Contracts.csproj" />
     <ProjectReference Include="..\RngHelpdesk.Domain\RngHelpdesk.Domain.csproj" />
-    <ProjectReference Include="..\RngHelpdesk.Operations\RngHelpdesk.Operations.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

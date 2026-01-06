@@ -1,4 +1,4 @@
-﻿namespace RngHelpdesk.Domain.Ranks;
+﻿namespace RngHelpdesk.Operations.Ranks;
 
 public sealed class RankThreshold
 {

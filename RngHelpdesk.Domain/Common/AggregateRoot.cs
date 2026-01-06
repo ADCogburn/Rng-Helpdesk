@@ -2,17 +2,27 @@
 
 public abstract class AggregateRoot
 {
-    private readonly List<IDomainEvent> _domainEvents = new();
-
-    public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents;
+    private readonly List<IDomainEvent> _uncommittedDomainEvents = new();
+    public IReadOnlyCollection<IDomainEvent> UncommittedDomainEvents => _uncommittedDomainEvents;
 
     protected void RaiseDomainEvent(IDomainEvent domainEvent)
     {
-        _domainEvents.Add(domainEvent);
+        Apply(domainEvent);
+        _uncommittedDomainEvents.Add(domainEvent);
     }
 
-    public void ClearDomainEvents()
+    public void ClearUncommittedDomainEvents()
     {
-        _domainEvents.Clear();
+        _uncommittedDomainEvents.Clear();
     }
+
+    public void LoadFromHistory(IEnumerable<IDomainEvent> domainEvents)
+    {
+        foreach (var domainEvent in domainEvents)
+        {
+            Apply(domainEvent);
+        }
+    }
+
+    protected abstract void Apply(IDomainEvent domainEvent);
 }

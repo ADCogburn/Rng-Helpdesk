@@ -4,7 +4,10 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using RngHelpdesk.Api.Security;
 using RngHelpdesk.Api.Validators.Users;
+using RngHelpdesk.Infrastructure.Common;
+using RngHelpdesk.Infrastructure.Points;
 using RngHelpdesk.Operations.Points;
+using RngHelpdesk.Operations.Ranks;
 using RngHelpdesk.Operations.Security;
 using RngHelpdesk.Operations.Users;
 using System.Text;
@@ -71,14 +74,21 @@ builder.Services.AddAuthorization();
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<LinkRunescapeAccountRequestValidator>();
 
-// DI Container
+// --- *** --- DI Container --- *** ---
+
+// -- Adapter Level Services --
+
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddScoped<IRequestContextAccessor, HttpRequestContextAccessor>();
 builder.Services.AddScoped<IRequestContextFactory, HttpRequestContextFactory>();
 builder.Services.AddScoped<AuthorizationService>();
 
+// -- Operations Level Handlers --
+
 builder.Services.AddScoped<ChangeAdminStatusHandler>();
+
+builder.Services.AddSingleton<RankResolver>();
 
 builder.Services.AddScoped<GetAllUsersHandler>();
 builder.Services.AddScoped<GetUserHandler>();
@@ -89,6 +99,26 @@ builder.Services.AddScoped<LinkDiscordAccountHandler>();
 builder.Services.AddScoped<AddPointsToUserHandler>();
 builder.Services.AddScoped<RemovePointsFromUserHandler>();
 builder.Services.AddScoped<GetPointHistoryForUserHandler>();
+
+// -- Repositories --
+
+builder.Services.AddSingleton<IUserRepository, InMemUserRepository>();
+
+// -- Projection --
+
+builder.Services.AddSingleton<PointHistoryProjection>();
+
+// -- Event Dispatcher --
+
+builder.Services.AddSingleton<IEventDispatcher>(sp =>
+{
+    var handlers = new object[]
+    {
+        sp.GetRequiredService<PointHistoryProjection>()
+    };
+
+    return new InMemEventDispatcher(handlers);
+});
 
 var app = builder.Build();
 

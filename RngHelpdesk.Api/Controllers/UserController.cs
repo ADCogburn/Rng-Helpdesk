@@ -166,10 +166,16 @@ public sealed class UsersController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// Gets the point history for a user.
+    /// </summary>
+    /// <param name="id"></param>
+    /// <returns></returns>
     [HttpGet("{id:int}/point-history")]
-    public ActionResult<GetPointHistoryForUserReponse> GetPointHistoryForUser(int id)
+    public ActionResult<GetPointHistoryForUserResponse> GetPointHistoryForUser(int id)
     {
-        var response = _getPointHistoryHandler.Handle(_requestContext, id);
-        return Ok(response);
+        throw new NotImplementedException();
+        //var response = _getPointHistoryHandler.Handle(_requestContext, id);
+        //return Ok(response);
     }
 }

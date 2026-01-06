@@ -1,4 +1,10 @@
-﻿namespace RngHelpdesk.Domain.Users;
+﻿using RngHelpdesk.Domain.Common;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("RngHelpdesk.Operations")] // IMPROVE this is used to keep the rehydration User internal, but allow other projects to access it.
+                                                         // this should be changed somehow - maybe implement a factory pattern for rehydration instead.
+
+namespace RngHelpdesk.Domain.Users;
 
 public sealed class User : AggregateRoot
 {
@@ -16,8 +22,8 @@ public sealed class User : AggregateRoot
     public IReadOnlyCollection<RunescapeAccount> PreviousRunescapeAccounts => _previousRunescapeAccounts;
 
 
-    // ** Public Models With Private Setters **
-    public int ClanPoints { get; private set; }
+    // ** Non-Collection Models **
+    private int _currentClanPoints; // private field used as a cache when loading from history.
     public AuthorityRole AuthorityRole { get; private set; } = AuthorityRole.Member;
     public DateTime DateCreated { get; private set; } = DateTime.UtcNow;
     public bool IsActive { get; private set; } = true;
@@ -31,11 +37,15 @@ public sealed class User : AggregateRoot
     {
         Id = id;
         AuthorityRole = role;
-        ClanPoints = 0;
         IsActive = true;
 
         _discordAccounts = new List<DiscordAccount>(discordAccounts);
         _runescapeAccounts = new List<RunescapeAccount>(runescapeAccounts);
+    }
+
+    internal User()
+    {
+        // For rehydrating from events.
     }
 
     public void Deactivate()
@@ -48,6 +58,20 @@ public sealed class User : AggregateRoot
         IsActive = true;
     }
 
+    protected override void Apply(IDomainEvent domainEvent)
+    {
+        switch (domainEvent)
+        {
+            case ClanPointsChangedEvent e:
+                _currentClanPoints += e.Delta;
+                break;
+
+            default:
+                throw new DomainException(
+                    $"User aggregate cannot apply event type {domainEvent.GetType().Name}");
+        }
+    }
+
     public void AddClanPoints(int points, string reason)
     {
         if (points <= 0)
@@ -56,9 +80,7 @@ public sealed class User : AggregateRoot
         if (reason is null || reason == string.Empty)
             throw new ArgumentException("Reason for adding points must be provided.", nameof(reason));
 
-        ClanPoints += points;
-
-        RaiseDomainEvent(new ClanPointsChangedEvent(Id, points, reason, DateTime.UtcNow));
+        RaiseDomainEvent(new ClanPointsChangedEvent(Id, points, reason));
     }
 
     public void DeductClanPoints(int points, string reason)
@@ -66,10 +88,10 @@ public sealed class User : AggregateRoot
         if (points <= 0)
             throw new ArgumentException("Points to remove must be greater than zero.", nameof(points));
 
-        // IMPROVE: Handle reduction of points below zero to just hit/stay at zero, while still maintaining the domain event below correctly.
-        ClanPoints -= points;
+        if (_currentClanPoints - points < 0)
+            throw new DomainException("Cannot deduct clan points below zero.");
 
-        RaiseDomainEvent(new ClanPointsChangedEvent(Id, -points, reason, DateTime.UtcNow));
+        RaiseDomainEvent(new ClanPointsChangedEvent(Id, -points, reason));
     }
 
     public void AddDiscordAccount(ulong discordId, string username)
