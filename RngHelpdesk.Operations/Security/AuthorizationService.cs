@@ -1,37 +1,45 @@
 ﻿using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Domain.Users;
+using RngHelpdesk.Infrastructure.Users;
 
 namespace RngHelpdesk.Operations.Security;
 
 public sealed class AuthorizationService
 {
-    public AuthorizationService()
+    private readonly IActorUserResolver _actorUserResolver;
+    private readonly UserSummaryProjection _users;
+
+    public AuthorizationService(
+        IActorUserResolver actorUserResolver,
+        UserSummaryProjection users)
     {
-        // inject the user repo when infra is made
-        // inject the actor repo when infra is made
+        _actorUserResolver = actorUserResolver;
+        _users = users;
     }
 
-    public AuthorityRole GetAuthorityRoleForActor(Guid actorId)
+    public AuthorityRole ResolveAuthority(IRequestContext context)
     {
-        // TEMP: get actor from db, finding the user from there.
-        var actor = new Actor(
-            id: Guid.NewGuid(),
-            userId: 123,
-            actorType: ActorType.WebUser);
+        if (!context.IsAuthenticated ||
+            context.ActorType == ActorType.Unknown)
+        {
+            return AuthorityRole.Guest;
+        }
 
-        // TEMP: get user from db
-        var user = new User(
-            id: actor.UserId,
-            role: AuthorityRole.Administrator,
-            discordAccounts: new[] {
-                new DiscordAccount(123456789012345678, "FakeDiscordId"),
-                new DiscordAccount(123465789012345679, "OtherFakeId", false
-            )},
-            runescapeAccounts: new[]
-            {
-                new RunescapeAccount("FakeRSN_One"),
-                new RunescapeAccount("FakeRSN_Two")
-            });
+        if (context.ActorType == ActorType.Bot)
+        {
+            return AuthorityRole.Administrator;
+        }
+
+        var userId = _actorUserResolver.ResolveUserId(
+            context.ActorId,
+            context.ActorType);
+
+        if (userId is null)
+        {
+            return AuthorityRole.Guest;
+        }
+
+        var user = _users.GetSingleById(userId.Value);
 
         return user.AuthorityRole;
     }

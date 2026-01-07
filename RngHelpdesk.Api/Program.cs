@@ -4,12 +4,18 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using RngHelpdesk.Api.Security;
 using RngHelpdesk.Api.Validators.Users;
+using RngHelpdesk.Domain.Common;
+using RngHelpdesk.Domain.Users;
+using RngHelpdesk.Domain.Users.Events;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Points;
+using RngHelpdesk.Infrastructure.Users;
 using RngHelpdesk.Operations.Points;
 using RngHelpdesk.Operations.Ranks;
 using RngHelpdesk.Operations.Security;
 using RngHelpdesk.Operations.Users;
+using RngHelpdesk.Operations.Users.DiscordAccounts;
+using RngHelpdesk.Operations.Users.RunescapeAccounts;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -88,6 +94,8 @@ builder.Services.AddScoped<AuthorizationService>();
 
 builder.Services.AddScoped<ChangeAdminStatusHandler>();
 
+builder.Services.AddSingleton<IActorUserResolver, InMemoryActorUserResolver>();
+
 builder.Services.AddSingleton<RankResolver>();
 
 builder.Services.AddScoped<GetAllUsersHandler>();
@@ -107,6 +115,11 @@ builder.Services.AddSingleton<IUserRepository, InMemUserRepository>();
 // -- Projection --
 
 builder.Services.AddSingleton<PointHistoryProjection>();
+builder.Services.AddSingleton<UserSummaryProjection>();
+builder.Services.AddSingleton<UserLifecycleHistoryProjection>();
+builder.Services.AddSingleton<UserPointsTotalProjection>();
+builder.Services.AddSingleton<RunescapeAccountHistoryProjection>();
+builder.Services.AddSingleton<DiscordAccountHistoryProjection>();
 
 // -- Event Dispatcher --
 
@@ -121,6 +134,34 @@ builder.Services.AddSingleton<IEventDispatcher>(sp =>
 });
 
 var app = builder.Build();
+
+// TEMP: Seed in-mem data for debugging
+var userRepo = app.Services
+    .GetRequiredService<IUserRepository>() as InMemUserRepository;
+
+var dispatcher = app.Services
+    .GetRequiredService<IEventDispatcher>();
+
+var seedEvents = new IDomainEvent[]
+{
+    new UserCreatedEvent(
+        userId: 1,
+        authorityRole: AuthorityRole.Member,
+        discordAccounts: new[]
+        {
+            new DiscordAccount(
+                123456789012345678,
+                "Seeded Discord Account")
+        },
+        runescapeAccounts: Array.Empty<RunescapeAccount>()
+    )
+};
+
+userRepo!.Seed(1, seedEvents);
+
+dispatcher.Dispatch(seedEvents);
+
+// --- END TEMP ---
 
 app.UseDefaultFiles();
 app.MapStaticAssets();

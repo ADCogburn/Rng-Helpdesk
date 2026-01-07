@@ -21,9 +21,11 @@ public sealed class DevAuthController : ControllerBase
     [HttpPost("token")]
     public IActionResult GetDevToken()
     {
+        var actorId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+
         var claims = new[]
         {
-            new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
+            new Claim(ClaimTypes.NameIdentifier, actorId.ToString()),
             new Claim(ClaimTypes.Name, "DevUser"),
             new Claim(ClaimTypes.Role, "Admin")
         };

@@ -4,14 +4,14 @@ using RngHelpdesk.Contracts.Users.Commands;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Users;
 
-namespace RngHelpdesk.Operations.Users;
+namespace RngHelpdesk.Operations.Users.DiscordAccounts;
 
-public sealed class ChangeAdminStatusHandler
+public sealed class DelinkDiscordAccountHandler
 {
     private readonly IUserRepository _userRepository;
     private readonly IEventDispatcher _eventDispatcher;
 
-    public ChangeAdminStatusHandler(
+    public DelinkDiscordAccountHandler(
         IUserRepository userRepository,
         IEventDispatcher eventDispatcher)
     {
@@ -20,14 +20,14 @@ public sealed class ChangeAdminStatusHandler
     }
 
     public CommandResult Handle(
-        IRequestContext context,
-        ChangeAdminStatusRequest request)
+        IRequestContext requestContext,
+        DelinkDiscordAccountRequest request)
     {
-        AuthorizationRules.RequireSuperAdminRole(context);
+        AuthorizationRules.RequireAdminRole(requestContext);
 
         var user = _userRepository.GetById(request.UserId);
 
-        user.ChangeAuthorityRole(request.NewRole);
+        user.RemoveDiscordAccount(request.DiscordId);
 
         var events = _userRepository.Save(user);
 

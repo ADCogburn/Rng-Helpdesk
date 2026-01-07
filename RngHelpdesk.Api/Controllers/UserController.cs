@@ -8,6 +8,8 @@ using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Operations.Points;
 using RngHelpdesk.Operations.Users;
+using RngHelpdesk.Operations.Users.DiscordAccounts;
+using RngHelpdesk.Operations.Users.RunescapeAccounts;
 
 namespace RngHelpdesk.Api.Controllers;
 
@@ -82,7 +84,12 @@ public sealed class UsersController : ControllerBase
     [HttpGet("{id:int}/runescape-accounts")]
     public IActionResult GetRunescapeAccount(int id)
     {
-        var response = _getRunescapeHandler.Handle(_requestContext, id);
+        var query = new GetRunescapeAccountsQuery()
+        {
+            UserId = id
+        };
+
+        var response = _getRunescapeHandler.Handle(_requestContext, query);
         return Ok(response);
     }
 

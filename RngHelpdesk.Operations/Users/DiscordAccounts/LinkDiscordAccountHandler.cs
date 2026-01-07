@@ -1,17 +1,16 @@
 ﻿using RngHelpdesk.Contracts.Common;
 using RngHelpdesk.Contracts.Security;
-using RngHelpdesk.Contracts.Users.Commands;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Users;
 
-namespace RngHelpdesk.Operations.Users;
+namespace RngHelpdesk.Operations.Users.DiscordAccounts;
 
-public sealed class ChangeAdminStatusHandler
+public sealed class LinkDiscordAccountHandler
 {
     private readonly IUserRepository _userRepository;
     private readonly IEventDispatcher _eventDispatcher;
 
-    public ChangeAdminStatusHandler(
+    public LinkDiscordAccountHandler(
         IUserRepository userRepository,
         IEventDispatcher eventDispatcher)
     {
@@ -20,14 +19,16 @@ public sealed class ChangeAdminStatusHandler
     }
 
     public CommandResult Handle(
-        IRequestContext context,
-        ChangeAdminStatusRequest request)
+        IRequestContext requestContext,
+        LinkDiscordAccountRequest request)
     {
-        AuthorizationRules.RequireSuperAdminRole(context);
+        AuthorizationRules.RequireAdminRole(requestContext);
 
         var user = _userRepository.GetById(request.UserId);
 
-        user.ChangeAuthorityRole(request.NewRole);
+        user.AddDiscordAccount(
+            request.DiscordId,
+            request.Username); // supplied by adapter
 
         var events = _userRepository.Save(user);
 

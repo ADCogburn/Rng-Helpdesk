@@ -1,17 +1,16 @@
 ﻿using RngHelpdesk.Contracts.Common;
 using RngHelpdesk.Contracts.Security;
-using RngHelpdesk.Contracts.Users.Commands;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Users;
 
-namespace RngHelpdesk.Operations.Users;
+namespace RngHelpdesk.Operations.Users.RunescapeAccounts;
 
-public sealed class ChangeAdminStatusHandler
+public sealed class LinkRunescapeAccountHandler
 {
     private readonly IUserRepository _userRepository;
     private readonly IEventDispatcher _eventDispatcher;
 
-    public ChangeAdminStatusHandler(
+    public LinkRunescapeAccountHandler(
         IUserRepository userRepository,
         IEventDispatcher eventDispatcher)
     {
@@ -20,14 +19,14 @@ public sealed class ChangeAdminStatusHandler
     }
 
     public CommandResult Handle(
-        IRequestContext context,
-        ChangeAdminStatusRequest request)
+        IRequestContext requestContext,
+        LinkRunescapeAccountRequest request)
     {
-        AuthorizationRules.RequireSuperAdminRole(context);
+        AuthorizationRules.RequireAdminRole(requestContext);
 
         var user = _userRepository.GetById(request.UserId);
 
-        user.ChangeAuthorityRole(request.NewRole);
+        user.AddRunescapeAccount(request.Username);
 
         var events = _userRepository.Save(user);
 

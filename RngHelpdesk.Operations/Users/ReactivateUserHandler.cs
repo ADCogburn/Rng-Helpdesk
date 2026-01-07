@@ -6,12 +6,12 @@ using RngHelpdesk.Infrastructure.Users;
 
 namespace RngHelpdesk.Operations.Users;
 
-public sealed class ChangeAdminStatusHandler
+public sealed class ReactivateUserHandler
 {
     private readonly IUserRepository _userRepository;
     private readonly IEventDispatcher _eventDispatcher;
 
-    public ChangeAdminStatusHandler(
+    public ReactivateUserHandler(
         IUserRepository userRepository,
         IEventDispatcher eventDispatcher)
     {
@@ -21,16 +21,15 @@ public sealed class ChangeAdminStatusHandler
 
     public CommandResult Handle(
         IRequestContext context,
-        ChangeAdminStatusRequest request)
+        ReactivateUserRequest request)
     {
-        AuthorizationRules.RequireSuperAdminRole(context);
+        AuthorizationRules.RequireAdminRole(context);
 
         var user = _userRepository.GetById(request.UserId);
 
-        user.ChangeAuthorityRole(request.NewRole);
+        user.Reactivate();
 
         var events = _userRepository.Save(user);
-
         _eventDispatcher.Dispatch(events);
 
         return CommandResult.Ok();

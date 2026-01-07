@@ -1,119 +1,92 @@
 ﻿using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Contracts.Users.Views;
-using RngHelpdesk.Domain.Users;
 using RngHelpdesk.Infrastructure.Points;
+using RngHelpdesk.Infrastructure.Users;
 using RngHelpdesk.Operations.Ranks;
 
 namespace RngHelpdesk.Operations.Users;
 
-/// <summary>
-/// Get a single user by their Id, DiscordId, or Runescape username.
-/// </summary>
 public sealed class GetUserHandler
 {
+    private readonly UserSummaryProjection _users;
     private readonly UserPointsTotalProjection _pointsTotal;
     private readonly RankResolver _rankResolver;
 
     public GetUserHandler(
+        UserSummaryProjection users,
         UserPointsTotalProjection pointsTotal,
         RankResolver rankResolver)
     {
+        _users = users;
         _pointsTotal = pointsTotal;
         _rankResolver = rankResolver;
     }
 
-    /// <summary>
-    /// Get a single user by their Id.
-    /// </summary>
-    /// <param name="requestContext"></param>
-    /// <param name="query"></param>
-    /// <returns></returns>
-    public GetUserResponse Handle(IRequestContext requestContext, GetUserByIdQuery query)
+    public GetUserResponse Handle(
+        IRequestContext requestContext,
+        GetUserByIdQuery query)
     {
         AuthorizationRules.RequireAuthentication(requestContext);
 
-        // TEMP: fake data
-        var exampleDisabledAccount = new RunescapeAccount("Disabled_Account");
-        exampleDisabledAccount.Deactivate();
+        var user = _users.GetSingleById(query.UserId);
 
-        var user = new User(
-            id: query.userId,
-            role: AuthorityRole.Member,
-            discordAccounts: new[]
-            {
-            new DiscordAccount(123456789012345678, "FakeDiscordId"),
-            new DiscordAccount(123465789012345679, "OtherFakeId", false)
-            },
-            runescapeAccounts: new[]
-            {
-            new RunescapeAccount("FakeRSN_One"),
-            new RunescapeAccount("FakeRSN_Two"),
-            exampleDisabledAccount
-            });
+        return MapToResponse(user);
+    }
 
-        // READ-SIDE DATA
-        var totalPoints = _pointsTotal.GetTotalPoints(user.Id);
+    public GetUserResponse Handle(
+        IRequestContext requestContext,
+        GetUserByDiscordIdQuery query)
+    {
+        AuthorizationRules.RequireAuthentication(requestContext);
+
+        var user = _users.GetByDiscordId(query.DiscordAccountId);
+
+        return MapToResponse(user);
+    }
+
+    public GetUserResponse Handle(
+        IRequestContext requestContext,
+        GetUserByRunescapeUsernameQuery query)
+    {
+        AuthorizationRules.RequireAuthentication(requestContext);
+
+        var user = _users.GetByRunescapeUsername(query.RunescapeUsername);
+
+        return MapToResponse(user);
+    }
+
+    private GetUserResponse MapToResponse(UserSummaryReadModel user)
+    {
+        var totalPoints = _pointsTotal.GetTotalPoints(user.UserId);
 
         var rank = _rankResolver.Resolve(
             user.AuthorityRole,
-            totalPoints
-        );
+            totalPoints);
 
         return new GetUserResponse
         {
-            Id = user.Id,
+            Id = user.UserId,
             ClanPoints = totalPoints,
             Rank = rank.ToString(),
             IsActive = user.IsActive,
             DateCreated = user.DateCreated,
 
             RunescapeAccounts = user.RunescapeAccounts
-                .Select(x => new RunescapeAccountView
+                .Select(a => new RunescapeAccountView
                 {
-                    Username = x.Username,
-                    IsActive = x.IsActive
+                    Username = a.Username
                 })
                 .ToList(),
 
             DiscordAccounts = user.DiscordAccounts
-                .Select(x => new DiscordAccountView
+                .Select(d => new DiscordAccountView
                 {
-                    DiscordId = x.DiscordId,
-                    Username = x.Username,
-                    IsActive = x.IsActive
+                    DiscordId = d.DiscordId,
+                    Username = d.Username,
+                    IsActive = d.IsActive
                 })
                 .ToList()
         };
-    }
-
-    /// <summary>
-    /// Get a single user by their DiscordId
-    /// </summary>
-    /// <param name="requestContext"></param>
-    /// <param name="query"></param>
-    /// <returns></returns>
-    /// <exception cref="NotImplementedException"></exception>
-    public GetUserResponse Handle(IRequestContext requestContext, GetUserByDiscordIdQuery query)
-    {
-        AuthorizationRules.RequireAuthentication(requestContext);
-        // Implementation would be similar to the GetUserByIdQuery handler,
-        // but would retrieve the user based on the provided DiscordId.
-        throw new NotImplementedException();
-    }
-
-    /// <summary>
-    /// Get a single user by their Runescape username.
-    /// </summary>
-    /// <param name="requestContext"></param>
-    /// <param name="query"></param>
-    /// <returns></returns>
-    /// <exception cref="NotImplementedException"></exception>
-    public GetUserResponse Handle(IRequestContext requestContext, GetUserByRunescapeUsernameQuery query)
-    {
-        AuthorizationRules.RequireAuthentication(requestContext);
-        // Implementation would be similar to the GetUserByIdQuery handler,
-        // but would retrieve the user based on the provided Runescape username.
-        throw new NotImplementedException();
     }
 }

@@ -2,6 +2,7 @@
 using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Domain.Users;
 using RngHelpdesk.Infrastructure.Common;
+using RngHelpdesk.Infrastructure.Users;
 
 namespace RngHelpdesk.Operations.Points;
 

@@ -7,7 +7,7 @@ using System.Security.Claims;
 /// </summary>
 public sealed class HttpRequestContextFactory : IRequestContextFactory
 {
-    public readonly AuthorizationService _authService;
+    private readonly AuthorizationService _authService;
 
     public HttpRequestContextFactory(AuthorizationService authService)
     {
@@ -25,14 +25,21 @@ public sealed class HttpRequestContextFactory : IRequestContextFactory
             user.FindFirstValue(ClaimTypes.NameIdentifier)!
         );
 
-        var authorityRole = _authService.GetAuthorityRoleForActor(actorId);
+        var baseContext = new RequestContext
+        {
+            ActorId = actorId,
+            ActorType = ActorType.WebUser,
+            IsAuthenticated = true
+        };
+
+        var authority = _authService.ResolveAuthority(baseContext);
 
         return new RequestContext
         {
             ActorId = actorId,
             ActorType = ActorType.WebUser,
-            AuthorityRole = authorityRole,
-            IsAuthenticated = true
+            IsAuthenticated = true,
+            AuthorityRole = authority
         };
     }
 }

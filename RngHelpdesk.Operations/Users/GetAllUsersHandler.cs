@@ -1,22 +1,24 @@
 ﻿using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Queries;
-using RngHelpdesk.Contracts.Users.Views;
-using RngHelpdesk.Domain.Users;
 using RngHelpdesk.Infrastructure.Points;
+using RngHelpdesk.Infrastructure.Users;
 using RngHelpdesk.Operations.Ranks;
 
 namespace RngHelpdesk.Operations.Users;
 
 public sealed class GetAllUsersHandler
 {
-    private readonly UserPointsTotalProjection _pointsTotal;
+    private readonly UserSummaryProjection _users;
+    private readonly UserPointsTotalProjection _points;
     private readonly RankResolver _rankResolver;
 
     public GetAllUsersHandler(
-        UserPointsTotalProjection pointsTotal,
+        UserSummaryProjection users,
+        UserPointsTotalProjection points,
         RankResolver rankResolver)
     {
-        _pointsTotal = pointsTotal;
+        _users = users;
+        _points = points;
         _rankResolver = rankResolver;
     }
 
@@ -24,60 +26,30 @@ public sealed class GetAllUsersHandler
     {
         AuthorizationRules.RequireAdminRole(requestContext);
 
-        // TEMP: fake user identity data
-        var user = new User(
-            id: 123,
-            role: AuthorityRole.Member,
-            discordAccounts: new[]
-            {
-                new DiscordAccount(123456789012345678, "FakeDiscordId"),
-                new DiscordAccount(123465789012345679, "OtherFakeId", false)
-            },
-            runescapeAccounts: new[]
-            {
-                new RunescapeAccount("FakeRSN_One"),
-                new RunescapeAccount("FakeRSN_Two")
-            });
-
-        // READ-SIDE DATA
-        var totalPoints = _pointsTotal.GetTotalPoints(user.Id);
-
-        var rank = _rankResolver.Resolve(
-            user.AuthorityRole,
-            totalPoints
-        );
+        var users = _users.GetAll();
 
         return new GetAllUsersResponse
         {
-            TotalCount = 1,
-            Users = new[]
+            TotalCount = users.Count,
+            Users = users.Select(u =>
             {
-                new GetUserResponse
+                var totalPoints = _points.GetTotalPoints(u.UserId);
+                var rank = _rankResolver.Resolve(
+                    u.AuthorityRole,
+                    totalPoints
+                );
+
+                return new GetUserResponse
                 {
-                    Id = user.Id,
+                    Id = u.UserId,
                     ClanPoints = totalPoints,
                     Rank = rank.ToString(),
-                    IsActive = user.IsActive,
-                    DateCreated = user.DateCreated,
-
-                    RunescapeAccounts = user.RunescapeAccounts
-                        .Select(x => new RunescapeAccountView
-                        {
-                            Username = x.Username,
-                            IsActive = x.IsActive
-                        })
-                        .ToList(),
-
-                    DiscordAccounts = user.DiscordAccounts
-                        .Select(x => new DiscordAccountView
-                        {
-                            DiscordId = x.DiscordId,
-                            Username = x.Username,
-                            IsActive = x.IsActive
-                        })
-                        .ToList()
-                }
-            }
+                    IsActive = u.IsActive,
+                    DateCreated = u.DateCreated,
+                    RunescapeAccounts = u.RunescapeAccounts.ToList(),
+                    DiscordAccounts = u.DiscordAccounts.ToList()
+                };
+            }).ToList()
         };
     }
 }

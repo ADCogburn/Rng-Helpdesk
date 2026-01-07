@@ -6,12 +6,12 @@ using RngHelpdesk.Infrastructure.Users;
 
 namespace RngHelpdesk.Operations.Users;
 
-public sealed class ChangeAdminStatusHandler
+public sealed class RenameRunescapeAccountHandler
 {
     private readonly IUserRepository _userRepository;
     private readonly IEventDispatcher _eventDispatcher;
 
-    public ChangeAdminStatusHandler(
+    public RenameRunescapeAccountHandler(
         IUserRepository userRepository,
         IEventDispatcher eventDispatcher)
     {
@@ -20,14 +20,16 @@ public sealed class ChangeAdminStatusHandler
     }
 
     public CommandResult Handle(
-        IRequestContext context,
-        ChangeAdminStatusRequest request)
+        IRequestContext requestContext,
+        RenameRunescapeAccountRequest request)
     {
-        AuthorizationRules.RequireSuperAdminRole(context);
+        AuthorizationRules.RequireAdminRole(requestContext);
 
         var user = _userRepository.GetById(request.UserId);
 
-        user.ChangeAuthorityRole(request.NewRole);
+        user.RenameRunescapeAccount(
+            request.OldUsername,
+            request.NewUsername);
 
         var events = _userRepository.Save(user);
 
