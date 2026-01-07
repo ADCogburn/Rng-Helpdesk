@@ -31,9 +31,7 @@ public sealed class RemovePointsFromUserHandler
 
         user.DeductClanPoints(request.Points, request.Reason);
 
-        var events = user.UncommittedDomainEvents;
-
-        _userRepository.Save(user);
+        var events = _userRepository.Save(user);
 
         _eventDispatcher.Dispatch(events);
     }

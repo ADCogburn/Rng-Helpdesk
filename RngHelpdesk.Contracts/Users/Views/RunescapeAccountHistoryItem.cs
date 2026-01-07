@@ -2,23 +2,18 @@
 
 public sealed class RunescapeAccountHistoryItem
 {
-    public string Username { get; init; } = string.Empty;
+    public RunescapeAccountChangeType ChangeType { get; init; }
 
-    /// <summary>
-    /// True if this is currently linked to the user.
-    /// </summary>
-    public bool IsCurrent { get; init; }
-
-    /// <summary>
-    /// True if this username was delinked.
-    /// </summary>
-    public bool IsDelinked { get; init; }
-
-    /// <summary>
-    /// True if this username was replaced by a rename.
-    /// </summary>
-    public bool IsPreviousName { get; init; }
+    public string? Username { get; init; }
+    public string? OldUsername { get; init; }
+    public string? NewUsername { get; init; }
 
     public DateTime OccurredAt { get; init; }
 }
 
+public enum RunescapeAccountChangeType
+{
+    Linked,
+    Renamed,
+    Delinked
+}

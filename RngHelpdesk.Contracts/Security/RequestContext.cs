@@ -26,4 +26,6 @@ public sealed class RequestContext : IRequestContext
     /// Has the user been authenticated by the adapter?
     /// </summary>
     public bool IsAuthenticated { get; init; }
+
+    AuthorityRole? IRequestContext.AuthorityRole => AuthorityRole;
 }

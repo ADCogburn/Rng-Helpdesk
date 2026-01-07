@@ -24,7 +24,6 @@
   <ItemGroup>
     <ProjectReference Include="..\RngHelpdesk.Domain\RngHelpdesk.Domain.csproj" />
     <ProjectReference Include="..\RngHelpdesk.Contracts\RngHelpdesk.Contracts.csproj" />
-    <ProjectReference Include="..\RngHelpdesk.Handlers\RngHelpdesk.Operations.csproj" />
     <ProjectReference Include="..\RngHelpdesk.Infrastructure\RngHelpdesk.Infrastructure.csproj" />
     <ProjectReference Include="..\RngHelpdesk.Operations\RngHelpdesk.Operations.csproj" />
   </ItemGroup>

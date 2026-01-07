@@ -1,4 +1,5 @@
 ﻿using RngHelpdesk.Domain.Users;
+using System.Diagnostics;
 
 namespace RngHelpdesk.Operations.Ranks;
 
@@ -11,6 +12,13 @@ public sealed class RankResolver
         _thresholds = thresholds
             .OrderByDescending(t => t.PointsRequired)
             .ToList();
+
+        Debug.Assert(Resolve(AuthorityRole.Member, 0) == Rank.Bronze);
+        Debug.Assert(Resolve(AuthorityRole.Member, 99) == Rank.Bronze);
+        Debug.Assert(Resolve(AuthorityRole.Member, 100) == Rank.Iron);
+        Debug.Assert(Resolve(AuthorityRole.Member, 199) == Rank.Iron);
+        Debug.Assert(Resolve(AuthorityRole.Member, 200) == Rank.Steel);
+
     }
 
     /// <summary>

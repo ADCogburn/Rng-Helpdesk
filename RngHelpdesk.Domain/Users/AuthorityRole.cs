@@ -2,7 +2,6 @@
 
 public enum AuthorityRole
 {
-    Guest,
     Member,
     Administrator,
     SuperAdministrator,

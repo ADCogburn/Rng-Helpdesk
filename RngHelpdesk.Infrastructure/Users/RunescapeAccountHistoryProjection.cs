@@ -15,33 +15,19 @@ public sealed class RunescapeAccountHistoryProjection :
     {
         Add(e.UserId, new RunescapeAccountHistoryItem
         {
+            ChangeType = RunescapeAccountChangeType.Linked,
             Username = e.Username,
-            IsCurrent = true,
-            IsDelinked = false,
-            IsPreviousName = false,
             OccurredAt = e.OccurredAt
         });
     }
 
     public void Project(RunescapeAccountRenamedEvent e)
     {
-        // old username becomes "previous"
         Add(e.UserId, new RunescapeAccountHistoryItem
         {
-            Username = e.OldUsername,
-            IsCurrent = false,
-            IsDelinked = false,
-            IsPreviousName = true,
-            OccurredAt = e.OccurredAt
-        });
-
-        // new username becomes current
-        Add(e.UserId, new RunescapeAccountHistoryItem
-        {
-            Username = e.NewUsername,
-            IsCurrent = true,
-            IsDelinked = false,
-            IsPreviousName = false,
+            ChangeType = RunescapeAccountChangeType.Renamed,
+            OldUsername = e.OldUsername,
+            NewUsername = e.NewUsername,
             OccurredAt = e.OccurredAt
         });
     }
@@ -50,10 +36,8 @@ public sealed class RunescapeAccountHistoryProjection :
     {
         Add(e.UserId, new RunescapeAccountHistoryItem
         {
+            ChangeType = RunescapeAccountChangeType.Delinked,
             Username = e.Username,
-            IsCurrent = false,
-            IsDelinked = true,
-            IsPreviousName = false,
             OccurredAt = e.OccurredAt
         });
     }

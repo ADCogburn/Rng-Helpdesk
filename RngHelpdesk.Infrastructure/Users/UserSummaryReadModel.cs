@@ -9,6 +9,7 @@ public sealed record UserSummaryReadModel
     public AuthorityRole AuthorityRole { get; init; }
     public bool IsActive { get; init; }
     public DateTime DateCreated { get; init; }
+    public int ClanPoints { get; init; }
     public IReadOnlyList<RunescapeAccountView> RunescapeAccounts { get; init; } = [];
     public IReadOnlyList<DiscordAccountView> DiscordAccounts { get; init; } = [];
 }

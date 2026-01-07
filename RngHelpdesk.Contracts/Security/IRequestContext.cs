@@ -1,5 +1,4 @@
-﻿using RngHelpdesk.Domain.Common;
-using RngHelpdesk.Domain.Users;
+﻿using RngHelpdesk.Domain.Users;
 
 namespace RngHelpdesk.Contracts.Security;
 
@@ -8,7 +7,8 @@ public interface IRequestContext
     Guid ActorId { get; }
     ActorType ActorType { get; }
 
-    AuthorityRole AuthorityRole { get; }
-
     bool IsAuthenticated { get; }
+
+    // null if no user (e.g. Discord Bot, WiseOldMan data input, etc.)
+    AuthorityRole? AuthorityRole { get; }
 }

@@ -29,9 +29,7 @@ public sealed class AddPointsToUserHandler
 
         user.AddClanPoints(request.Points, request.Reason);
 
-        var events = user.UncommittedDomainEvents;
-
-        _userRepository.Save(user);
+        var events = _userRepository.Save(user);
 
         _eventDispatcher.Dispatch(events);
     }
