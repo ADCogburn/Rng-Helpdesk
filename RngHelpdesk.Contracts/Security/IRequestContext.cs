@@ -1,13 +1,14 @@
-﻿namespace RngHelpdesk.Contracts.Security;
+﻿using RngHelpdesk.Domain.Common;
+using RngHelpdesk.Domain.Users;
+
+namespace RngHelpdesk.Contracts.Security;
 
 public interface IRequestContext
 {
     Guid ActorId { get; }
     ActorType ActorType { get; }
 
-    IReadOnlySet<string> Roles { get; }
-    IReadOnlySet<string> Claims { get; }
+    AuthorityRole AuthorityRole { get; }
 
     bool IsAuthenticated { get; }
-    bool IsMember { get; }
 }

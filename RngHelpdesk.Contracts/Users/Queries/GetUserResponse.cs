@@ -2,6 +2,14 @@
 
 namespace RngHelpdesk.Contracts.Users.Queries;
 
+// -- Queries for the "get user" request that returns user data --
+
+public sealed record GetUserByIdQuery(int UserId);
+public sealed record GetUserByDiscordIdQuery(ulong DiscordAccountId);
+public sealed record GetUserByRunescapeUsernameQuery(string RunescapeUsername);
+
+// -- Returned promise data --
+
 /// <summary>
 /// The promise data of a user.
 /// </summary>

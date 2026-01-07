@@ -1,4 +1,5 @@
 ﻿using RngHelpdesk.Contracts.Security;
+using RngHelpdesk.Operations.Security;
 using System.Security.Claims;
 
 /// <summary>
@@ -6,6 +7,13 @@ using System.Security.Claims;
 /// </summary>
 public sealed class HttpRequestContextFactory : IRequestContextFactory
 {
+    private readonly AuthorizationService _authService;
+
+    public HttpRequestContextFactory(AuthorizationService authService)
+    {
+        _authService = authService;
+    }
+
     public IRequestContext CreateHttpContext(HttpContext httpContext)
     {
         var user = httpContext.User;
@@ -17,18 +25,21 @@ public sealed class HttpRequestContextFactory : IRequestContextFactory
             user.FindFirstValue(ClaimTypes.NameIdentifier)!
         );
 
-        var roles = user.FindAll(ClaimTypes.Role)
-                        .Select(r => r.Value)
-                        .ToHashSet();
+        var baseContext = new RequestContext
+        {
+            ActorId = actorId,
+            ActorType = ActorType.WebUser,
+            IsAuthenticated = true
+        };
+
+        var authority = _authService.ResolveAuthority(baseContext);
 
         return new RequestContext
         {
             ActorId = actorId,
             ActorType = ActorType.WebUser,
-            Roles = roles,
-            Claims = user.Claims.Select(c => c.Type).ToHashSet(),
             IsAuthenticated = true,
-            IsMember = roles.Contains("Member") || roles.Contains("Admin")
+            AuthorityRole = authority
         };
     }
 }

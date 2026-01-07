@@ -1,4 +1,6 @@
-﻿namespace RngHelpdesk.Contracts.Security;
+﻿using RngHelpdesk.Domain.Users;
+
+namespace RngHelpdesk.Contracts.Security;
 
 /// <summary>
 /// Entire context of a request going into the handlers.
@@ -16,20 +18,12 @@ public sealed class RequestContext : IRequestContext
     public ActorType ActorType { get; init; }
 
     /// <summary>
-    /// The role(s) the user has. Currently only one is used, but leaving it open for flexibility.
+    /// The administrative role of the user.
     /// </summary>
-    public IReadOnlySet<string> Roles { get; init; } = new HashSet<string>();
-    /// <summary>
-    /// The claim(s) the user has.
-    /// </summary>
-    public IReadOnlySet<string> Claims { get; init; } = new HashSet<string>();
+    public AuthorityRole AuthorityRole { get; init; }
 
     /// <summary>
     /// Has the user been authenticated by the adapter?
     /// </summary>
     public bool IsAuthenticated { get; init; }
-    /// <summary>
-    /// Is this user a verified member of the clan?
-    /// </summary>
-    public bool IsMember { get; init; }
 }

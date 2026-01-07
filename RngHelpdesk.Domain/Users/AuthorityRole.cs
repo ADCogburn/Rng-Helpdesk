@@ -2,8 +2,9 @@
 
 public enum AuthorityRole
 {
+    Guest,
     Member,
     Administrator,
-    DeputyOwner,
+    SuperAdministrator,
     Owner
 }

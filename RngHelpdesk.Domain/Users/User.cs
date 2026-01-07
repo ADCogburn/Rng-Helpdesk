@@ -1,45 +1,129 @@
-﻿namespace RngHelpdesk.Domain.Users;
+﻿using RngHelpdesk.Domain.Common;
+using RngHelpdesk.Domain.Users.Events;
+using System.Runtime.CompilerServices;
 
-public sealed class User
+[assembly: InternalsVisibleTo("RngHelpdesk.Infrastructure")] // IMPROVE this is used to keep the rehydration User internal, but allow other projects to access it.
+                                                             // this should be changed somehow - maybe implement a factory pattern for rehydration instead.
+
+namespace RngHelpdesk.Domain.Users;
+
+public sealed class User : AggregateRoot
 {
-    public int Id { get; set; }
-    public List<DiscordAccount> DiscordAccounts { get; } = new();
-    public List<RunescapeAccount> RunescapeAccounts { get; } = new();
-    public List<RunescapeAccount> PreviousRunescapeAccounts { get; } = new();
-    public int ClanPoints { get; private set; }
+    public int Id { get; private set; }
+
+    // ** Private Backing Fields **
+    private readonly List<DiscordAccount> _discordAccounts = new();
+    private readonly List<RunescapeAccount> _runescapeAccounts = new();
+
+
+    // ** Public Read Models **
+    public IReadOnlyCollection<DiscordAccount> DiscordAccounts => _discordAccounts;
+    public IReadOnlyCollection<RunescapeAccount> RunescapeAccounts => _runescapeAccounts;
+
+
+    // ** Non-Collection Models **
+    private int _currentClanPoints; // private field used as a cache when loading from history.
     public AuthorityRole AuthorityRole { get; private set; } = AuthorityRole.Member;
     public DateTime DateCreated { get; private set; } = DateTime.UtcNow;
-
     public bool IsActive { get; private set; } = true;
 
-    public User(
-        int id,
-        AuthorityRole role,
+    internal User()
+    {
+        // For rehydrating from events.
+    }
+
+    public static User Create(
+        int userId,
+        AuthorityRole authorityRole,
         IEnumerable<DiscordAccount> discordAccounts,
         IEnumerable<RunescapeAccount> runescapeAccounts)
     {
-        Id = id;
-        AuthorityRole = role;
-        ClanPoints = 0;
-        IsActive = true;
+        var user = new User();
 
-        DiscordAccounts = new List<DiscordAccount>(discordAccounts);
-        RunescapeAccounts = new List<RunescapeAccount>(runescapeAccounts);
+        user.RaiseDomainEvent(new UserCreatedEvent(
+            userId,
+            authorityRole,
+            discordAccounts,
+            runescapeAccounts));
+
+        return user;
     }
 
+    protected override void Apply(IDomainEvent domainEvent)
+    {
+        switch (domainEvent)
+        {
+            case UserCreatedEvent e:
+                Id = e.UserId;
+                AuthorityRole = e.AuthorityRole;
+                IsActive = true;
+                DateCreated = e.OccurredAt;
+                _discordAccounts.AddRange(e.DiscordAccounts);
+                _runescapeAccounts.AddRange(e.RunescapeAccounts);
+                break;
 
+            case UserDeactivatedEvent e:
+                IsActive = false;
+                break;
+
+            case UserReactivatedEvent e:
+                IsActive = true;
+                break;
+
+            case ClanPointsChangedEvent e:
+                _currentClanPoints += e.Delta;
+                break;
+
+            case AuthorityRoleChangedEvent e:
+                AuthorityRole = e.NewRole;
+                break;
+
+            case DiscordAccountLinkedEvent e:
+                _discordAccounts.Add(new DiscordAccount(
+                    e.DiscordId,
+                    e.Username));
+                break;
+
+            case DiscordAccountDelinkedEvent e:
+                _discordAccounts.RemoveAll(x => x.DiscordId == e.DiscordId);
+                break;
+
+            case RunescapeAccountLinkedEvent e:
+                _runescapeAccounts.Add(new RunescapeAccount(e.Username));
+                break;
+
+            case RunescapeAccountDelinkedEvent e:
+                _runescapeAccounts.RemoveAll(x => x.Username.Equals(e.Username, StringComparison.OrdinalIgnoreCase));
+                break;
+
+            case RunescapeAccountRenamedEvent e:
+                _runescapeAccounts.RemoveAll(x => x.Username.Equals(e.OldUsername, StringComparison.OrdinalIgnoreCase));
+                _runescapeAccounts.Add(new RunescapeAccount(e.NewUsername));
+                break;
+
+            default:
+                throw new DomainException(
+                    $"User aggregate cannot apply event type {domainEvent.GetType().Name}");
+        }
+    }
 
     public void Deactivate()
     {
-        IsActive = false;
+        if (!IsActive)
+            return;
+
+        RaiseDomainEvent(new UserDeactivatedEvent(Id));
     }
 
-    public void Activate()
+    public void Reactivate()
     {
-        IsActive = true;
+        if (IsActive)
+            return;
+
+        RaiseDomainEvent(new UserReactivatedEvent(Id));
     }
 
-    public PointsEvent AddClanPoints(int points, string reason)
+    public void AddClanPoints(int points, string reason)
     {
         if (points <= 0)
             throw new ArgumentException("Points to add must be greater than zero.", nameof(points));
@@ -47,73 +131,95 @@ public sealed class User
         if (reason is null || reason == string.Empty)
             throw new ArgumentException("Reason for adding points must be provided.", nameof(reason));
 
-        ClanPoints += points;
-
-        return new PointsEvent(
-            userId: Id,
-            delta: points,
-            reason: reason,
-            occurredAt: DateTime.UtcNow
-        );
+        RaiseDomainEvent(new ClanPointsChangedEvent(Id, points, reason));
     }
 
-    public void DeductClanPoints(int points)
+    public void DeductClanPoints(int points, string reason)
     {
         if (points <= 0)
             throw new ArgumentException("Points to remove must be greater than zero.", nameof(points));
 
-        if (ClanPoints - points < 0)
-            ClanPoints = 0;
-        else
-            ClanPoints -= points;
+        if (_currentClanPoints - points < 0)
+            throw new DomainException("Cannot deduct clan points below zero.");
+
+        RaiseDomainEvent(new ClanPointsChangedEvent(Id, -points, reason));
     }
 
     public void AddDiscordAccount(ulong discordId, string username)
     {
-        if (DiscordAccounts.Any(da => da.DiscordId == discordId))
-            return;
+        if (_discordAccounts.Any(a => a.DiscordId == discordId))
+            throw new DomainException("Discord account already linked.");
 
-        DiscordAccounts.Add(new DiscordAccount(discordId, username));
+        RaiseDomainEvent(new DiscordAccountLinkedEvent(
+            Id,
+            discordId,
+            username));
     }
 
     public void RemoveDiscordAccount(ulong discordId)
     {
-        var account = DiscordAccounts.FirstOrDefault(da => da.DiscordId == discordId);
-        if (account != null)
-        {
-            DiscordAccounts.Remove(account);
-        }
+        var account = _discordAccounts.FirstOrDefault(a => a.DiscordId == discordId);
+
+        if (account is null)
+            throw new DomainException("Discord account not linked.");
+
+        RaiseDomainEvent(new DiscordAccountDelinkedEvent(
+            Id,
+            discordId));
     }
 
     public void AddRunescapeAccount(string username)
     {
-        if (RunescapeAccounts.Any(ra => ra.Username.Equals(username, StringComparison.OrdinalIgnoreCase)))
-            return;
+        if (_runescapeAccounts.Any(a =>
+            a.Username.Equals(username, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new DomainException("Runescape account already linked.");
+        }
 
-        RunescapeAccounts.Add(new RunescapeAccount(username));
+        RaiseDomainEvent(new RunescapeAccountLinkedEvent(
+            Id,
+            username));
+    }
+
+    public void RenameRunescapeAccount(string oldUsername, string newUsername)
+    {
+        var account = _runescapeAccounts.FirstOrDefault(a =>
+            a.Username.Equals(oldUsername, StringComparison.OrdinalIgnoreCase));
+
+        if (account is null)
+            throw new DomainException("Runescape account not found.");
+
+        if (_runescapeAccounts.Any(a =>
+            a.Username.Equals(newUsername, StringComparison.OrdinalIgnoreCase)))
+            throw new DomainException("Runescape account already exists.");
+
+        RaiseDomainEvent(new RunescapeAccountRenamedEvent(
+            Id,
+            oldUsername,
+            newUsername));
     }
 
     public void RemoveRunescapeAccount(string username)
     {
-        var account = RunescapeAccounts.FirstOrDefault(ra => ra.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
+        var account = _runescapeAccounts.FirstOrDefault(a =>
+            a.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
 
-        if (account != null)
-        {
-            RunescapeAccounts.Remove(account);
-            PreviousRunescapeAccounts.Add(account);
-        }
+        if (account is null)
+            throw new DomainException("Runescape account not linked.");
+
+        RaiseDomainEvent(new RunescapeAccountDelinkedEvent(
+            Id,
+            username));
     }
 
-    public void ChangeRunescapeUsername(string currentUsername, string newUsername)
+    public void ChangeAuthorityRole(AuthorityRole newRole)
     {
-        var account = RunescapeAccounts.FirstOrDefault(ra => ra.Username.Equals(currentUsername, StringComparison.OrdinalIgnoreCase));
-        if (account == null)
-            throw new ArgumentException("Runescape account not found.", nameof(currentUsername));
+        if (AuthorityRole == newRole)
+            return;
 
-        RunescapeAccounts.Remove(account);
-        PreviousRunescapeAccounts.Add(account);
-
-        var newAccount = new RunescapeAccount(newUsername);
-        RunescapeAccounts.Add(newAccount);
+        RaiseDomainEvent(new AuthorityRoleChangedEvent(
+            Id,
+            AuthorityRole,
+            newRole));
     }
 }
