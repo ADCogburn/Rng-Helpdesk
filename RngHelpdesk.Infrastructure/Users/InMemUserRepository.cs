@@ -3,50 +3,36 @@ using RngHelpdesk.Domain.Users;
 
 namespace RngHelpdesk.Infrastructure.Users;
 
-public class InMemUserRepository : IUserRepository
+public sealed class InMemUserRepository : IUserRepository
 {
-    private readonly Dictionary<int, User> _users = new();
     private readonly Dictionary<int, List<IDomainEvent>> _events = new();
+
+    public bool Exists(int userId) => _events.ContainsKey(userId);
 
     public User GetById(int userId)
     {
-        if (!_users.TryGetValue(userId, out var user))
-        {
-            throw new InvalidOperationException($"User {userId} not found.");
-        }
+        if (!_events.TryGetValue(userId, out var events))
+            throw new InvalidOperationException($"User {userId} not found");
 
-        // Rehydrate event-sourced state
-        if (_events.TryGetValue(userId, out var history))
-        {
-            user.LoadFromHistory(history);
-        }
-
-        return user;
+        return User.Rehydrate(events);
     }
 
     public IReadOnlyCollection<IDomainEvent> Save(User user)
     {
-        if (!_users.ContainsKey(user.Id))
+        if (!_events.TryGetValue(user.Id, out var stream))
         {
-            _users[user.Id] = user;
+            stream = new List<IDomainEvent>();
+            _events[user.Id] = stream;
         }
 
-        if (!_events.TryGetValue(user.Id, out var history))
-        {
-            history = new List<IDomainEvent>();
-            _events[user.Id] = history;
-        }
+        var newEvents = user.UncommittedDomainEvents.ToArray();
 
-        history.AddRange(user.UncommittedDomainEvents);
-
-        var events = user.UncommittedDomainEvents.ToList();
+        stream.AddRange(newEvents);
 
         user.ClearUncommittedDomainEvents();
 
-        return events;
+        return newEvents;
     }
-
-    public bool Exists(int userId) => _events.ContainsKey(userId);
 
     public void Seed(int userId, IEnumerable<IDomainEvent> events)
     {

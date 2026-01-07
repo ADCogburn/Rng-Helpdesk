@@ -8,6 +8,7 @@ public sealed class UserSummaryProjection :
     IProjectionHandler<UserCreatedEvent>,
     IProjectionHandler<UserDeactivatedEvent>,
     IProjectionHandler<UserReactivatedEvent>,
+    IProjectionHandler<ClanPointsChangedEvent>,
     IProjectionHandler<AuthorityRoleChangedEvent>,
     IProjectionHandler<DiscordAccountLinkedEvent>,
     IProjectionHandler<DiscordAccountDelinkedEvent>,
@@ -99,6 +100,16 @@ public sealed class UserSummaryProjection :
         _users[e.UserId] = existing with
         {
             IsActive = true
+        };
+    }
+
+    public void Project(ClanPointsChangedEvent e)
+    {
+        var existing = _users[e.UserId];
+
+        _users[e.UserId] = existing with
+        {
+            ClanPoints = existing.ClanPoints + e.Delta
         };
     }
 

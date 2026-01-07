@@ -4,7 +4,7 @@ using RngHelpdesk.Contracts.Users.Commands;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Users;
 
-namespace RngHelpdesk.Operations.Users;
+namespace RngHelpdesk.Operations.Admin;
 
 public sealed class ReactivateUserHandler
 {

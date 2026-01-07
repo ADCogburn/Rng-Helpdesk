@@ -1,16 +1,17 @@
 ﻿using RngHelpdesk.Contracts.Common;
 using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Commands;
-using RngHelpdesk.Domain.Users;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Users;
 
-public sealed class CreateUserHandler
+namespace RngHelpdesk.Operations.Admin;
+
+public sealed class ChangeAdminStatusHandler
 {
     private readonly IUserRepository _userRepository;
     private readonly IEventDispatcher _eventDispatcher;
 
-    public CreateUserHandler(
+    public ChangeAdminStatusHandler(
         IUserRepository userRepository,
         IEventDispatcher eventDispatcher)
     {
@@ -20,22 +21,13 @@ public sealed class CreateUserHandler
 
     public CommandResult Handle(
         IRequestContext context,
-        CreateUserRequest request)
+        ChangeAdminStatusRequest request)
     {
         AuthorizationRules.RequireSuperAdminRole(context);
 
-        if (_userRepository.Exists(request.UserId))
-            return CommandResult.Fail("User already exists.");
+        var user = _userRepository.GetById(request.UserId);
 
-        var discordAccounts = request.DiscordAccounts.Select(x => new DiscordAccount(x.DiscordId, x.Username));
-
-        var runescapeAccounts = request.RunescapeAccounts.Select(x => new RunescapeAccount(x.Username));
-
-        var user = User.Create(
-            request.UserId,
-            request.AuthorityRole,
-            discordAccounts,
-            runescapeAccounts);
+        user.ChangeAuthorityRole(request.NewRole);
 
         var events = _userRepository.Save(user);
 

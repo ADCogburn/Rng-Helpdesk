@@ -5,6 +5,7 @@ using RngHelpdesk.Api.Security;
 using RngHelpdesk.Contracts.Points.Commands;
 using RngHelpdesk.Contracts.Points.Queries;
 using RngHelpdesk.Contracts.Security;
+using RngHelpdesk.Contracts.Users.Commands;
 using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Operations.Points;
 using RngHelpdesk.Operations.Users;
@@ -22,9 +23,17 @@ public sealed class UsersController : ControllerBase
 
     private readonly GetAllUsersHandler _getAllUsersHandler;
     private readonly GetUserHandler _getUserHandler;
+    private readonly GetUserLifecycleHistoryHandler _getUserLifecycleHistoryHandler;
+
     private readonly GetRunescapeAccountHandler _getRunescapeHandler;
+    private readonly GetRunescapeAccountHistoryHandler _getRunescapeAccountHistoryHandler;
     private readonly LinkRunescapeAccountHandler _linkRunescapeHandler;
+    private readonly DelinkRunescapeAccountHandler _delinkRunescapeHandler;
+    private readonly RenameRunescapeAccountHandler _renameRunescapeHandler;
+
     private readonly LinkDiscordAccountHandler _linkDiscordHandler;
+    private readonly DelinkDiscordAccountHandler _delinkDiscordHandler;
+
     private readonly AddPointsToUserHandler _addPointsHandler;
     private readonly RemovePointsFromUserHandler _removePointsHandler;
     private readonly GetPointHistoryForUserHandler _getPointHistoryHandler;
@@ -33,9 +42,17 @@ public sealed class UsersController : ControllerBase
         IRequestContextAccessor requestContext,
         GetAllUsersHandler getAllUsersHandler,
         GetUserHandler getUserHandler,
+        GetUserLifecycleHistoryHandler getUserLifecycleHistoryHandler,
+
         GetRunescapeAccountHandler getRunescapeHandler,
+        GetRunescapeAccountHistoryHandler getRunescapeAccountHistoryHandler,
         LinkRunescapeAccountHandler linkRunescapeAccountHandler,
+        DelinkRunescapeAccountHandler delinkRunescapeHandler,
+        RenameRunescapeAccountHandler renameRunescapeHandler,
+
         LinkDiscordAccountHandler linkDiscordAccountHanlder,
+        DelinkDiscordAccountHandler delinkDiscordAccountHandler,
+
         AddPointsToUserHandler addPointsHandler,
         RemovePointsFromUserHandler removePointsFromUserHandler,
         GetPointHistoryForUserHandler getPointHistoryHandler)
@@ -43,9 +60,17 @@ public sealed class UsersController : ControllerBase
         this._requestContext = requestContext.Context;
         this._getAllUsersHandler = getAllUsersHandler;
         this._getUserHandler = getUserHandler;
+        this._getUserLifecycleHistoryHandler = getUserLifecycleHistoryHandler;
+
         this._getRunescapeHandler = getRunescapeHandler;
+        this._getRunescapeAccountHistoryHandler = getRunescapeAccountHistoryHandler;
         this._linkRunescapeHandler = linkRunescapeAccountHandler;
+        this._delinkRunescapeHandler = delinkRunescapeHandler;
+        this._renameRunescapeHandler = renameRunescapeHandler;
+
         this._linkDiscordHandler = linkDiscordAccountHanlder;
+        this._delinkDiscordHandler = delinkDiscordAccountHandler;
+
         this._addPointsHandler = addPointsHandler;
         this._removePointsHandler = removePointsFromUserHandler;
         this._getPointHistoryHandler = getPointHistoryHandler;
@@ -73,6 +98,23 @@ public sealed class UsersController : ControllerBase
         var query = new GetUserByIdQuery(id);
 
         var response = _getUserHandler.Handle(_requestContext, query);
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Returns the history a user's admin status(es).
+    /// </summary>
+    /// <param name="id"></param>
+    /// <returns></returns>
+    [HttpGet("{id:int}/lifecycle")]
+    public ActionResult<GetUserLifecycleHistoryResponse> GetUserLifecycle(int id)
+    {
+        var query = new GetUserLifecycleHistoryQuery()
+        {
+            UserId = id
+        };
+
+        var response = _getUserLifecycleHistoryHandler.Handle(_requestContext, query);
         return Ok(response);
     }
 
@@ -113,6 +155,58 @@ public sealed class UsersController : ControllerBase
     }
 
     /// <summary>
+    /// Removes a Runescape account username from a users active accounts.
+    /// </summary>
+    [HttpDelete("{id:int}/runescape-accounts")]
+    public IActionResult DelinkRunescapeAccount(int id, [FromBody] string username)
+    {
+        var request = new DelinkRunescapeAccountRequest
+        {
+            UserId = id,
+            Username = username
+        };
+
+        _delinkRunescapeHandler.Handle(_requestContext, request);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Renames a Runescape account username for a user.
+    /// </summary>
+    [HttpPut("{id:int}/runescape-accounts/rename")]
+    public IActionResult RenameRunescapeAccount(
+        int id,
+        [FromBody] RenameRunescapeAccountRequest body)
+    {
+        var request = new RenameRunescapeAccountRequest
+        {
+            UserId = id,
+            OldUsername = body.OldUsername,
+            NewUsername = body.NewUsername
+        };
+
+        _renameRunescapeHandler.Handle(_requestContext, request);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Gets the full history of Runescape accounts for a user,
+    /// including linked, delinked, and renamed accounts.
+    /// </summary>
+    [HttpGet("{id:int}/runescape-accounts/history")]
+    public ActionResult<GetRunescapeAccountHistoryResponse> GetRunescapeAccountHistory(int id)
+    {
+        var query = new GetRunescapeAccountHistoryQuery()
+        {
+            UserId = id
+        };
+
+        var response = _getRunescapeAccountHistoryHandler.Handle(_requestContext, query);
+
+        return Ok(response);
+    }
+
+    /// <summary>
     /// Adds a Discord account to a users list of active accounts.
     /// </summary>
     /// <param name="id"></param>
@@ -128,6 +222,25 @@ public sealed class UsersController : ControllerBase
         };
 
         _linkDiscordHandler.Handle(_requestContext, request);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Removes a Discord account from a users list of active accounts.
+    /// </summary>
+    /// <param name="id"></param>
+    /// <param name="request"></param>
+    /// <returns></returns>
+    [HttpDelete("{id:int}/discord-accounts")]
+    public IActionResult DelinkDiscordAccount(int id, [FromBody] ulong discordId)
+    {
+        var request = new DelinkDiscordAccountRequest()
+        {
+            UserId = id,
+            DiscordId = discordId
+        };
+
+        _delinkDiscordHandler.Handle(_requestContext, request);
         return NoContent();
     }
 
@@ -181,8 +294,12 @@ public sealed class UsersController : ControllerBase
     [HttpGet("{id:int}/point-history")]
     public ActionResult<GetPointHistoryForUserResponse> GetPointHistoryForUser(int id)
     {
-        throw new NotImplementedException();
-        //var response = _getPointHistoryHandler.Handle(_requestContext, id);
-        //return Ok(response);
+        var query = new GetPointHistoryForUserQuery()
+        {
+            UserId = id
+        };
+
+        var response = _getPointHistoryHandler.Handle(_requestContext, query);
+        return Ok(response);
     }
 }

@@ -19,28 +19,32 @@ public sealed class AuthorizationService
 
     public AuthorityRole ResolveAuthority(IRequestContext context)
     {
-        if (!context.IsAuthenticated ||
-            context.ActorType == ActorType.Unknown)
-        {
-            return AuthorityRole.Guest;
-        }
+        if (!context.IsAuthenticated)
+            throw new InvalidOperationException(
+                "ResolveAuthority called for unauthenticated request.");
+
+        if (context.ActorType == ActorType.Unknown)
+            throw new InvalidOperationException(
+                "ResolveAuthority called with ActorType.Unknown.");
 
         if (context.ActorType == ActorType.Bot)
-        {
             return AuthorityRole.Administrator;
-        }
+
+        if (context.ActorId == Guid.Empty)
+            throw new InvalidOperationException(
+                "Authenticated context missing ActorId.");
 
         var userId = _actorUserResolver.ResolveUserId(
             context.ActorId,
             context.ActorType);
 
         if (userId is null)
-        {
-            return AuthorityRole.Guest;
-        }
+            throw new InvalidOperationException(
+                $"No user mapped for actor {context.ActorId} ({context.ActorType}).");
 
         var user = _users.GetSingleById(userId.Value);
 
         return user.AuthorityRole;
     }
+
 }

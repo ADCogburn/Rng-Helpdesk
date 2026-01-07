@@ -1,33 +1,42 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using RngHelpdesk.Contracts.Security;
+using RngHelpdesk.Infrastructure.Security;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
-/// <summary>
-/// Used in test to get tokens - TODO Remove before prod.
-/// </summary>
+namespace RngHelpdesk.Api.Controllers;
+
 [ApiController]
-[Route("dev/auth")]
-public sealed class DevAuthController : ControllerBase
+[Route("auth")]
+public sealed class AuthController : ControllerBase
 {
+    private readonly InMemoryAuthStore _authStore;
     private readonly IConfiguration _config;
 
-    public DevAuthController(IConfiguration config)
+    public AuthController(
+        InMemoryAuthStore authStore,
+        IConfiguration config)
     {
+        _authStore = authStore;
         _config = config;
     }
 
-    [HttpPost("token")]
-    public IActionResult GetDevToken()
+    [HttpPost("login")]
+    public IActionResult Login([FromBody] LoginRequest request)
     {
-        var actorId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+        var actorId = _authStore.ValidateCredentials(
+            request.Username,
+            request.Password);
+
+        if (actorId is null)
+            return Unauthorized();
 
         var claims = new[]
         {
-            new Claim(ClaimTypes.NameIdentifier, actorId.ToString()),
-            new Claim(ClaimTypes.Name, "DevUser"),
-            new Claim(ClaimTypes.Role, "Admin")
+            new Claim(ClaimTypes.NameIdentifier, actorId.Value.ToString()),
+            new Claim("actor_type", ActorType.WebUser.ToString())
         };
 
         var key = new SymmetricSecurityKey(
@@ -38,7 +47,7 @@ public sealed class DevAuthController : ControllerBase
             issuer: _config["Jwt:Issuer"],
             audience: _config["Jwt:Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddDays(30),
+            expires: DateTime.UtcNow.AddHours(8),
             signingCredentials: new SigningCredentials(
                 key,
                 SecurityAlgorithms.HmacSha256

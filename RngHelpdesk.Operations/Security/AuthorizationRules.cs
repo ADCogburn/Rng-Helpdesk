@@ -10,7 +10,7 @@ public static class AuthorizationRules
     /// <exception cref="NotAuthenticatedException"></exception>
     public static void RequireAuthentication(this IRequestContext context)
     {
-        if (!context.IsAuthenticated || context.ActorId == Guid.Empty || context.ActorType == ActorType.Unknown || context.AuthorityRole == AuthorityRole.Guest)
+        if (!context.IsAuthenticated || context.ActorId == Guid.Empty || context.ActorType == ActorType.Unknown)
             throw new UnauthorizedAccessException();
     }
 

@@ -15,16 +15,16 @@ public sealed class GetPointHistoryForUserHandler
 
     public GetPointHistoryForUserResponse Handle(
         IRequestContext context,
-        int userId)
+        GetPointHistoryForUserQuery query)
     {
         AuthorizationRules.RequireAdminRole(context);
 
-        var events = _projection.GetForUser(userId);
+        var events = _projection.GetForUser(query.UserId);
 
         return new GetPointHistoryForUserResponse
         {
-            UserId = userId,
-            TotalEventCount = _projection.GetCountForUser(userId),
+            UserId = query.UserId,
+            TotalEventCount = _projection.GetCountForUser(query.UserId),
             Events = events
         };
     }

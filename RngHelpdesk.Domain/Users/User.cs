@@ -49,6 +49,19 @@ public sealed class User : AggregateRoot
         return user;
     }
 
+    /// <summary>
+    /// This functionally just calls Apply (below) on all of the DomainEvents. However, it is particularly
+    /// used for recreating the aggregate User from scratch without having to do for loops everywhere.
+    /// </summary>
+    /// <param name="events"></param>
+    /// <returns></returns>
+    public static User Rehydrate(IEnumerable<IDomainEvent> events)
+    {
+        var user = new User();
+        user.LoadFromHistory(events);
+        return user;
+    }
+
     protected override void Apply(IDomainEvent domainEvent)
     {
         switch (domainEvent)

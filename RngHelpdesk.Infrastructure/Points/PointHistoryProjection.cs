@@ -1,39 +1,117 @@
-﻿using RngHelpdesk.Contracts.Points.Views;
+﻿using RngHelpdesk.Domain.Users;
+using RngHelpdesk.Domain.Users.Events;
 using RngHelpdesk.Infrastructure.Common;
+using RngHelpdesk.Operations.Points.Views;
+using RngHelpdesk.Operations.Ranks;
 
 namespace RngHelpdesk.Infrastructure.Points;
 
-/// <summary>
-/// Projection (read-view-creation) of the point history of a user whenever points are added or removed.
-/// </summary>
-public sealed class PointHistoryProjection : IProjectionHandler<ClanPointsChangedEvent>
+public sealed class PointHistoryProjection :
+    IProjectionHandler<UserCreatedEvent>,
+    IProjectionHandler<AuthorityRoleChangedEvent>,
+    IProjectionHandler<ClanPointsChangedEvent>
 {
-    private readonly Dictionary<int, List<PointHistoryItem>> _store = new();
-
-    public void Project(ClanPointsChangedEvent e)
+    private sealed class UserPointState
     {
-        if (!_store.TryGetValue(e.UserId, out var history))
-        {
-            history = new List<PointHistoryItem>();
-            _store[e.UserId] = history;
-        }
+        public int TotalPoints;
+        public AuthorityRole AuthorityRole;
+        public List<PointHistoryItem> History = new();
+    }
 
-        history.Add(new PointHistoryItem
+    private readonly Dictionary<int, UserPointState> _store = new();
+    private readonly RankResolver _rankResolver;
+
+    public PointHistoryProjection(RankResolver rankResolver)
+    {
+        _rankResolver = rankResolver;
+    }
+
+    public void Project(UserCreatedEvent e)
+    {
+        if (_store.ContainsKey(e.UserId))
+            return;
+
+        Rank? initialRank = e.AuthorityRole == AuthorityRole.Member
+            ? _rankResolver.Resolve(AuthorityRole.Member, 0)
+            : null;
+
+        _store[e.UserId] = new UserPointState
         {
-            Delta = e.Delta,
-            Reason = e.Reason,
-            OccurredAt = e.OccurredAt
+            TotalPoints = 0,
+            AuthorityRole = e.AuthorityRole,
+            History =
+            {
+                new PointHistoryItem
+                {
+                    Delta = 0,
+                    Reason = "Account created",
+                    OccurredAt = e.OccurredAt,
+                    RankBefore = null,
+                    RankAfter = initialRank
+                }
+            }
+        };
+    }
+
+    public void Project(AuthorityRoleChangedEvent e)
+    {
+        if (!_store.TryGetValue(e.UserId, out var state))
+            return;
+
+        var rankBefore = GetDisplayedRank(state);
+
+        state.AuthorityRole = e.NewRole;
+
+        var rankAfter = GetDisplayedRank(state);
+
+        state.History.Add(new PointHistoryItem
+        {
+            Delta = 0,
+            Reason = $"Authority role changed: {e.OldRole} → {e.NewRole}",
+            OccurredAt = e.OccurredAt,
+            RankBefore = rankBefore,
+            RankAfter = rankAfter
         });
     }
 
-    // Expose read access
+    public void Project(ClanPointsChangedEvent e)
+    {
+        if (!_store.TryGetValue(e.UserId, out var state))
+        {
+            throw new InvalidOperationException(
+                $"PointHistoryProjection received ClanPointsChangedEvent for user {e.UserId} before UserCreatedEvent.");
+        }
+
+        var rankBefore = GetDisplayedRank(state);
+
+        state.TotalPoints += e.Delta;   // ✅ ADD ONCE
+
+        var rankAfter = GetDisplayedRank(state);
+
+        state.History.Add(new PointHistoryItem
+        {
+            Delta = e.Delta,
+            Reason = e.Reason,
+            OccurredAt = e.OccurredAt,
+            RankBefore = rankBefore,
+            RankAfter = rankAfter
+        });
+    }
+
     public IReadOnlyList<PointHistoryItem> GetForUser(int userId)
-        => _store.TryGetValue(userId, out var history)
-            ? history
+        => _store.TryGetValue(userId, out var state)
+            ? state.History
             : Array.Empty<PointHistoryItem>();
 
     public int GetCountForUser(int userId)
-        => _store.TryGetValue(userId, out var history)
-            ? history.Count
+        => _store.TryGetValue(userId, out var state)
+            ? state.History.Count
             : 0;
+
+    private Rank? GetDisplayedRank(UserPointState state)
+    {
+        return state.AuthorityRole == AuthorityRole.Member
+            ? _rankResolver.Resolve(AuthorityRole.Member, state.TotalPoints)
+            : RankHelper.FromAuthority(state.AuthorityRole);
+    }
 }
