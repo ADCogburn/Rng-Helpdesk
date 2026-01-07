@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -12,19 +12,20 @@
   <ItemGroup>
     <PackageReference Include="FluentValidation" Version="12.1.1" />
     <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.1" />
     <PackageReference Include="Microsoft.AspNetCore.SpaProxy">
       <Version>10.*-*</Version>
     </PackageReference>
-    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="10.1.0" />
+	<PackageReference Include="Microsoft.OpenApi" Version="2.3.0" />
+	<PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="10.1.0" />
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.1.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\RngHelpdesk.Domain\RngHelpdesk.Domain.csproj" />
     <ProjectReference Include="..\RngHelpdesk.Contracts\RngHelpdesk.Contracts.csproj" />
-    <ProjectReference Include="..\RngHelpdesk.Handlers\RngHelpdesk.Operations.csproj" />
     <ProjectReference Include="..\RngHelpdesk.Infrastructure\RngHelpdesk.Infrastructure.csproj" />
+    <ProjectReference Include="..\RngHelpdesk.Operations\RngHelpdesk.Operations.csproj" />
   </ItemGroup>
 
 </Project>
