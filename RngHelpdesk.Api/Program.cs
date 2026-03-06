@@ -1,20 +1,22 @@
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Npgsql;
 using RngHelpdesk.Api.Security;
 using RngHelpdesk.Api.Validators.Users;
-using RngHelpdesk.Contracts.Security;
-using RngHelpdesk.Domain.Common;
-using RngHelpdesk.Domain.Users;
-using RngHelpdesk.Domain.Users.Events;
+using RngHelpdesk.Contracts.Common.Ranks;
 using RngHelpdesk.Infrastructure.Common;
+using RngHelpdesk.Infrastructure.Persistence.EventStore;
+using RngHelpdesk.Infrastructure.Persistence.Points;
+using RngHelpdesk.Infrastructure.Persistence.Projections;
 using RngHelpdesk.Infrastructure.Points;
 using RngHelpdesk.Infrastructure.Security;
 using RngHelpdesk.Infrastructure.Users;
 using RngHelpdesk.Operations.Admin;
 using RngHelpdesk.Operations.Points;
-using RngHelpdesk.Operations.Ranks;
+using RngHelpdesk.Contracts.Common.Ranks;
 using RngHelpdesk.Operations.Security;
 using RngHelpdesk.Operations.Users;
 using RngHelpdesk.Operations.Users.DiscordAccounts;
@@ -101,26 +103,12 @@ builder.Services.AddScoped<AuthorizationService>();
 
 builder.Services.AddScoped<ChangeAdminStatusHandler>();
 
-builder.Services.AddSingleton<IActorUserResolver, InMemoryActorUserResolver>();
+builder.Services.AddSingleton<IActorUserResolver, PostgresActorUserResolver>();
 
-builder.Services.AddSingleton<RankResolver>();
-builder.Services.AddSingleton<IEnumerable<RankThreshold>>(new[]
-{
-    new RankThreshold(Rank.Bronze, 0),
-    new RankThreshold(Rank.Iron, 100),
-    new RankThreshold(Rank.Steel, 200),
-    new RankThreshold(Rank.Mithril, 300),
-    new RankThreshold(Rank.Adamant, 400),
-    new RankThreshold(Rank.Rune, 500),
-    new RankThreshold(Rank.Dragon, 600),
-    new RankThreshold(Rank.Sapphire, 700),
-    new RankThreshold(Rank.Emerald, 800),
-    new RankThreshold(Rank.Ruby, 900),
-    new RankThreshold(Rank.Diamond, 1000),
-    new RankThreshold(Rank.Dragonstone, 1100),
-    new RankThreshold(Rank.Onyx, 1200),
-    new RankThreshold(Rank.Zenyte, 1300)
-});
+builder.Services.AddScoped<IEventStore, PostgresEventStore>();
+
+builder.Services.AddScoped<IRankThresholdProvider, PostgresRankThresholdProvider>();
+builder.Services.AddScoped<RankResolver>();
 
 builder.Services.AddScoped<GetAllUsersHandler>();
 builder.Services.AddScoped<GetUserHandler>();
@@ -142,17 +130,17 @@ builder.Services.AddScoped<GetPointHistoryForUserHandler>();
 
 // -- Repositories --
 
-builder.Services.AddSingleton<IUserRepository, InMemUserRepository>();
-builder.Services.AddSingleton<InMemoryAuthStore>();
+builder.Services.AddScoped<IUserRepository, PostgresUserRepository>();
+builder.Services.AddScoped<IAuthStore, PostgresAuthStore>();
 
 // -- Projection --
 
-builder.Services.AddSingleton<PointHistoryProjection>();
-builder.Services.AddSingleton<UserSummaryProjection>();
-builder.Services.AddSingleton<UserLifecycleHistoryProjection>();
-builder.Services.AddSingleton<UserPointsTotalProjection>();
-builder.Services.AddSingleton<RunescapeAccountHistoryProjection>();
-builder.Services.AddSingleton<DiscordAccountHistoryProjection>();
+builder.Services.AddScoped<PointHistoryProjection>();
+builder.Services.AddScoped<UserSummaryProjection>();
+builder.Services.AddScoped<UserLifecycleHistoryProjection>();
+builder.Services.AddScoped<UserPointsTotalProjection>();
+builder.Services.AddScoped<RunescapeAccountHistoryProjection>();
+builder.Services.AddScoped<DiscordAccountHistoryProjection>();
 
 // -- Event Dispatcher --
 
@@ -171,54 +159,83 @@ builder.Services.AddSingleton<IEventDispatcher>(sp =>
     return new InMemEventDispatcher(handlers);
 });
 
+builder.Services.AddScoped<IProjectionCheckpointStore, PostgresProjectionCheckpointStore>();
+
+builder.Services.AddScoped<ProjectionRunner>(sp =>
+{
+    return new ProjectionRunner(
+        sp.GetRequiredService<IEventStore>(),
+        sp.GetRequiredService<EventTypeRegistry>(),
+        sp.GetRequiredService<IProjectionCheckpointStore>(),
+        new object[]
+        {
+            sp.GetRequiredService<UserSummaryProjection>(),
+            sp.GetRequiredService<UserLifecycleHistoryProjection>()
+        });
+});
+
+// Register the mapped Domain Events -> String names for permanent linkage, even if the classes change over time.
+var registry = EventStoreRegistration.CreateRegistry();
+builder.Services.AddSingleton(registry);
+
+builder.Services.AddSingleton(NpgsqlDataSource.Create(builder.Configuration.GetConnectionString("RngHelpdeskDB")));
+
+builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("RngHelpdeskDB")));
+
 var app = builder.Build();
 
 // TEMP: Seed in-mem data for debugging
-var userRepo = app.Services
-    .GetRequiredService<IUserRepository>() as InMemUserRepository;
+//var userRepo = app.Services
+//    .GetRequiredService<IUserRepository>() as InMemUserRepository;
 
-var dispatcher = app.Services
-    .GetRequiredService<IEventDispatcher>();
+//var dispatcher = app.Services
+//    .GetRequiredService<IEventDispatcher>();
 
-var seedEvents = new IDomainEvent[]
-{
-    new UserCreatedEvent(
-        userId: 1,
-        authorityRole: AuthorityRole.Administrator,
-        discordAccounts: new[]
-        {
-            new DiscordAccount(
-                123456789012345678,
-                "Seeded Discord Account")
-        },
-        runescapeAccounts: Array.Empty<RunescapeAccount>()
-    )
-};
+//var seedEvents = new IDomainEvent[]
+//{
+//    new UserCreatedEvent(
+//        userId: 1,
+//        authorityRole: AuthorityRole.Administrator,
+//        discordAccounts: new[]
+//        {
+//            new DiscordAccount(
+//                123456789012345678,
+//                "Seeded Discord Account")
+//        },
+//        runescapeAccounts: Array.Empty<RunescapeAccount>()
+//    )
+//};
 
-userRepo!.Seed(1, seedEvents);
+//userRepo!.Seed(1, seedEvents);
 
-dispatcher.Dispatch(seedEvents);
+//dispatcher.Dispatch(seedEvents);
 
-var actorResolver = app.Services
-    .GetRequiredService<IActorUserResolver>();
+//var actorResolver = app.Services
+//    .GetRequiredService<IActorUserResolver>();
 
-actorResolver.RegisterActor(
-    actorId: Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
-    actorType: ActorType.WebUser,
-    userId: 1
-);
+//actorResolver.RegisterActor(
+//    actorId: Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
+//    actorType: ActorType.WebUser,
+//    userId: 1
+//);
 
-var authStore = app.Services.GetRequiredService<InMemoryAuthStore>();
+//var authStore = app.Services.GetRequiredService<InMemoryAuthStore>();
 
-authStore.SeedUser(
-    userId: 1,
-    actorId: Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
-    username: "admin",
-    password: "password",
-    mustChangePassword: false
-);
+//authStore.SeedUser(
+//    userId: 1,
+//    actorId: Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
+//    username: "admin",
+//    password: "password",
+//    mustChangePassword: false
+//);
 
 // --- END TEMP ---
+
+using (var scope = app.Services.CreateScope())
+{
+    var runner = scope.ServiceProvider.GetRequiredService<ProjectionRunner>();
+    await runner.RunAsync();
+}
 
 app.UseDefaultFiles();
 app.MapStaticAssets();

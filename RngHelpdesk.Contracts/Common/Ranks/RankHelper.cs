@@ -1,6 +1,6 @@
-﻿using RngHelpdesk.Domain.Users;
+using RngHelpdesk.Domain.Users;
 
-namespace RngHelpdesk.Operations.Ranks;
+namespace RngHelpdesk.Contracts.Common.Ranks;
 
 public static class RankHelper
 {

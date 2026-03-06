@@ -1,4 +1,4 @@
-﻿using RngHelpdesk.Operations.Points.Views;
+using RngHelpdesk.Contracts.Points.Views;
 
 namespace RngHelpdesk.Contracts.Points.Queries;
 

@@ -1,8 +1,8 @@
-﻿using RngHelpdesk.Domain.Users;
+using RngHelpdesk.Domain.Users;
 using RngHelpdesk.Domain.Users.Events;
 using RngHelpdesk.Infrastructure.Common;
-using RngHelpdesk.Operations.Points.Views;
-using RngHelpdesk.Operations.Ranks;
+using RngHelpdesk.Contracts.Points.Views;
+using RngHelpdesk.Contracts.Common.Ranks;
 
 namespace RngHelpdesk.Infrastructure.Points;
 

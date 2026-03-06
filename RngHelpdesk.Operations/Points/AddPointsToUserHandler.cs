@@ -1,4 +1,4 @@
-﻿using RngHelpdesk.Contracts.Points.Commands;
+using RngHelpdesk.Contracts.Points.Commands;
 using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Domain.Users;
 using RngHelpdesk.Infrastructure.Common;
@@ -13,7 +13,7 @@ public sealed class AddPointsToUserHandler
 
     public AddPointsToUserHandler(
         IUserRepository userRepository,
-        IEventDispatcher eventdispatcher)
+        IEventDispatcher eventDispatcher)
     {
         _userRepository = userRepository;
         _eventDispatcher = eventdispatcher;

@@ -4,6 +4,7 @@ public abstract class AggregateRoot
 {
     private readonly List<IDomainEvent> _uncommittedDomainEvents = new();
     public IReadOnlyCollection<IDomainEvent> UncommittedDomainEvents => _uncommittedDomainEvents;
+    public int Version { get; protected set; }
 
     protected void RaiseDomainEvent(IDomainEvent domainEvent)
     {

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Infrastructure.Security;
@@ -12,11 +12,11 @@ namespace RngHelpdesk.Api.Controllers;
 [Route("auth")]
 public sealed class AuthController : ControllerBase
 {
-    private readonly InMemoryAuthStore _authStore;
+    private readonly IAuthStore _authStore;
     private readonly IConfiguration _config;
 
     public AuthController(
-        InMemoryAuthStore authStore,
+        IAuthStore authStore,
         IConfiguration config)
     {
         _authStore = authStore;

@@ -1,6 +1,6 @@
-﻿using RngHelpdesk.Operations.Ranks;
+using RngHelpdesk.Contracts.Common.Ranks;
 
-namespace RngHelpdesk.Operations.Points.Views;
+namespace RngHelpdesk.Contracts.Points.Views;
 
 /// <summary>
 /// Represents a single point-related event.
