@@ -30,7 +30,9 @@ public sealed class CreateUserHandler
         IRequestContext context,
         CreateUserRequest request)
     {
-        AuthorizationRules.RequireAdminRole(context);
+        // Bootstrap: allow first user without admin auth
+        if (_userRepository.HasAnyUsers())
+            AuthorizationRules.RequireAdminRole(context);
 
         if (_userRepository.Exists(request.UserId))
             return CommandResult<CreateUserResponse>.Fail("User already exists.");

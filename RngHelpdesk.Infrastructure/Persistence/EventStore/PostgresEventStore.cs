@@ -1,4 +1,5 @@
 using Npgsql;
+using NpgsqlTypes;
 using RngHelpdesk.Domain.Common;
 using System.Text.Json;
 
@@ -146,10 +147,10 @@ public sealed class PostgresEventStore : IEventStore
             insert.Parameters.AddWithValue("schemaVer", 1);
             insert.Parameters.AddWithValue("occurredUtc", ev.OccurredAt);
             insert.Parameters.AddWithValue("recordedUtc", DateTime.UtcNow);
-            insert.Parameters.AddWithValue("payload",
-                JsonSerializer.Serialize(ev, ev.GetType()));
-            insert.Parameters.AddWithValue("metadata",
-                JsonSerializer.Serialize(metadata));
+            insert.Parameters.Add("payload", NpgsqlDbType.Jsonb).Value =
+                JsonSerializer.Serialize(ev, ev.GetType());
+            insert.Parameters.Add("metadata", NpgsqlDbType.Jsonb).Value =
+                JsonSerializer.Serialize(metadata);
 
             await insert.ExecuteNonQueryAsync(ct);
         }
@@ -171,6 +172,22 @@ public sealed class PostgresEventStore : IEventStore
         }
 
         await tx.CommitAsync(ct);
+    }
+
+    public async Task<bool> HasAnyStreamsAsync(string streamType, CancellationToken ct = default)
+    {
+        await using var conn = await _dataSource.OpenConnectionAsync(ct);
+        await using var cmd = conn.CreateCommand();
+
+        cmd.CommandText = """
+            select exists(
+                select 1 from eventstore.event_streams
+                where "StreamType" = @streamType
+            )
+            """;
+        cmd.Parameters.AddWithValue("streamType", streamType);
+
+        return (bool)(await cmd.ExecuteScalarAsync(ct))!;
     }
 
     private static async Task EnsureStreamAsync(

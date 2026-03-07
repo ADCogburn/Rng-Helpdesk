@@ -136,6 +136,14 @@ builder.Services.AddScoped<GetPointHistoryForUserHandler>();
 builder.Services.AddScoped<IUserRepository, PostgresUserRepository>();
 builder.Services.AddScoped<IAuthStore, PostgresAuthStore>();
 
+builder.Services.AddHttpClient<RngHelpdesk.Infrastructure.Discord.HttpDiscordUsernameResolver>(client =>
+{
+    var baseUrl = builder.Configuration["DiscordBot:BaseUrl"] ?? "http://localhost:59854";
+    client.BaseAddress = new Uri(baseUrl);
+});
+builder.Services.AddScoped<RngHelpdesk.Contracts.Discord.IDiscordUsernameResolver>(
+    sp => sp.GetRequiredService<RngHelpdesk.Infrastructure.Discord.HttpDiscordUsernameResolver>());
+
 // -- Projection (Singleton so read models are shared; InMemEventDispatcher captures them) --
 
 builder.Services.AddSingleton<PointHistoryProjection>();

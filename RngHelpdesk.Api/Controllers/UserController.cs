@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RngHelpdesk.Api.DTOs;
 using RngHelpdesk.Api.Security;
@@ -208,20 +208,23 @@ public sealed class UsersController : ControllerBase
 
     /// <summary>
     /// Adds a Discord account to a users list of active accounts.
+    /// If Username is not provided, the DiscordBot will resolve it from the Discord API (user must be in a shared server).
     /// </summary>
-    /// <param name="id"></param>
-    /// <param name="request"></param>
-    /// <returns></returns>
     [HttpPost("{id:int}/discord-accounts")]
-    public IActionResult LinkDiscordAccount(int id, [FromBody] ulong discordId)
+    public async Task<IActionResult> LinkDiscordAccount(int id, [FromBody] LinkDiscordAccountDto body, CancellationToken ct)
     {
-        var request = new LinkDiscordAccountRequest()
+        var request = new LinkDiscordAccountRequest
         {
             UserId = id,
-            DiscordId = discordId
+            DiscordId = body.DiscordId,
+            Username = body.Username ?? string.Empty
         };
 
-        _linkDiscordHandler.Handle(_requestContext, request);
+        var result = await _linkDiscordHandler.HandleAsync(_requestContext, request, ct);
+
+        if (!result.Success)
+            return BadRequest(result.Error);
+
         return NoContent();
     }
 

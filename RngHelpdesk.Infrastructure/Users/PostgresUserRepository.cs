@@ -31,6 +31,9 @@ public sealed class PostgresUserRepository : IUserRepository
         return events.Count > 0;
     }
 
+    public bool HasAnyUsers() =>
+        _eventStore.HasAnyStreamsAsync("User").GetAwaiter().GetResult();
+
     public User GetById(int userId)
     {
         var storedEvents = _eventStore

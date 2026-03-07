@@ -1,4 +1,4 @@
-﻿using RngHelpdesk.Domain.Common;
+using RngHelpdesk.Domain.Common;
 
 public abstract class AggregateRoot
 {
@@ -22,6 +22,7 @@ public abstract class AggregateRoot
         foreach (var domainEvent in domainEvents)
         {
             Apply(domainEvent);
+            Version++;
         }
     }
 

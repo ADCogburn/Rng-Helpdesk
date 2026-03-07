@@ -1,4 +1,4 @@
-﻿using RngHelpdesk.Domain.Common;
+using RngHelpdesk.Domain.Common;
 using RngHelpdesk.Infrastructure.Common; // where IProjectionHandler<T> lives
 using RngHelpdesk.Infrastructure.Persistence.EventStore;
 using System.Collections.Concurrent;
@@ -45,8 +45,11 @@ public sealed class ProjectionRunner
         {
             var projectionName = projection.GetType().Name;
 
-            // Find where this projection last stopped
-            var lastPos = await _checkpoints.GetLastPositionAsync(projectionName);
+            // When projection state is empty (e.g. after app restart), replay from 0 to rebuild it.
+            // Otherwise we'd have a checkpoint but no in-memory state, causing "User not found" etc.
+            var lastPos = projection is IProjectionState state && state.IsEmpty
+                ? 0L
+                : await _checkpoints.GetLastPositionAsync(projectionName);
 
             // Load all events after that position (ordered)
             var storedEvents = await _eventStore.LoadFromPositionAsync(lastPos, ct);

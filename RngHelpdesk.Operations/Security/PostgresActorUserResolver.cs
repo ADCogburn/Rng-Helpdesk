@@ -1,4 +1,4 @@
-﻿using Npgsql;
+using Npgsql;
 using RngHelpdesk.Contracts.Security;
 
 namespace RngHelpdesk.Operations.Security;
@@ -18,9 +18,9 @@ public sealed class PostgresActorUserResolver : IActorUserResolver
         using var cmd = conn.CreateCommand();
 
         cmd.CommandText = """
-            select user_id
-            from actor_user_links
-            where actor_id = @actorId and actor_type = @actorType
+            select "UserId"
+            from identity.actor_user_links
+            where "ActorId" = @actorId and "ActorType" = @actorType
         """;
 
         cmd.Parameters.AddWithValue("actorId", actorId);
@@ -36,10 +36,10 @@ public sealed class PostgresActorUserResolver : IActorUserResolver
         using var cmd = conn.CreateCommand();
 
         cmd.CommandText = """
-            insert into actor_user_links(actor_id, actor_type, user_id)
+            insert into identity.actor_user_links("ActorId", "ActorType", "UserId")
             values (@actorId, @actorType, @userId)
-            on conflict (actor_id, actor_type)
-            do update set user_id = excluded.user_id
+            on conflict ("ActorId", "ActorType")
+            do update set "UserId" = excluded."UserId"
         """;
 
         cmd.Parameters.AddWithValue("actorId", actorId);

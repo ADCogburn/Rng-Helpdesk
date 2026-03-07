@@ -23,6 +23,8 @@ public interface IEventStore
         IReadOnlyList<IDomainEvent> events,
         EventStoreMetadata metadata,
         CancellationToken ct = default);
+
+    Task<bool> HasAnyStreamsAsync(string streamType, CancellationToken ct = default);
 }
 
 /// <summary>
