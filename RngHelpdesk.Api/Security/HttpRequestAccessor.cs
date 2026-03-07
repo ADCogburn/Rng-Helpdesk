@@ -1,5 +1,6 @@
-﻿using RngHelpdesk.Api.Security;
 using RngHelpdesk.Contracts.Security;
+
+namespace RngHelpdesk.Api.Security;
 
 /// <summary>
 /// Abstraction to retrieve the current request context, or return an Anonymous (unauthenticated) context if none is available.

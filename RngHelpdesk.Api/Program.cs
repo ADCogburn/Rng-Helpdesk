@@ -7,6 +7,7 @@ using Npgsql;
 using RngHelpdesk.Api.Security;
 using RngHelpdesk.Api.Validators.Users;
 using RngHelpdesk.Contracts.Common.Ranks;
+using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Persistence.EventStore;
 using RngHelpdesk.Infrastructure.Persistence.Points;
@@ -106,9 +107,11 @@ builder.Services.AddScoped<ChangeAdminStatusHandler>();
 builder.Services.AddSingleton<IActorUserResolver, PostgresActorUserResolver>();
 
 builder.Services.AddScoped<IEventStore, PostgresEventStore>();
+builder.Services.AddScoped<IEventStoreMetadataProvider, RequestContextEventStoreMetadataProvider>();
 
-builder.Services.AddScoped<IRankThresholdProvider, PostgresRankThresholdProvider>();
-builder.Services.AddScoped<RankResolver>();
+builder.Services.AddScoped<PostgresRankThresholdProvider>();
+builder.Services.AddSingleton<IRankThresholdProvider, CachingRankThresholdProvider>();
+builder.Services.AddSingleton<RankResolver>();
 
 builder.Services.AddScoped<GetAllUsersHandler>();
 builder.Services.AddScoped<GetUserHandler>();
@@ -133,14 +136,14 @@ builder.Services.AddScoped<GetPointHistoryForUserHandler>();
 builder.Services.AddScoped<IUserRepository, PostgresUserRepository>();
 builder.Services.AddScoped<IAuthStore, PostgresAuthStore>();
 
-// -- Projection --
+// -- Projection (Singleton so read models are shared; InMemEventDispatcher captures them) --
 
-builder.Services.AddScoped<PointHistoryProjection>();
-builder.Services.AddScoped<UserSummaryProjection>();
-builder.Services.AddScoped<UserLifecycleHistoryProjection>();
-builder.Services.AddScoped<UserPointsTotalProjection>();
-builder.Services.AddScoped<RunescapeAccountHistoryProjection>();
-builder.Services.AddScoped<DiscordAccountHistoryProjection>();
+builder.Services.AddSingleton<PointHistoryProjection>();
+builder.Services.AddSingleton<UserSummaryProjection>();
+builder.Services.AddSingleton<UserLifecycleHistoryProjection>();
+builder.Services.AddSingleton<UserPointsTotalProjection>();
+builder.Services.AddSingleton<RunescapeAccountHistoryProjection>();
+builder.Services.AddSingleton<DiscordAccountHistoryProjection>();
 
 // -- Event Dispatcher --
 
@@ -169,8 +172,12 @@ builder.Services.AddScoped<ProjectionRunner>(sp =>
         sp.GetRequiredService<IProjectionCheckpointStore>(),
         new object[]
         {
+            sp.GetRequiredService<PointHistoryProjection>(),
             sp.GetRequiredService<UserSummaryProjection>(),
-            sp.GetRequiredService<UserLifecycleHistoryProjection>()
+            sp.GetRequiredService<UserLifecycleHistoryProjection>(),
+            sp.GetRequiredService<UserPointsTotalProjection>(),
+            sp.GetRequiredService<RunescapeAccountHistoryProjection>(),
+            sp.GetRequiredService<DiscordAccountHistoryProjection>()
         });
 });
 

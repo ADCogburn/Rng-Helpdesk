@@ -1,6 +1,4 @@
-﻿using RngHelpdesk.Contracts.Security;
-
-namespace RngHelpdesk.Api.Security;
+namespace RngHelpdesk.Contracts.Security;
 
 public interface IRequestContextAccessor
 {

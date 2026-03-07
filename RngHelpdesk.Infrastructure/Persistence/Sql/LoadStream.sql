@@ -1,5 +1,5 @@
 select *
-from event_store
-where stream_type = @streamType
-  and stream_id = @streamId
-order by stream_version;
+from eventstore.event_store
+where "StreamType" = @streamType
+  and "StreamId" = @streamId
+order by "StreamVersion";

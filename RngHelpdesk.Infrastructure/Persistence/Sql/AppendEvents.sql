@@ -1,5 +1,5 @@
-select current_version
-from event_streams
-where stream_type = @streamType
-  and stream_id = @streamId
+select "CurrentVersion"
+from eventstore.event_streams
+where "StreamType" = @streamType
+  and "StreamId" = @streamId
 for update;

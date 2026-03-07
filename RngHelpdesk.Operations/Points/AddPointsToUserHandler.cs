@@ -16,7 +16,7 @@ public sealed class AddPointsToUserHandler
         IEventDispatcher eventDispatcher)
     {
         _userRepository = userRepository;
-        _eventDispatcher = eventdispatcher;
+        _eventDispatcher = eventDispatcher;
     }
 
     public void Handle(

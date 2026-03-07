@@ -1,4 +1,4 @@
-﻿using RngHelpdesk.Domain.Common;
+using RngHelpdesk.Domain.Common;
 using RngHelpdesk.Domain.Users;
 using RngHelpdesk.Infrastructure.Persistence.EventStore;
 using System.Text.Json;
@@ -9,13 +9,16 @@ public sealed class PostgresUserRepository : IUserRepository
 {
     private readonly IEventStore _eventStore;
     private readonly EventTypeRegistry _registry;
+    private readonly IEventStoreMetadataProvider _metadataProvider;
 
     public PostgresUserRepository(
         IEventStore eventStore,
-        EventTypeRegistry registry)
+        EventTypeRegistry registry,
+        IEventStoreMetadataProvider metadataProvider)
     {
         _eventStore = eventStore;
         _registry = registry;
+        _metadataProvider = metadataProvider;
     }
 
     public bool Exists(int userId)
@@ -57,7 +60,7 @@ public sealed class PostgresUserRepository : IUserRepository
                 user.Id,
                 expectedVersion,
                 newEvents,
-                CreateMetadata())
+                _metadataProvider.GetMetadata())
             .GetAwaiter()
             .GetResult();
 
@@ -84,11 +87,4 @@ public sealed class PostgresUserRepository : IUserRepository
 
         return list;
     }
-
-    private static EventStoreMetadata CreateMetadata()
-        => new(
-            ActorId: null,
-            ActorType: null,
-            CorrelationId: null,
-            CausationId: null);
 }

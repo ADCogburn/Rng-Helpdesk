@@ -1,4 +1,4 @@
 select *
-from event_store
-where global_position > @position
-order by global_position;
+from eventstore.event_store
+where "GlobalPosition" > @position
+order by "GlobalPosition";

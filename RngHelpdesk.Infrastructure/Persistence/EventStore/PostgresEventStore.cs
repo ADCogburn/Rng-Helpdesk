@@ -132,12 +132,12 @@ public sealed class PostgresEventStore : IEventStore
             insert.Transaction = tx;
 
             insert.CommandText = @"
-                insert into event_store
-                (stream_type, stream_id, stream_version, event_type, event_schema_ver,
-                 occurred_utc, payload, metadata)
+                insert into eventstore.event_store
+                (""StreamType"", ""StreamId"", ""StreamVersion"", ""EventType"", ""EventSchemaVer"",
+                 ""OccurredUtc"", ""RecordedUtc"", ""Payload"", ""Metadata"")
                 values
                 (@streamType, @streamId, @streamVersion, @eventType, @schemaVer,
-                 @occurredUtc, @payload, @metadata)";
+                 @occurredUtc, @recordedUtc, @payload, @metadata)";
 
             insert.Parameters.AddWithValue("streamType", streamType);
             insert.Parameters.AddWithValue("streamId", streamId);
@@ -145,6 +145,7 @@ public sealed class PostgresEventStore : IEventStore
             insert.Parameters.AddWithValue("eventType", _registry.GetName(ev.GetType()));
             insert.Parameters.AddWithValue("schemaVer", 1);
             insert.Parameters.AddWithValue("occurredUtc", ev.OccurredAt);
+            insert.Parameters.AddWithValue("recordedUtc", DateTime.UtcNow);
             insert.Parameters.AddWithValue("payload",
                 JsonSerializer.Serialize(ev, ev.GetType()));
             insert.Parameters.AddWithValue("metadata",
@@ -158,9 +159,9 @@ public sealed class PostgresEventStore : IEventStore
         {
             update.Transaction = tx;
             update.CommandText = @"
-                update event_streams
-                set current_version = @ver, updated_utc = now()
-                where stream_type = @streamType and stream_id = @streamId";
+                update eventstore.event_streams
+                set ""CurrentVersion"" = @ver, ""UpdatedUtc"" = now()
+                where ""StreamType"" = @streamType and ""StreamId"" = @streamId";
 
             update.Parameters.AddWithValue("ver", nextVersion);
             update.Parameters.AddWithValue("streamType", streamType);
@@ -183,9 +184,9 @@ public sealed class PostgresEventStore : IEventStore
         cmd.Transaction = tx;
 
         cmd.CommandText = @"
-            insert into event_streams
-            (stream_type, stream_id, current_version)
-            values (@t, @i, 0)
+            insert into eventstore.event_streams
+            (""StreamType"", ""StreamId"", ""CurrentVersion"", ""CreatedUtc"", ""UpdatedUtc"")
+            values (@t, @i, 0, now(), now())
             on conflict do nothing";
 
         cmd.Parameters.AddWithValue("t", streamType);
@@ -196,15 +197,15 @@ public sealed class PostgresEventStore : IEventStore
 
     private static StoredEvent ReadStoredEvent(NpgsqlDataReader r)
         => new(
-            r.GetInt64(r.GetOrdinal("global_position")),
-            r.GetString(r.GetOrdinal("stream_type")),
-            r.GetInt32(r.GetOrdinal("stream_id")),
-            r.GetInt32(r.GetOrdinal("stream_version")),
-            r.GetString(r.GetOrdinal("event_type")),
-            r.GetInt32(r.GetOrdinal("event_schema_ver")),
-            r.GetDateTime(r.GetOrdinal("occurred_utc")),
-            r.GetString(r.GetOrdinal("payload")),
-            r.GetString(r.GetOrdinal("metadata"))
+            r.GetInt64(r.GetOrdinal("GlobalPosition")),
+            r.GetString(r.GetOrdinal("StreamType")),
+            r.GetInt32(r.GetOrdinal("StreamId")),
+            r.GetInt32(r.GetOrdinal("StreamVersion")),
+            r.GetString(r.GetOrdinal("EventType")),
+            r.GetInt32(r.GetOrdinal("EventSchemaVer")),
+            r.GetDateTime(r.GetOrdinal("OccurredUtc")),
+            r.GetString(r.GetOrdinal("Payload")),
+            r.GetString(r.GetOrdinal("Metadata"))
         );
 
     private static Task<string> LoadSqlAsync(string file, CancellationToken ct)

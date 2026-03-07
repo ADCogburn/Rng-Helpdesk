@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -133,6 +133,29 @@ namespace RngHelpdesk.Infrastructure.Migrations
                 table: "event_store",
                 columns: new[] { "StreamType", "StreamId", "StreamVersion" },
                 unique: true);
+
+            // Seed rank thresholds
+            migrationBuilder.InsertData(
+                schema: "points",
+                table: "rank_thresholds",
+                columns: new[] { "Rank", "PointsRequired", "SortOrder" },
+                values: new object[,]
+                {
+                    { "Bronze", 0, 0 },
+                    { "Iron", 100, 1 },
+                    { "Steel", 500, 2 },
+                    { "Mithril", 1000, 3 },
+                    { "Adamant", 2500, 4 },
+                    { "Rune", 5000, 5 },
+                    { "Dragon", 10000, 6 },
+                    { "Sapphire", 20000, 7 },
+                    { "Emerald", 35000, 8 },
+                    { "Ruby", 50000, 9 },
+                    { "Diamond", 75000, 10 },
+                    { "Dragonstone", 100000, 11 },
+                    { "Onyx", 150000, 12 },
+                    { "Zenyte", 250000, 13 }
+                });
         }
 
         /// <inheritdoc />
