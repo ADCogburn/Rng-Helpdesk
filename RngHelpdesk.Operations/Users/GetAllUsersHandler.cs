@@ -1,8 +1,8 @@
-﻿using RngHelpdesk.Contracts.Security;
+using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Infrastructure.Points;
 using RngHelpdesk.Infrastructure.Users;
-using RngHelpdesk.Operations.Ranks;
+using RngHelpdesk.Contracts.Common.Ranks;
 
 namespace RngHelpdesk.Operations.Users;
 

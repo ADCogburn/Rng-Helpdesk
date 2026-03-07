@@ -1,4 +1,4 @@
-﻿using RngHelpdesk.Contracts.Common;
+using RngHelpdesk.Contracts.Common;
 using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Commands;
 using RngHelpdesk.Domain.Users;
@@ -11,13 +11,13 @@ public sealed class CreateUserHandler
 {
     private readonly IUserRepository _userRepository;
     private readonly IEventDispatcher _eventDispatcher;
-    private readonly InMemoryAuthStore _authStore;
+    private readonly IAuthStore _authStore;
     private readonly IActorUserResolver _actorResolver;
 
     public CreateUserHandler(
         IUserRepository userRepository,
         IEventDispatcher eventDispatcher,
-        InMemoryAuthStore authStore,
+        IAuthStore authStore,
         IActorUserResolver actorResolver)
     {
         _userRepository = userRepository;
@@ -30,7 +30,9 @@ public sealed class CreateUserHandler
         IRequestContext context,
         CreateUserRequest request)
     {
-        AuthorizationRules.RequireAdminRole(context);
+        // Bootstrap: allow first user without admin auth
+        if (_userRepository.HasAnyUsers())
+            AuthorizationRules.RequireAdminRole(context);
 
         if (_userRepository.Exists(request.UserId))
             return CommandResult<CreateUserResponse>.Fail("User already exists.");

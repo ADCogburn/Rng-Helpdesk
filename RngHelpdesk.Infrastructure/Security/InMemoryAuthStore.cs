@@ -1,8 +1,8 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 
 namespace RngHelpdesk.Infrastructure.Security;
 
-public sealed class InMemoryAuthStore
+public sealed class InMemoryAuthStore : IAuthStore
 {
     private readonly Dictionary<string, AuthUser> _users = new(StringComparer.OrdinalIgnoreCase);
 

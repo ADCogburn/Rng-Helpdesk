@@ -19,6 +19,9 @@
 	<PackageReference Include="Microsoft.OpenApi" Version="2.3.0" />
 	<PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="10.1.0" />
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.1.0" />
+	<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
+		<PrivateAssets>all</PrivateAssets>
+	</PackageReference>
   </ItemGroup>
 
   <ItemGroup>
@@ -27,5 +30,17 @@
     <ProjectReference Include="..\RngHelpdesk.Infrastructure\RngHelpdesk.Infrastructure.csproj" />
     <ProjectReference Include="..\RngHelpdesk.Operations\RngHelpdesk.Operations.csproj" />
   </ItemGroup>
+
+	<!--
+    Source - https://stackoverflow.com/a
+    Posted by user1704029
+    Retrieved 2026-01-10, License - CC BY-SA 4.0
+    -->
+
+	<ItemGroup>
+		<Content Update="@(Content)">
+			<Visible Condition="'%(NuGetItemType)' == 'Content'">false</Visible>
+		</Content>
+	</ItemGroup>
 
 </Project>

@@ -1,12 +1,13 @@
-﻿using RngHelpdesk.Domain.Users;
+using RngHelpdesk.Domain.Users;
 using RngHelpdesk.Domain.Users.Events;
 using RngHelpdesk.Infrastructure.Common;
-using RngHelpdesk.Operations.Points.Views;
-using RngHelpdesk.Operations.Ranks;
+using RngHelpdesk.Contracts.Points.Views;
+using RngHelpdesk.Contracts.Common.Ranks;
 
 namespace RngHelpdesk.Infrastructure.Points;
 
 public sealed class PointHistoryProjection :
+    IProjectionState,
     IProjectionHandler<UserCreatedEvent>,
     IProjectionHandler<AuthorityRoleChangedEvent>,
     IProjectionHandler<ClanPointsChangedEvent>
@@ -20,6 +21,8 @@ public sealed class PointHistoryProjection :
 
     private readonly Dictionary<int, UserPointState> _store = new();
     private readonly RankResolver _rankResolver;
+
+    public bool IsEmpty => _store.Count == 0;
 
     public PointHistoryProjection(RankResolver rankResolver)
     {

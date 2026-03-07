@@ -1,4 +1,4 @@
-﻿namespace RngHelpdesk.Operations.Ranks;
+namespace RngHelpdesk.Contracts.Common.Ranks;
 
 public sealed class RankThreshold
 {
@@ -8,7 +8,6 @@ public sealed class RankThreshold
     public RankThreshold(Rank rank, int pointsRequired)
     {
         Rank = rank;
-        PointsRequired = pointsRequired;
         PointsRequired = Math.Max(0, pointsRequired);
     }
 }

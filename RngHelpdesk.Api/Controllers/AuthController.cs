@@ -1,7 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Infrastructure.Security;
+using RngHelpdesk.Infrastructure.Users;
+using RngHelpdesk.Operations.Security;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -12,15 +15,51 @@ namespace RngHelpdesk.Api.Controllers;
 [Route("auth")]
 public sealed class AuthController : ControllerBase
 {
-    private readonly InMemoryAuthStore _authStore;
+    private readonly IAuthStore _authStore;
     private readonly IConfiguration _config;
+    private readonly IRequestContextAccessor _requestContextAccessor;
+    private readonly IActorUserResolver _actorUserResolver;
+    private readonly UserSummaryProjection _users;
 
     public AuthController(
-        InMemoryAuthStore authStore,
-        IConfiguration config)
+        IAuthStore authStore,
+        IConfiguration config,
+        IRequestContextAccessor requestContextAccessor,
+        IActorUserResolver actorUserResolver,
+        UserSummaryProjection users)
     {
         _authStore = authStore;
         _config = config;
+        _requestContextAccessor = requestContextAccessor;
+        _actorUserResolver = actorUserResolver;
+        _users = users;
+    }
+
+    /// <summary>
+    /// Returns the current authenticated user's info including authorization role.
+    /// </summary>
+    [Authorize]
+    [HttpGet("me")]
+    public IActionResult GetCurrentUser()
+    {
+        var ctx = _requestContextAccessor.Context;
+
+        if (!ctx.IsAuthenticated)
+            return Unauthorized();
+
+        var userId = _actorUserResolver.ResolveUserId(ctx.ActorId, ctx.ActorType);
+        if (userId is null)
+            return NotFound(new { error = "Actor not linked to a user." });
+
+        var user = _users.GetSingleById(userId.Value);
+
+        return Ok(new
+        {
+            userId = user.UserId,
+            actorId = ctx.ActorId,
+            actorType = ctx.ActorType.ToString(),
+            authorityRole = user.AuthorityRole.ToString()
+        });
     }
 
     [HttpPost("login")]

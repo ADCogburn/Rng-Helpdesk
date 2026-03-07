@@ -1,6 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using RngHelpdesk.Api.Controllers;
-using RngHelpdesk.Api.Security;
+using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Commands;
 using RngHelpdesk.Domain.Users;
 using RngHelpdesk.Operations.Admin;
