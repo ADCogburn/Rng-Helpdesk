@@ -1,15 +1,18 @@
-﻿using RngHelpdesk.Contracts.Users.Views;
+using RngHelpdesk.Contracts.Users.Views;
 using RngHelpdesk.Domain.Users.Events;
 using RngHelpdesk.Infrastructure.Common;
 
 namespace RngHelpdesk.Infrastructure.Users;
 
 public sealed class RunescapeAccountHistoryProjection :
+    IProjectionState,
     IProjectionHandler<RunescapeAccountLinkedEvent>,
     IProjectionHandler<RunescapeAccountRenamedEvent>,
     IProjectionHandler<RunescapeAccountDelinkedEvent>
 {
     private readonly Dictionary<int, List<RunescapeAccountHistoryItem>> _history = new();
+
+    public bool IsEmpty => _history.Count == 0;
 
     public void Project(RunescapeAccountLinkedEvent e)
     {

@@ -1,4 +1,6 @@
-﻿namespace RngHelpdesk.Domain.Users;
+using System.Text.Json.Serialization;
+
+namespace RngHelpdesk.Domain.Users;
 
 public sealed class RunescapeAccount
 {
@@ -6,6 +8,7 @@ public sealed class RunescapeAccount
     public string Username { get; private set; }
     public bool IsActive { get; private set; }
 
+    [JsonConstructor]
     public RunescapeAccount(string username)
     {
         if (string.IsNullOrWhiteSpace(username))

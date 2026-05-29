@@ -1,24 +1,17 @@
-﻿using RngHelpdesk.Domain.Users;
-using System.Diagnostics;
+using RngHelpdesk.Contracts.Common.Ranks;
+using RngHelpdesk.Domain.Users;
 
-namespace RngHelpdesk.Operations.Ranks;
+namespace RngHelpdesk.Contracts.Common.Ranks;
 
 public sealed class RankResolver
 {
     private readonly IReadOnlyList<RankThreshold> _thresholds;
 
-    public RankResolver(IEnumerable<RankThreshold> thresholds)
+    public RankResolver(IRankThresholdProvider provider)
     {
-        _thresholds = thresholds
+        _thresholds = provider.GetThresholds()
             .OrderByDescending(t => t.PointsRequired)
             .ToList();
-
-        Debug.Assert(Resolve(AuthorityRole.Member, 0) == Rank.Bronze);
-        Debug.Assert(Resolve(AuthorityRole.Member, 99) == Rank.Bronze);
-        Debug.Assert(Resolve(AuthorityRole.Member, 100) == Rank.Iron);
-        Debug.Assert(Resolve(AuthorityRole.Member, 199) == Rank.Iron);
-        Debug.Assert(Resolve(AuthorityRole.Member, 200) == Rank.Steel);
-
     }
 
     /// <summary>

@@ -1,4 +1,4 @@
-﻿using RngHelpdesk.Domain.Common;
+using RngHelpdesk.Domain.Common;
 using RngHelpdesk.Domain.Users;
 
 namespace RngHelpdesk.Infrastructure.Users;
@@ -8,6 +8,8 @@ public sealed class InMemUserRepository : IUserRepository
     private readonly Dictionary<int, List<IDomainEvent>> _events = new();
 
     public bool Exists(int userId) => _events.ContainsKey(userId);
+
+    public bool HasAnyUsers() => _events.Count > 0;
 
     public User GetById(int userId)
     {

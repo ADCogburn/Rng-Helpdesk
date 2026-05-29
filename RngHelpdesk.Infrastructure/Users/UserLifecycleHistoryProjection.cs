@@ -1,14 +1,17 @@
-﻿using RngHelpdesk.Contracts.Users.Views;
+using RngHelpdesk.Contracts.Users.Views;
 using RngHelpdesk.Domain.Users.Events;
 using RngHelpdesk.Infrastructure.Common;
 
 namespace RngHelpdesk.Infrastructure.Users;
 
 public sealed class UserLifecycleHistoryProjection :
+    IProjectionState,
     IProjectionHandler<UserDeactivatedEvent>,
     IProjectionHandler<UserReactivatedEvent>
 {
     private readonly Dictionary<int, List<UserLifecycleHistoryItem>> _history = new();
+
+    public bool IsEmpty => _history.Count == 0;
 
     public void Project(UserDeactivatedEvent e)
     {

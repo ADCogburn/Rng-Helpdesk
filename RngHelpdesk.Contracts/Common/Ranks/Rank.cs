@@ -1,4 +1,4 @@
-﻿namespace RngHelpdesk.Operations.Ranks;
+namespace RngHelpdesk.Contracts.Common.Ranks;
 
 public enum Rank
 {

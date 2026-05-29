@@ -1,9 +1,10 @@
-﻿using RngHelpdesk.Domain.Common;
+using RngHelpdesk.Domain.Common;
 
 public abstract class AggregateRoot
 {
     private readonly List<IDomainEvent> _uncommittedDomainEvents = new();
     public IReadOnlyCollection<IDomainEvent> UncommittedDomainEvents => _uncommittedDomainEvents;
+    public int Version { get; protected set; }
 
     protected void RaiseDomainEvent(IDomainEvent domainEvent)
     {
@@ -21,6 +22,7 @@ public abstract class AggregateRoot
         foreach (var domainEvent in domainEvents)
         {
             Apply(domainEvent);
+            Version++;
         }
     }
 

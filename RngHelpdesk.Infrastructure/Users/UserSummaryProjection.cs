@@ -1,10 +1,12 @@
-﻿using RngHelpdesk.Contracts.Users.Views;
+using RngHelpdesk.Contracts.Users.Views;
+using RngHelpdesk.Domain.Users;
 using RngHelpdesk.Domain.Users.Events;
 using RngHelpdesk.Infrastructure.Common;
 
 namespace RngHelpdesk.Infrastructure.Users;
 
 public sealed class UserSummaryProjection :
+    IProjectionState,
     IProjectionHandler<UserCreatedEvent>,
     IProjectionHandler<UserDeactivatedEvent>,
     IProjectionHandler<UserReactivatedEvent>,
@@ -17,6 +19,8 @@ public sealed class UserSummaryProjection :
     IProjectionHandler<RunescapeAccountRenamedEvent>
 {
     private readonly Dictionary<int, UserSummaryReadModel> _users = new();
+
+    public bool IsEmpty => _users.Count == 0;
 
     public IReadOnlyCollection<UserSummaryReadModel> GetAll() => _users.Values;
 
@@ -85,7 +89,8 @@ public sealed class UserSummaryProjection :
 
     public void Project(UserDeactivatedEvent e)
     {
-        var existing = _users[e.UserId];
+        if (!_users.TryGetValue(e.UserId, out var existing))
+            return;
 
         _users[e.UserId] = existing with
         {
@@ -95,7 +100,8 @@ public sealed class UserSummaryProjection :
 
     public void Project(UserReactivatedEvent e)
     {
-        var existing = _users[e.UserId];
+        if (!_users.TryGetValue(e.UserId, out var existing))
+            return;
 
         _users[e.UserId] = existing with
         {
@@ -105,7 +111,8 @@ public sealed class UserSummaryProjection :
 
     public void Project(ClanPointsChangedEvent e)
     {
-        var existing = _users[e.UserId];
+        if (!_users.TryGetValue(e.UserId, out var existing))
+            return;
 
         _users[e.UserId] = existing with
         {
@@ -115,7 +122,9 @@ public sealed class UserSummaryProjection :
 
     public void Project(AuthorityRoleChangedEvent e)
     {
-        var existing = _users[e.UserId];
+        if (!_users.TryGetValue(e.UserId, out var existing))
+            return;
+
         _users[e.UserId] = existing with
         {
             AuthorityRole = e.NewRole
@@ -124,7 +133,18 @@ public sealed class UserSummaryProjection :
 
     public void Project(DiscordAccountLinkedEvent e)
     {
-        var existing = _users[e.UserId];
+        if (!_users.TryGetValue(e.UserId, out var existing))
+        {
+            existing = new UserSummaryReadModel
+            {
+                UserId = e.UserId,
+                AuthorityRole = AuthorityRole.Member,
+                IsActive = true,
+                DateCreated = e.OccurredAt,
+                RunescapeAccounts = [],
+                DiscordAccounts = []
+            };
+        }
 
         var updatedAccounts = existing.DiscordAccounts
             .Append(new DiscordAccountView
@@ -143,7 +163,8 @@ public sealed class UserSummaryProjection :
 
     public void Project(DiscordAccountDelinkedEvent e)
     {
-        var existing = _users[e.UserId];
+        if (!_users.TryGetValue(e.UserId, out var existing))
+            return;
 
         var updatedAccounts = existing.DiscordAccounts
             .Where(a => a.DiscordId != e.DiscordId)
@@ -157,7 +178,20 @@ public sealed class UserSummaryProjection :
 
     public void Project(RunescapeAccountLinkedEvent e)
     {
-        var existing = _users[e.UserId];
+        if (!_users.TryGetValue(e.UserId, out var existing))
+        {
+            // Replay from checkpoint can deliver later events before UserCreatedEvent
+            // when projection state was lost (e.g. app restart). Create a minimal stub.
+            existing = new UserSummaryReadModel
+            {
+                UserId = e.UserId,
+                AuthorityRole = AuthorityRole.Member,
+                IsActive = true,
+                DateCreated = e.OccurredAt,
+                RunescapeAccounts = [],
+                DiscordAccounts = []
+            };
+        }
 
         var updatedAccounts = existing.RunescapeAccounts
             .Append(new RunescapeAccountView
@@ -174,7 +208,8 @@ public sealed class UserSummaryProjection :
 
     public void Project(RunescapeAccountDelinkedEvent e)
     {
-        var existing = _users[e.UserId];
+        if (!_users.TryGetValue(e.UserId, out var existing))
+            return;
 
         var updatedAccounts = existing.RunescapeAccounts
             .Where(a =>
@@ -189,7 +224,8 @@ public sealed class UserSummaryProjection :
 
     public void Project(RunescapeAccountRenamedEvent e)
     {
-        var existing = _users[e.UserId];
+        if (!_users.TryGetValue(e.UserId, out var existing))
+            return;
 
         var updatedAccounts = existing.RunescapeAccounts
             .Where(a => !a.Username.Equals(e.OldUsername, StringComparison.OrdinalIgnoreCase))

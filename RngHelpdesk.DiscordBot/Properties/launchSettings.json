@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "RngHelpdesk.DiscordBot": {
+      "commandName": "Project",
+      "launchBrowser": false,
+      "applicationUrl": "http://localhost:59854",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

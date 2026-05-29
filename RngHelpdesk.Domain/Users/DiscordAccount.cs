@@ -1,4 +1,6 @@
-﻿namespace RngHelpdesk.Domain.Users;
+using System.Text.Json.Serialization;
+
+namespace RngHelpdesk.Domain.Users;
 
 public sealed class DiscordAccount
 {
@@ -7,6 +9,7 @@ public sealed class DiscordAccount
     public string Username { get; set; } = string.Empty;
     public bool IsActive { get; private set; } = true;
 
+    [JsonConstructor]
     public DiscordAccount(ulong discordId, string username, bool isActive = true)
     {
         DiscordId = discordId;
