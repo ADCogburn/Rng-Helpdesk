@@ -1,25 +1,27 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RngHelpdesk.Api.Controllers;
+using RngHelpdesk.Api.Security;
 using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Commands;
-using RngHelpdesk.Domain.Users;
 using RngHelpdesk.Operations.Admin;
 
 [ApiController]
+[Authorize(Policy = AuthPolicies.AdminPlus)]
 [Route("admin/users")]
 public sealed class AdminController : ControllerBase
 {
     private readonly IRequestContextAccessor _requestContextAccessor;
-    private readonly ChangeAdminStatusHandler _changeAdminStatusHandler;
+    private readonly ChangeUserRoleHandler _changeUserRoleHandler;
     private readonly CreateUserHandler _createUserHandler;
 
     public AdminController(
         IRequestContextAccessor requestContextAccessor,
-        ChangeAdminStatusHandler changeAdminStatusHandler,
+        ChangeUserRoleHandler changeUserRoleHandler,
         CreateUserHandler createUserHandler)
     {
         _requestContextAccessor = requestContextAccessor;
-        _changeAdminStatusHandler = changeAdminStatusHandler;
+        _changeUserRoleHandler = changeUserRoleHandler;
         _createUserHandler = createUserHandler;
     }
 
@@ -49,13 +51,13 @@ public sealed class AdminController : ControllerBase
     {
         var requestContext = _requestContextAccessor.Context;
 
-        var request = new ChangeAdminStatusRequest
+        var request = new ChangeUserRoleRequest
         {
             UserId = id,
-            NewRole = AuthorityRole.Administrator
+            NewRole = AppRole.Administrator
         };
 
-        _changeAdminStatusHandler.Handle(requestContext, request);
+        _changeUserRoleHandler.Handle(requestContext, request);
         return NoContent();
     }
 
@@ -67,13 +69,13 @@ public sealed class AdminController : ControllerBase
     {
         var requestContext = _requestContextAccessor.Context;
 
-        var request = new ChangeAdminStatusRequest
+        var request = new ChangeUserRoleRequest
         {
             UserId = id,
-            NewRole = AuthorityRole.Member
+            NewRole = AppRole.Member
         };
 
-        _changeAdminStatusHandler.Handle(requestContext, request);
+        _changeUserRoleHandler.Handle(requestContext, request);
         return NoContent();
     }
 }

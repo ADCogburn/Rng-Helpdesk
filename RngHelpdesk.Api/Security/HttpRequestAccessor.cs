@@ -1,4 +1,5 @@
 using RngHelpdesk.Contracts.Security;
+using System.Security.Claims;
 
 namespace RngHelpdesk.Api.Security;
 
@@ -10,13 +11,18 @@ public sealed class HttpRequestContextAccessor : IRequestContextAccessor
     public IRequestContext Context { get; }
 
     public HttpRequestContextAccessor(
-        IHttpContextAccessor httpContextAccessor,
-        IRequestContextFactory contextFactory)
+        IHttpContextAccessor httpContextAccessor)
     {
-        var httpContext = httpContextAccessor.HttpContext;
+        var user = httpContextAccessor.HttpContext?.User;
 
-        Context = httpContext is null
-            ? new AnonymousRequestContext() // still allows "no auth required" commands, if there ever are any.
-            : contextFactory.CreateHttpContext(httpContext);
+        var userIdClaim = user?.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!int.TryParse(userIdClaim, out var userId))
+            throw new InvalidOperationException("No authenticated user id exists for this request.");
+
+        Context = new RequestContext
+        {
+            UserId = userId
+        };
     }
 }
