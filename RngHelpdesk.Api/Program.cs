@@ -1,9 +1,7 @@
 using FluentValidation;
 using FluentValidation.AspNetCore;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
-using Npgsql;
 using RngHelpdesk.Api.Security;
 using RngHelpdesk.Api.Validators.Users;
 using RngHelpdesk.Contracts.Common.Ranks;
@@ -17,7 +15,6 @@ using RngHelpdesk.Infrastructure.Security;
 using RngHelpdesk.Infrastructure.Users;
 using RngHelpdesk.Operations.Admin;
 using RngHelpdesk.Operations.Points;
-using RngHelpdesk.Contracts.Common.Ranks;
 using RngHelpdesk.Operations.Security;
 using RngHelpdesk.Operations.Users;
 using RngHelpdesk.Operations.Users.DiscordAccounts;
@@ -85,7 +82,18 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(opt =>
+{
+    opt.AddPolicy(AuthPolicies.AdminPlus, policy =>
+        policy.RequireRole(
+            AppRole.Administrator.ToString(),
+            AppRole.SuperAdministrator.ToString(),
+            AppRole.Owner.ToString()));
+
+    opt.AddPolicy(AuthPolicies.OwnerOnly, policy =>
+        policy.RequireRole(
+            AppRole.Owner.ToString()));
+});
 
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<LinkRunescapeAccountRequestValidator>();
@@ -97,12 +105,11 @@ builder.Services.AddValidatorsFromAssemblyContaining<LinkRunescapeAccountRequest
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddScoped<IRequestContextAccessor, HttpRequestContextAccessor>();
-builder.Services.AddScoped<IRequestContextFactory, HttpRequestContextFactory>();
 builder.Services.AddScoped<AuthorizationService>();
 
 // -- Operations Level Handlers --
 
-builder.Services.AddScoped<ChangeAdminStatusHandler>();
+builder.Services.AddScoped<ChangeUserRoleHandler>();
 
 builder.Services.AddSingleton<IActorUserResolver, PostgresActorUserResolver>();
 
@@ -133,8 +140,8 @@ builder.Services.AddScoped<GetPointHistoryForUserHandler>();
 
 // -- Repositories --
 
-builder.Services.AddScoped<IUserRepository, PostgresUserRepository>();
-builder.Services.AddScoped<IAuthStore, PostgresAuthStore>();
+builder.Services.AddScoped<IUserRepository, InMemUserRepository>();
+builder.Services.AddScoped<IAuthStore, InMemoryAuthStore>();
 
 builder.Services.AddHttpClient<RngHelpdesk.Infrastructure.Discord.HttpDiscordUsernameResolver>(client =>
 {
