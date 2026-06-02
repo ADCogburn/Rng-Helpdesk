@@ -23,8 +23,7 @@ public sealed class User : AggregateRoot
 
     // ** Non-Collection Models **
     private int _currentClanPoints; // private field used as a cache when loading from history.
-    public AuthorityRole AuthorityRole { get; private set; } = AuthorityRole.Member;
-    public DateTime DateCreated { get; private set; } = DateTime.UtcNow;
+    public DateTimeOffset DateCreated { get; private set; } = DateTimeOffset.UtcNow;
     public bool IsActive { get; private set; } = true;
 
     internal User()
@@ -34,7 +33,7 @@ public sealed class User : AggregateRoot
 
     public static User Create(
         int userId,
-        AuthorityRole authorityRole,
+        int actingUserId,
         IEnumerable<DiscordAccount> discordAccounts,
         IEnumerable<RunescapeAccount> runescapeAccounts)
     {
@@ -42,9 +41,10 @@ public sealed class User : AggregateRoot
 
         user.RaiseDomainEvent(new UserCreatedEvent(
             userId,
-            authorityRole,
+            actingUserId,
             discordAccounts,
-            runescapeAccounts));
+            runescapeAccounts,
+            DateTimeOffset.UtcNow));
 
         return user;
     }
@@ -68,7 +68,6 @@ public sealed class User : AggregateRoot
         {
             case UserCreatedEvent e:
                 Id = e.UserId;
-                AuthorityRole = e.AuthorityRole;
                 IsActive = true;
                 DateCreated = e.OccurredAt;
                 _discordAccounts.AddRange(e.DiscordAccounts);
@@ -85,10 +84,6 @@ public sealed class User : AggregateRoot
 
             case ClanPointsChangedEvent e:
                 _currentClanPoints += e.Delta;
-                break;
-
-            case AuthorityRoleChangedEvent e:
-                AuthorityRole = e.NewRole;
                 break;
 
             case DiscordAccountLinkedEvent e:
@@ -223,16 +218,5 @@ public sealed class User : AggregateRoot
         RaiseDomainEvent(new RunescapeAccountDelinkedEvent(
             Id,
             username));
-    }
-
-    public void ChangeAuthorityRole(AuthorityRole newRole)
-    {
-        if (AuthorityRole == newRole)
-            return;
-
-        RaiseDomainEvent(new AuthorityRoleChangedEvent(
-            Id,
-            AuthorityRole,
-            newRole));
     }
 }

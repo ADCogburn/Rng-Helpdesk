@@ -14,7 +14,7 @@ using RngHelpdesk.Operations.Users.RunescapeAccounts;
 
 namespace RngHelpdesk.Api.Controllers;
 
-[Authorize]
+[Authorize(Policy = AuthPolicies.AdminPlus)]
 [ApiController]
 [Route("users")]
 public sealed class UsersController : ControllerBase

@@ -1,6 +1,7 @@
 using RngHelpdesk.Contracts.Common;
 using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Commands;
+using RngHelpdesk.Domain.Common;
 using RngHelpdesk.Domain.Users;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Security;
@@ -30,10 +31,6 @@ public sealed class CreateUserHandler
         IRequestContext context,
         CreateUserRequest request)
     {
-        // Bootstrap: allow first user without admin auth
-        if (_userRepository.HasAnyUsers())
-            AuthorizationRules.RequireAdminRole(context);
-
         if (_userRepository.Exists(request.UserId))
             return CommandResult<CreateUserResponse>.Fail("User already exists.");
 
@@ -46,6 +43,8 @@ public sealed class CreateUserHandler
 
         var user = User.Create(
             request.UserId,
+            context.ActorId,
+            context.ActorType,
             request.AuthorityRole,
             discordAccounts,
             runescapeAccounts);

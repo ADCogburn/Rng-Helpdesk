@@ -1,9 +1,11 @@
-﻿namespace RngHelpdesk.Infrastructure.Security;
+﻿using RngHelpdesk.Contracts.Security;
 
-internal sealed class AuthUser
+namespace RngHelpdesk.Infrastructure.Security;
+
+internal sealed class UserAuthDetails
 {
     public int UserId { get; init; }
-    public Guid ActorId { get; init; }
+    public AppRole Role { get; set; }
 
     public string Username { get; init; } = default!;
     public string PasswordHash { get; set; } = default!;

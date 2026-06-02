@@ -4,7 +4,6 @@ using Microsoft.IdentityModel.Tokens;
 using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Infrastructure.Security;
 using RngHelpdesk.Infrastructure.Users;
-using RngHelpdesk.Operations.Security;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -17,21 +16,16 @@ public sealed class AuthController : ControllerBase
 {
     private readonly IAuthStore _authStore;
     private readonly IConfiguration _config;
-    private readonly IRequestContextAccessor _requestContextAccessor;
-    private readonly IActorUserResolver _actorUserResolver;
     private readonly UserSummaryProjection _users;
+
 
     public AuthController(
         IAuthStore authStore,
         IConfiguration config,
-        IRequestContextAccessor requestContextAccessor,
-        IActorUserResolver actorUserResolver,
         UserSummaryProjection users)
     {
         _authStore = authStore;
         _config = config;
-        _requestContextAccessor = requestContextAccessor;
-        _actorUserResolver = actorUserResolver;
         _users = users;
     }
 
@@ -42,40 +36,39 @@ public sealed class AuthController : ControllerBase
     [HttpGet("me")]
     public IActionResult GetCurrentUser()
     {
-        var ctx = _requestContextAccessor.Context;
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-        if (!ctx.IsAuthenticated)
+        if (!int.TryParse(userIdClaim, out var userId))
             return Unauthorized();
 
-        var userId = _actorUserResolver.ResolveUserId(ctx.ActorId, ctx.ActorType);
-        if (userId is null)
-            return NotFound(new { error = "Actor not linked to a user." });
-
-        var user = _users.GetSingleById(userId.Value);
+        var user = _users.GetSingleById(userId);
 
         return Ok(new
         {
             userId = user.UserId,
-            actorId = ctx.ActorId,
-            actorType = ctx.ActorType.ToString(),
-            authorityRole = user.AuthorityRole.ToString()
+            role = User.FindFirst(ClaimTypes.Role)?.Value,
+
+            discordAccounts = user.DiscordAccounts,
+            runescapeAccounts = user.RunescapeAccounts,
+
+            currentPoints = user.CurrentClanPoints,
+            rank = user.Rank
         });
     }
 
     [HttpPost("login")]
     public IActionResult Login([FromBody] LoginRequest request)
     {
-        var actorId = _authStore.ValidateCredentials(
+        var authenticatedUser = _authStore.ValidateCredentials(
             request.Username,
             request.Password);
-
-        if (actorId is null)
+        if (authenticatedUser is null)
             return Unauthorized();
 
         var claims = new[]
         {
-            new Claim(ClaimTypes.NameIdentifier, actorId.Value.ToString()),
-            new Claim("actor_type", ActorType.WebUser.ToString())
+            new Claim(ClaimTypes.NameIdentifier, authenticatedUser.UserId.ToString()),
+            new Claim(ClaimTypes.Role, authenticatedUser.Role.ToString())
         };
 
         var key = new SymmetricSecurityKey(
