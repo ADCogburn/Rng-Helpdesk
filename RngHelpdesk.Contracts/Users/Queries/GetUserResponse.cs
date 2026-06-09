@@ -1,4 +1,5 @@
-﻿using RngHelpdesk.Contracts.Users.Views;
+﻿using RngHelpdesk.Contracts.Security;
+using RngHelpdesk.Contracts.Users.Views;
 
 namespace RngHelpdesk.Contracts.Users.Queries;
 
@@ -16,6 +17,7 @@ public sealed record GetUserByRunescapeUsernameQuery(string RunescapeUsername);
 public sealed class GetUserResponse
 {
     public int Id { get; init; }
+    public AppRole AppRole { get; init; }
     public int ClanPoints { get; init; }
     public string Rank { get; init; } = default!;
     public bool IsActive { get; init; }

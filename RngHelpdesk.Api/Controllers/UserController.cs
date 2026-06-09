@@ -16,7 +16,7 @@ namespace RngHelpdesk.Api.Controllers;
 
 [Authorize(Policy = AuthPolicies.AdminPlus)]
 [ApiController]
-[Route("users")]
+[Route("[controller]")]
 public sealed class UsersController : ControllerBase
 {
     private readonly IRequestContext _requestContext;
@@ -83,7 +83,7 @@ public sealed class UsersController : ControllerBase
     [HttpGet]
     public ActionResult<GetAllUsersResponse> GetAllUsers()
     {
-        var response = _getAllUsersHandler.Handle(_requestContext);
+        var response = _getAllUsersHandler.Handle();
         return Ok(response);
     }
 
@@ -97,7 +97,7 @@ public sealed class UsersController : ControllerBase
     {
         var query = new GetUserByIdQuery(id);
 
-        var response = _getUserHandler.Handle(_requestContext, query);
+        var response = _getUserHandler.Handle(query);
         return Ok(response);
     }
 

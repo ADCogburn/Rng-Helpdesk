@@ -1,15 +1,13 @@
-using RngHelpdesk.Domain.Users;
+using RngHelpdesk.Contracts.Common.Ranks;
+using RngHelpdesk.Contracts.Points.Views;
 using RngHelpdesk.Domain.Users.Events;
 using RngHelpdesk.Infrastructure.Common;
-using RngHelpdesk.Contracts.Points.Views;
-using RngHelpdesk.Contracts.Common.Ranks;
 
 namespace RngHelpdesk.Infrastructure.Points;
 
 public sealed class PointHistoryProjection :
     IProjectionState,
     IProjectionHandler<UserCreatedEvent>,
-    IProjectionHandler<AuthorityRoleChangedEvent>,
     IProjectionHandler<ClanPointsChangedEvent>
 {
     private sealed class UserPointState
@@ -79,10 +77,10 @@ public sealed class PointHistoryProjection :
 
     public void Project(ClanPointsChangedEvent e)
     {
-        if (!_store.TryGetValue(e.UserId, out var state))
+        if (!_store.TryGetValue(e.ChangedByUserId, out var state))
         {
             throw new InvalidOperationException(
-                $"PointHistoryProjection received ClanPointsChangedEvent for user {e.UserId} before UserCreatedEvent.");
+                $"PointHistoryProjection received ClanPointsChangedEvent for user {e.ChangedByUserId} before UserCreatedEvent.");
         }
 
         var rankBefore = GetDisplayedRank(state);

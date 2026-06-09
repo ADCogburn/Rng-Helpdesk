@@ -1,9 +1,8 @@
-using RngHelpdesk.Contracts.Security;
+using RngHelpdesk.Contracts.Common.Ranks;
 using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Contracts.Users.Views;
 using RngHelpdesk.Infrastructure.Points;
 using RngHelpdesk.Infrastructure.Users;
-using RngHelpdesk.Contracts.Common.Ranks;
 
 namespace RngHelpdesk.Operations.Users;
 
@@ -23,34 +22,22 @@ public sealed class GetUserHandler
         _rankResolver = rankResolver;
     }
 
-    public GetUserResponse Handle(
-        IRequestContext requestContext,
-        GetUserByIdQuery query)
+    public GetUserResponse Handle(GetUserByIdQuery query)
     {
-        AuthorizationRules.RequireAuthentication(requestContext);
-
         var user = _users.GetSingleById(query.UserId);
 
         return MapToResponse(user);
     }
 
-    public GetUserResponse Handle(
-        IRequestContext requestContext,
-        GetUserByDiscordIdQuery query)
+    public GetUserResponse Handle(GetUserByDiscordIdQuery query)
     {
-        AuthorizationRules.RequireAuthentication(requestContext);
-
         var user = _users.GetByDiscordId(query.DiscordAccountId);
 
         return MapToResponse(user);
     }
 
-    public GetUserResponse Handle(
-        IRequestContext requestContext,
-        GetUserByRunescapeUsernameQuery query)
+    public GetUserResponse Handle(GetUserByRunescapeUsernameQuery query)
     {
-        AuthorizationRules.RequireAuthentication(requestContext);
-
         var user = _users.GetByRunescapeUsername(query.RunescapeUsername);
 
         return MapToResponse(user);
@@ -61,12 +48,13 @@ public sealed class GetUserHandler
         var totalPoints = _pointsTotal.GetTotalPoints(user.UserId);
 
         var rank = _rankResolver.Resolve(
-            user.AuthorityRole,
+            user.AppRole,
             totalPoints);
 
         return new GetUserResponse
         {
             Id = user.UserId,
+            AppRole = user.AppRole,
             ClanPoints = totalPoints,
             Rank = rank.ToString(),
             IsActive = user.IsActive,
@@ -79,7 +67,7 @@ public sealed class GetUserHandler
                 })
                 .ToList(),
 
-            DiscordAccounts = user.DiscordAccounts
+            DiscordAccounts = user.DiscordAccount
                 .Select(d => new DiscordAccountView
                 {
                     DiscordId = d.DiscordId,

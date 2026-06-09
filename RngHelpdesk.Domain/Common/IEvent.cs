@@ -1,7 +1,7 @@
 ﻿namespace RngHelpdesk.Domain.Common;
 
-public interface IAuditableEvent
+public interface IEvent
 {
-    int ActingUserId { get; }
+    ulong ActingUserId { get; }
     DateTimeOffset OccurredAt { get; }
 }

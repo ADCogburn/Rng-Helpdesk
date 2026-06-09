@@ -1,5 +1,3 @@
-﻿using RngHelpdesk.Contracts.Security;
+﻿namespace RngHelpdesk.Infrastructure.Security;
 
-namespace RngHelpdesk.Infrastructure.Security;
-
-public sealed record AuthenticatedUser(int UserId, AppRole Role);
+public sealed record AuthenticatedUser(ulong UserId, string Username, bool MustChangePassword);

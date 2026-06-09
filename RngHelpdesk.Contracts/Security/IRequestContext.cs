@@ -3,4 +3,5 @@
 public interface IRequestContext
 {
     int UserId { get; }
+    AppRole AppRole { get; }
 }

@@ -1,75 +1,69 @@
 using RngHelpdesk.Contracts.Common;
 using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Commands;
-using RngHelpdesk.Domain.Common;
 using RngHelpdesk.Domain.Users;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Security;
 using RngHelpdesk.Infrastructure.Users;
-using RngHelpdesk.Operations.Security;
 
 public sealed class CreateUserHandler
 {
     private readonly IUserRepository _userRepository;
     private readonly IEventDispatcher _eventDispatcher;
-    private readonly IAuthStore _authStore;
-    private readonly IActorUserResolver _actorResolver;
+    private readonly ICredentialStore _credentialStore;
 
     public CreateUserHandler(
         IUserRepository userRepository,
         IEventDispatcher eventDispatcher,
-        IAuthStore authStore,
-        IActorUserResolver actorResolver)
+        ICredentialStore credentialStore)
     {
         _userRepository = userRepository;
         _eventDispatcher = eventDispatcher;
-        _authStore = authStore;
-        _actorResolver = actorResolver;
+        _credentialStore = credentialStore;
     }
 
     public CommandResult<CreateUserResponse> Handle(
-        IRequestContext context,
+        ulong actingUserId,
         CreateUserRequest request)
     {
-        if (_userRepository.Exists(request.UserId))
-            return CommandResult<CreateUserResponse>.Fail("User already exists.");
+        if (request.DiscordAccount == null)
+            return CommandResult<CreateUserResponse>.Fail("Discord account is required.");
 
-        var discordAccounts = request.DiscordAccounts
-            .Select(x => new DiscordAccount(x.DiscordId, x.Username));
+        if (request.DiscordAccount.DiscordId == 0 || string.IsNullOrWhiteSpace(request.DiscordAccount.Username))
+            return CommandResult<CreateUserResponse>.Fail("Discord account, its snowflake Id, and its username are required.");
+
+        if (_userRepository.UserExistsWithDiscordId(request.DiscordAccount.DiscordId) || _userRepository.UserExistsWithDiscordUsername(request.DiscordAccount.Username))
+            return CommandResult<CreateUserResponse>.Fail("User with this Discord ID or username already exists.");
+
+        var discordAccount = new DiscordAccount(request.DiscordAccount.DiscordId, request.DiscordAccount.Username));
 
         var runescapeAccounts = request.RunescapeAccounts
             .Select(x => new RunescapeAccount(x.Username))
             .ToList();
 
         var user = User.Create(
-            request.UserId,
-            context.ActorId,
-            context.ActorType,
-            request.AuthorityRole,
-            discordAccounts,
-            runescapeAccounts);
+           actingUserId,
+           discordAccount,
+           runescapeAccounts);
 
         var events = _userRepository.Save(user);
+
         _eventDispatcher.Dispatch(events);
 
-        var actorId = Guid.NewGuid();
+        // TODO: Rigorous name setup
 
-        _actorResolver.RegisterActor(
-            actorId,
-            ActorType.WebUser,
-            request.UserId);
-
-        var preferredUsername = runescapeAccounts.First().Username;
+        var preferredUsername = runescapeAccounts.Count > 0
+            ? runescapeAccounts.First().Username
+            : discordAccount.Username;
 
         var (username, password) =
-            _authStore.CreateTemporaryCredentials(
-                request.UserId,
-                actorId,
+            _credentialStore.CreateTemporaryCredentials(
+                user.Id,
                 preferredUsername);
 
         return CommandResult<CreateUserResponse>.Ok(new CreateUserResponse
         {
-            UserId = request.UserId,
+            UserId = user.Id,
             Username = username,
             TemporaryPassword = password
         });

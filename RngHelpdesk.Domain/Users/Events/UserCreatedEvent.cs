@@ -3,34 +3,51 @@ using System.Text.Json.Serialization;
 
 namespace RngHelpdesk.Domain.Users.Events;
 
-public sealed class UserCreatedEvent : AuditableEvent
+public sealed class UserCreatedEvent : IDomainEvent
 {
-    public int UserId { get; }
-    public IReadOnlyList<DiscordAccount> DiscordAccounts { get; }
+    // Audting properties
+    public ulong ActingUserId { get; }
+    public DateTimeOffset OccurredAt { get; }
+
+    public ulong UserId { get; }
+    public DiscordAccount DiscordAccount { get; }
     public IReadOnlyList<RunescapeAccount> RunescapeAccounts { get; }
 
+    /// <summary>
+    /// Constructor that allows for JSON Serialization when rehydrating from the event store.
+    /// Other code should call Create below for domain event creation, not this constructor.
+    /// </summary>
+    /// <param name="actingUserId"></param>
+    /// <param name="occurredAt"></param>
+    /// <param name="discordAccount"></param>
+    /// <param name="runescapeAccounts"></param>
     [JsonConstructor]
     public UserCreatedEvent(
-        int userId,
-        int actingUserId,
-        IEnumerable<DiscordAccount> discordAccounts,
-        IEnumerable<RunescapeAccount> runescapeAccounts,
-        DateTimeOffset occurredAt) : base(actingUserId, occurredAt)
+        ulong actingUserId,
+        DateTimeOffset occurredAt,
+        DiscordAccount discordAccount,
+        IEnumerable<RunescapeAccount> runescapeAccounts)
     {
-        UserId = userId;
-        DiscordAccounts = discordAccounts.ToList();
+        ActingUserId = actingUserId;
+        OccurredAt = occurredAt;
+
+        UserId = discordAccount.DiscordId;
+        DiscordAccount = discordAccount;
         RunescapeAccounts = runescapeAccounts.ToList();
     }
 
     /// <summary>
     /// Domain factory for creating the event (not used by JSON deserialization).
     /// </summary>
-    public UserCreatedEvent(
-        int userId,
-        int actingUserId,
-        IEnumerable<DiscordAccount> discordAccounts,
+    public static UserCreatedEvent Create(
+        ulong actingUserId,
+        DiscordAccount discordAccount,
         IEnumerable<RunescapeAccount> runescapeAccounts)
-        : this(userId, actingUserId, discordAccounts, runescapeAccounts, DateTimeOffset.UtcNow)
     {
+        return new UserCreatedEvent(
+            actingUserId: actingUserId,
+            occurredAt: DateTimeOffset.UtcNow,
+            discordAccount: discordAccount,
+            runescapeAccounts: runescapeAccounts);
     }
 }

@@ -10,12 +10,12 @@ public sealed class UserPointsTotalProjection : IProjectionState, IProjectionHan
 
     public void Project(ClanPointsChangedEvent e)
     {
-        if (!_totals.ContainsKey(e.UserId))
+        if (!_totals.ContainsKey(e.ChangedByUserId))
         {
-            _totals[e.UserId] = 0;
+            _totals[e.ChangedByUserId] = 0;
         }
 
-        _totals[e.UserId] += e.Delta;
+        _totals[e.ChangedByUserId] += e.Delta;
     }
 
     public int GetTotalPoints(int userId)

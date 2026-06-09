@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using RngHelpdesk.Api.DTOs;
+using RngHelpdesk.Contracts.Common.Ranks;
 using RngHelpdesk.Contracts.Security;
+using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Infrastructure.Security;
 using RngHelpdesk.Infrastructure.Users;
 using System.IdentityModel.Tokens.Jwt;
@@ -14,27 +17,26 @@ namespace RngHelpdesk.Api.Controllers;
 [Route("auth")]
 public sealed class AuthController : ControllerBase
 {
-    private readonly IAuthStore _authStore;
+    private readonly ICredentialStore _authStore;
     private readonly IConfiguration _config;
+    private readonly RankResolver _rankResolver;
     private readonly UserSummaryProjection _users;
 
-
     public AuthController(
-        IAuthStore authStore,
+        ICredentialStore authStore,
         IConfiguration config,
+        RankResolver rankResolver,
         UserSummaryProjection users)
     {
         _authStore = authStore;
         _config = config;
+        _rankResolver = rankResolver;
         _users = users;
     }
 
-    /// <summary>
-    /// Returns the current authenticated user's info including authorization role.
-    /// </summary>
     [Authorize]
     [HttpGet("me")]
-    public IActionResult GetCurrentUser()
+    public ActionResult<GetUserResponse> GetCurrentUser()
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
@@ -43,16 +45,24 @@ public sealed class AuthController : ControllerBase
 
         var user = _users.GetSingleById(userId);
 
-        return Ok(new
+        var roleText = User.FindFirst(ClaimTypes.Role)?.Value;
+
+        var appRole = Enum.TryParse<AppRole>(roleText, out var parsedRole)
+            ? parsedRole
+            : AppRole.Member;
+
+        var rank = _rankResolver.Resolve(appRole, user.ClanPoints);
+
+        return Ok(new GetUserResponse
         {
-            userId = user.UserId,
-            role = User.FindFirst(ClaimTypes.Role)?.Value,
-
-            discordAccounts = user.DiscordAccounts,
-            runescapeAccounts = user.RunescapeAccounts,
-
-            currentPoints = user.CurrentClanPoints,
-            rank = user.Rank
+            Id = user.UserId,
+            AppRole = appRole,
+            ClanPoints = user.ClanPoints,
+            Rank = rank.ToString(),
+            IsActive = user.IsActive,
+            DateCreated = user.DateCreated,
+            DiscordAccounts = user.DiscordAccount.ToList(),
+            RunescapeAccounts = user.RunescapeAccounts.ToList()
         });
     }
 
@@ -62,6 +72,7 @@ public sealed class AuthController : ControllerBase
         var authenticatedUser = _authStore.ValidateCredentials(
             request.Username,
             request.Password);
+
         if (authenticatedUser is null)
             return Unauthorized();
 
@@ -69,6 +80,9 @@ public sealed class AuthController : ControllerBase
         {
             new Claim(ClaimTypes.NameIdentifier, authenticatedUser.UserId.ToString()),
             new Claim(ClaimTypes.Role, authenticatedUser.Role.ToString())
+
+            // Later:
+            // Discord Bot flow should also issue this same normal user JWT after validating the Discord snowflake through a bot-only endpoint.
         };
 
         var key = new SymmetricSecurityKey(
@@ -86,9 +100,9 @@ public sealed class AuthController : ControllerBase
             )
         );
 
-        return Ok(new
+        return Ok(new LoginResponse
         {
-            token = new JwtSecurityTokenHandler().WriteToken(token)
+            Token = new JwtSecurityTokenHandler().WriteToken(token)
         });
     }
 }

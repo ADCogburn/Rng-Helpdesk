@@ -40,4 +40,14 @@ public sealed class InMemUserRepository : IUserRepository
     {
         _events[userId] = new List<IDomainEvent>(events);
     }
+
+    public bool UserExistsWithDiscordId(ulong discordId)
+    {
+        throw new NotImplementedException();
+    }
+
+    public bool UserExistsWithDiscordUsername(string username)
+    {
+        throw new NotImplementedException();
+    }
 }

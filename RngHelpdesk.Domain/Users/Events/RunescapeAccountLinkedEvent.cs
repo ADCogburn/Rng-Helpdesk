@@ -1,20 +1,34 @@
 ﻿using RngHelpdesk.Domain.Common;
+using System.Text.Json.Serialization;
 
 namespace RngHelpdesk.Domain.Users.Events;
 
 public sealed class RunescapeAccountLinkedEvent : IDomainEvent
 {
-    public int UserId { get; }
-    public string Username { get; }
-    public DateTime OccurredAt { get; } = DateTime.UtcNow;
+    // Audting properties
+    public ulong ActingUserId { get; }
+    public DateTimeOffset OccurredAt { get; }
 
-    public RunescapeAccountLinkedEvent(int userId, string username)
+    public ulong UserId { get; }
+    public string Username { get; }
+
+    [JsonConstructor]
+    public RunescapeAccountLinkedEvent(ulong actingUserId, ulong userId, DateTimeOffset occurredAt, string username)
     {
-        if (string.IsNullOrWhiteSpace(username))
-            throw new DomainException("Runescape username must be provided.");
+        ActingUserId = actingUserId;
+        OccurredAt = occurredAt;
 
         UserId = userId;
         Username = username;
+    }
+
+    public static RunescapeAccountLinkedEvent Create(ulong actingUserId, ulong userId, string username)
+    {
+        return new RunescapeAccountLinkedEvent(
+            actingUserId: actingUserId,
+            userId: userId,
+            occurredAt: DateTimeOffset.UtcNow,
+            username: username);
     }
 }
 

@@ -1,27 +1,38 @@
 ﻿using RngHelpdesk.Domain.Common;
+using System.Text.Json.Serialization;
 
 /// <summary>
 /// Domain event representing a change in clan points for a user.
 /// </summary>
 public sealed class ClanPointsChangedEvent : IDomainEvent
 {
-    public Guid Id { get; }
-    public int UserId { get; }
+    // Auditing properties
+    public ulong ActingUserId { get; }
+    public DateTimeOffset OccurredAt { get; }
+
+    public ulong UserId { get; }
     public int Delta { get; }
     public string Reason { get; }
-    public DateTime OccurredAt { get; } = DateTime.UtcNow;
 
-    public ClanPointsChangedEvent(int userId, int delta, string reason)
+
+    [JsonConstructor]
+    public ClanPointsChangedEvent(ulong actingUserId, DateTimeOffset occurredAt, ulong userId, int delta, string reason)
     {
-        if (delta == 0)
-            throw new DomainException("Points event must change points.");
+        ActingUserId = actingUserId;
+        OccurredAt = occurredAt;
 
-        if (string.IsNullOrWhiteSpace(reason))
-            throw new DomainException("Reason for points change must be provided.");
-
-        Id = Guid.NewGuid();
         UserId = userId;
         Delta = delta;
         Reason = reason;
+    }
+
+    public static ClanPointsChangedEvent Create(ulong actingUserId, ulong userId, int delta, string reason)
+    {
+        return new ClanPointsChangedEvent(
+            actingUserId: actingUserId,
+            occurredAt: DateTimeOffset.UtcNow,
+            userId: userId,
+            delta: delta,
+            reason: reason);
     }
 }

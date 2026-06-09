@@ -3,24 +3,37 @@ namespace RngHelpdesk.Domain.Users.Events;
 
 public sealed class RunescapeAccountRenamedEvent : IDomainEvent
 {
-    public int UserId { get; }
+    // Auditing properties
+    public ulong ActingUserId { get; }
+    public DateTimeOffset OccuredAt { get; }
+
+    public ulong UserId { get; }
     public string OldUsername { get; }
     public string NewUsername { get; }
-    public DateTime OccurredAt { get; } = DateTime.UtcNow;
+
 
     public RunescapeAccountRenamedEvent(
-        int userId,
+        ulong actingUserId,
+        DateTimeOffset occuredAt,
+        ulong userId,
         string oldUsername,
         string newUsername)
     {
-        if (string.IsNullOrWhiteSpace(oldUsername))
-            throw new DomainException("Old username required.");
-
-        if (string.IsNullOrWhiteSpace(newUsername))
-            throw new DomainException("New username required.");
+        ActingUserId = actingUserId;
+        OccuredAt = occuredAt;
 
         UserId = userId;
         OldUsername = oldUsername;
         NewUsername = newUsername;
+    }
+
+    public static RunescapeAccountRenamedEvent Create(ulong actingUserId, ulong userId, string oldUsername, string newUsername)
+    {
+        return new RunescapeAccountRenamedEvent(
+            actingUserId: actingUserId,
+            occuredAt: DateTimeOffset.UtcNow,
+            userId: userId,
+            oldUsername: oldUsername,
+            newUsername: newUsername);
     }
 }

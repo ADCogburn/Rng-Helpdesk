@@ -1,15 +1,15 @@
-using RngHelpdesk.Domain.Users;
+using RngHelpdesk.Contracts.Security;
 
 namespace RngHelpdesk.Contracts.Common.Ranks;
 
 public static class RankHelper
 {
-    public static Rank FromAuthority(AuthorityRole role) =>
+    public static Rank FromAppRole(AppRole role) =>
         role switch
         {
-            AuthorityRole.Administrator => Rank.Administrator,
-            AuthorityRole.SuperAdministrator => Rank.DeputyOwner,
-            AuthorityRole.Owner => Rank.Owner,
+            AppRole.Administrator => Rank.Administrator,
+            AppRole.SuperAdministrator => Rank.DeputyOwner,
+            AppRole.Owner => Rank.Owner,
             _ => throw new InvalidOperationException()
         };
 }

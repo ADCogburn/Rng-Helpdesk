@@ -15,7 +15,6 @@ using RngHelpdesk.Infrastructure.Security;
 using RngHelpdesk.Infrastructure.Users;
 using RngHelpdesk.Operations.Admin;
 using RngHelpdesk.Operations.Points;
-using RngHelpdesk.Operations.Security;
 using RngHelpdesk.Operations.Users;
 using RngHelpdesk.Operations.Users.DiscordAccounts;
 using RngHelpdesk.Operations.Users.RunescapeAccounts;
@@ -93,6 +92,9 @@ builder.Services.AddAuthorization(opt =>
     opt.AddPolicy(AuthPolicies.OwnerOnly, policy =>
         policy.RequireRole(
             AppRole.Owner.ToString()));
+
+    opt.AddPolicy(AuthPolicies.DiscordBotOnly, policy =>
+        policy.RequireClaim("client_type", "discord_bot"));
 });
 
 builder.Services.AddFluentValidationAutoValidation();
@@ -110,8 +112,6 @@ builder.Services.AddScoped<AuthorizationService>();
 // -- Operations Level Handlers --
 
 builder.Services.AddScoped<ChangeUserRoleHandler>();
-
-builder.Services.AddSingleton<IActorUserResolver, PostgresActorUserResolver>();
 
 builder.Services.AddScoped<IEventStore, PostgresEventStore>();
 builder.Services.AddScoped<IEventStoreMetadataProvider, RequestContextEventStoreMetadataProvider>();
@@ -141,7 +141,7 @@ builder.Services.AddScoped<GetPointHistoryForUserHandler>();
 // -- Repositories --
 
 builder.Services.AddScoped<IUserRepository, InMemUserRepository>();
-builder.Services.AddScoped<IAuthStore, InMemoryAuthStore>();
+builder.Services.AddScoped<ICredentialStore, InMemoryCredentialStore>();
 
 builder.Services.AddHttpClient<RngHelpdesk.Infrastructure.Discord.HttpDiscordUsernameResolver>(client =>
 {

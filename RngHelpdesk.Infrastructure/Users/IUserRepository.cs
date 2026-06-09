@@ -9,4 +9,6 @@ public interface IUserRepository
     IReadOnlyCollection<IDomainEvent> Save(User user);
     bool Exists(int userId);
     bool HasAnyUsers();
+    bool UserExistsWithDiscordId(ulong discordId);
+    bool UserExistsWithDiscordUsername(string username);
 }
