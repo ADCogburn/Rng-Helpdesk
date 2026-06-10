@@ -100,21 +100,13 @@ builder.Services.AddAuthorization(opt =>
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<LinkRunescapeAccountRequestValidator>();
 
-// --- *** --- DI Container --- *** ---
-
-// -- Adapter Level Services --
-
-builder.Services.AddHttpContextAccessor();
-
-builder.Services.AddScoped<IRequestContextAccessor, HttpRequestContextAccessor>();
-builder.Services.AddScoped<AuthorizationService>();
+// --- *** --- DI Container --- *** --- 
 
 // -- Operations Level Handlers --
 
 builder.Services.AddScoped<ChangeUserRoleHandler>();
 
 builder.Services.AddScoped<IEventStore, PostgresEventStore>();
-builder.Services.AddScoped<IEventStoreMetadataProvider, RequestContextEventStoreMetadataProvider>();
 
 builder.Services.AddScoped<PostgresRankThresholdProvider>();
 builder.Services.AddSingleton<IRankThresholdProvider, CachingRankThresholdProvider>();

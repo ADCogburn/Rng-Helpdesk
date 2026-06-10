@@ -40,7 +40,7 @@ public sealed class AuthController : ControllerBase
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-        if (!int.TryParse(userIdClaim, out var userId))
+        if (!ulong.TryParse(userIdClaim, out var userId))
             return Unauthorized();
 
         var user = _users.GetSingleById(userId);

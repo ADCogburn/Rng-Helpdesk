@@ -1,5 +1,4 @@
 using RngHelpdesk.Contracts.Common;
-using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Commands;
 using RngHelpdesk.Domain.Users;
 using RngHelpdesk.Infrastructure.Common;
@@ -35,11 +34,16 @@ public sealed class CreateUserHandler
         if (_userRepository.UserExistsWithDiscordId(request.DiscordAccount.DiscordId) || _userRepository.UserExistsWithDiscordUsername(request.DiscordAccount.Username))
             return CommandResult<CreateUserResponse>.Fail("User with this Discord ID or username already exists.");
 
-        var discordAccount = new DiscordAccount(request.DiscordAccount.DiscordId, request.DiscordAccount.Username));
+        var discordAccount = new DiscordAccount(request.DiscordAccount.DiscordId, request.DiscordAccount.Username);
 
-        var runescapeAccounts = request.RunescapeAccounts
-            .Select(x => new RunescapeAccount(x.Username))
-            .ToList();
+        var runescapeAccounts = new List<RunescapeAccount>();
+
+        if (request.RunescapeAccounts != null && request.RunescapeAccounts.Count > 0)
+        {
+            runescapeAccounts = request.RunescapeAccounts
+                .Select(x => new RunescapeAccount(x.Username))
+                .ToList();
+        }
 
         var user = User.Create(
            actingUserId,

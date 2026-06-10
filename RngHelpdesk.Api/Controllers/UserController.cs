@@ -4,7 +4,6 @@ using RngHelpdesk.Api.DTOs;
 using RngHelpdesk.Api.Security;
 using RngHelpdesk.Contracts.Points.Commands;
 using RngHelpdesk.Contracts.Points.Queries;
-using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Commands;
 using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Operations.Points;
@@ -19,8 +18,6 @@ namespace RngHelpdesk.Api.Controllers;
 [Route("[controller]")]
 public sealed class UsersController : ControllerBase
 {
-    private readonly IRequestContext _requestContext;
-
     private readonly GetAllUsersHandler _getAllUsersHandler;
     private readonly GetUserHandler _getUserHandler;
     private readonly GetUserLifecycleHistoryHandler _getUserLifecycleHistoryHandler;
@@ -39,7 +36,6 @@ public sealed class UsersController : ControllerBase
     private readonly GetPointHistoryForUserHandler _getPointHistoryHandler;
 
     public UsersController(
-        IRequestContextAccessor requestContext,
         GetAllUsersHandler getAllUsersHandler,
         GetUserHandler getUserHandler,
         GetUserLifecycleHistoryHandler getUserLifecycleHistoryHandler,
@@ -57,7 +53,6 @@ public sealed class UsersController : ControllerBase
         RemovePointsFromUserHandler removePointsFromUserHandler,
         GetPointHistoryForUserHandler getPointHistoryHandler)
     {
-        this._requestContext = requestContext.Context;
         this._getAllUsersHandler = getAllUsersHandler;
         this._getUserHandler = getUserHandler;
         this._getUserLifecycleHistoryHandler = getUserLifecycleHistoryHandler;
