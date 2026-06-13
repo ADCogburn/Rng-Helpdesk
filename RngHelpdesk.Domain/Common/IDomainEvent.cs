@@ -1,6 +1,5 @@
 ﻿namespace RngHelpdesk.Domain.Common;
 
-public interface IDomainEvent
+public interface IDomainEvent : IEvent
 {
-    DateTimeOffset OccurredAt { get; }
 }

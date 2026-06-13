@@ -1,77 +1,67 @@
 using RngHelpdesk.Contracts.Common;
-using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Commands;
-using RngHelpdesk.Domain.Common;
 using RngHelpdesk.Domain.Users;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Security;
 using RngHelpdesk.Infrastructure.Users;
-using RngHelpdesk.Operations.Security;
 
-public sealed class CreateUserHandler
+public sealed class CreateUserHandler(
+    IUserLookupReadStore userLookupReadStore,
+    IUserRepository userRepository,
+    IEventDispatcher eventDispatcher,
+    ICredentialStore credentialStore)
 {
-    private readonly IUserRepository _userRepository;
-    private readonly IEventDispatcher _eventDispatcher;
-    private readonly IAuthStore _authStore;
-    private readonly IActorUserResolver _actorResolver;
-
-    public CreateUserHandler(
-        IUserRepository userRepository,
-        IEventDispatcher eventDispatcher,
-        IAuthStore authStore,
-        IActorUserResolver actorResolver)
-    {
-        _userRepository = userRepository;
-        _eventDispatcher = eventDispatcher;
-        _authStore = authStore;
-        _actorResolver = actorResolver;
-    }
-
     public CommandResult<CreateUserResponse> Handle(
-        IRequestContext context,
+        ulong actingUserId,
         CreateUserRequest request)
     {
-        if (_userRepository.Exists(request.UserId))
-            return CommandResult<CreateUserResponse>.Fail("User already exists.");
+        if (request.DiscordAccount == null)
+            return CommandResult<CreateUserResponse>.Fail("Discord account is required.");
 
-        var discordAccounts = request.DiscordAccounts
-            .Select(x => new DiscordAccount(x.DiscordId, x.Username));
+        if (request.DiscordAccount.DiscordId == 0 || string.IsNullOrWhiteSpace(request.DiscordAccount.Username))
+            return CommandResult<CreateUserResponse>.Fail("Discord account, its snowflake Id, and its username are required.");
 
-        var runescapeAccounts = request.RunescapeAccounts
-            .Select(x => new RunescapeAccount(x.Username))
-            .ToList();
+        if (userLookupReadStore.ExistsWithDiscordId(request.DiscordAccount.DiscordId)
+            || userLookupReadStore.ExistsWithDiscordUsername(request.DiscordAccount.Username))
+            return CommandResult<CreateUserResponse>.Fail("User with this Discord ID or username already exists.");
 
-        var user = User.Create(
-            request.UserId,
-            context.ActorId,
-            context.ActorType,
-            request.AuthorityRole,
-            discordAccounts,
-            runescapeAccounts);
 
-        var events = _userRepository.Save(user);
-        _eventDispatcher.Dispatch(events);
-
-        var actorId = Guid.NewGuid();
-
-        _actorResolver.RegisterActor(
-            actorId,
-            ActorType.WebUser,
-            request.UserId);
-
-        var preferredUsername = runescapeAccounts.First().Username;
-
-        var (username, password) =
-            _authStore.CreateTemporaryCredentials(
-                request.UserId,
-                actorId,
-                preferredUsername);
-
-        return CommandResult<CreateUserResponse>.Ok(new CreateUserResponse
+        return CommandHandler.Execute(() =>
         {
-            UserId = request.UserId,
-            Username = username,
-            TemporaryPassword = password
+            var discordAccount = new DiscordAccount(
+                request.DiscordAccount.DiscordId,
+                request.DiscordAccount.Username);
+
+            var runescapeAccounts = request.RunescapeAccounts is { Count: > 0 }
+                ? request.RunescapeAccounts
+                    .Select(x => new RunescapeAccount(x.Username))
+                    .ToList()
+                : new List<RunescapeAccount>();
+
+            var user = User.Create(
+                actingUserId,
+                discordAccount,
+                runescapeAccounts);
+
+            var events = userRepository.Save(user);
+
+            eventDispatcher.Dispatch(events);
+
+            var preferredUsername = runescapeAccounts.Count > 0
+                ? runescapeAccounts.First().Username
+                : discordAccount.Username;
+
+            var (username, password) =
+                credentialStore.CreateTemporaryCredentials(
+                    user.Id,
+                    preferredUsername);
+
+            return new CreateUserResponse
+            {
+                UserId = user.Id,
+                Username = username,
+                TemporaryPassword = password
+            };
         });
     }
 }

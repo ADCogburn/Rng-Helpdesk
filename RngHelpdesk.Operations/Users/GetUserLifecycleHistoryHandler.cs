@@ -1,28 +1,23 @@
-﻿using RngHelpdesk.Contracts.Security;
+﻿using RngHelpdesk.Contracts.Common;
 using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Infrastructure.Users;
 
 namespace RngHelpdesk.Operations.Users;
 
-public sealed class GetUserLifecycleHistoryHandler
+public sealed class GetUserLifecycleHistoryHandler(
+    IUserLifecycleHistoryReadStore userLifecycleHistoryReadStore,
+    IUserSummaryReadStore userSummaryReadStore)
 {
-    private readonly UserLifecycleHistoryProjection _history;
-
-    public GetUserLifecycleHistoryHandler(UserLifecycleHistoryProjection history)
+    public CommandResult<GetUserLifecycleHistoryResponse> Handle(GetUserLifecycleHistoryQuery query)
     {
-        _history = history;
-    }
+        if (!userSummaryReadStore.TryGetById(query.UserId, out _))
+            return CommandResult<GetUserLifecycleHistoryResponse>.Fail("User not found.");
 
-    public GetUserLifecycleHistoryResponse Handle(
-        IRequestContext requestContext,
-        GetUserLifecycleHistoryQuery query)
-    {
-        AuthorizationRules.RequireAdminRole(requestContext);
-
-        return new GetUserLifecycleHistoryResponse
-        {
-            UserId = query.UserId,
-            History = _history.GetForUser(query.UserId)
-        };
+        return CommandResult<GetUserLifecycleHistoryResponse>.Ok(
+            new GetUserLifecycleHistoryResponse
+            {
+                UserId = query.UserId,
+                History = userLifecycleHistoryReadStore.GetLifecycleHistoryForUserById(query.UserId)
+            });
     }
 }

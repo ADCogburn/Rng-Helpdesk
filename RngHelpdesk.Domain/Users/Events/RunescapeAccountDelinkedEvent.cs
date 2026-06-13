@@ -4,16 +4,28 @@ namespace RngHelpdesk.Domain.Users.Events;
 
 public sealed class RunescapeAccountDelinkedEvent : IDomainEvent
 {
-    public int UserId { get; }
-    public string Username { get; }
-    public DateTime OccurredAt { get; } = DateTime.UtcNow;
+    // Audting properties
+    public ulong ActingUserId { get; }
+    public DateTimeOffset OccurredAt { get; }
 
-    public RunescapeAccountDelinkedEvent(int userId, string username)
+    public ulong UserId { get; }
+    public string Username { get; }
+
+    public RunescapeAccountDelinkedEvent(ulong actingUserId, DateTimeOffset occuredAt, ulong userId, string username)
     {
-        if (string.IsNullOrWhiteSpace(username))
-            throw new DomainException("Runescape username must be provided.");
+        ActingUserId = actingUserId;
+        OccurredAt = occuredAt;
 
         UserId = userId;
         Username = username;
+    }
+
+    public static RunescapeAccountDelinkedEvent Create(ulong actingUserId, ulong userId, string username)
+    {
+        return new RunescapeAccountDelinkedEvent(
+            actingUserId: actingUserId,
+            occuredAt: DateTimeOffset.UtcNow,
+            userId: userId,
+            username: username);
     }
 }

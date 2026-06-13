@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using RngHelpdesk.Api.DTOs;
 using RngHelpdesk.Contracts.Security;
+using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Infrastructure.Security;
 using RngHelpdesk.Infrastructure.Users;
 using System.IdentityModel.Tokens.Jwt;
@@ -12,72 +14,65 @@ namespace RngHelpdesk.Api.Controllers;
 
 [ApiController]
 [Route("auth")]
-public sealed class AuthController : ControllerBase
+public sealed class AuthController(
+    ICredentialStore credentialStore,
+    IConfiguration config,
+    IUserSummaryReadStore userSummaryReadStore) : ControllerBase
 {
-    private readonly IAuthStore _authStore;
-    private readonly IConfiguration _config;
-    private readonly UserSummaryProjection _users;
-
-
-    public AuthController(
-        IAuthStore authStore,
-        IConfiguration config,
-        UserSummaryProjection users)
-    {
-        _authStore = authStore;
-        _config = config;
-        _users = users;
-    }
-
-    /// <summary>
-    /// Returns the current authenticated user's info including authorization role.
-    /// </summary>
     [Authorize]
     [HttpGet("me")]
-    public IActionResult GetCurrentUser()
+    public ActionResult<GetUserResponse> GetCurrentUser()
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-        if (!int.TryParse(userIdClaim, out var userId))
+        if (!ulong.TryParse(userIdClaim, out var userId))
             return Unauthorized();
 
-        var user = _users.GetSingleById(userId);
+        if (!userSummaryReadStore.TryGetById(userId, out var user) || user is null)
+            return BadRequest("User not found - contact an administrator.");
 
-        return Ok(new
-        {
-            userId = user.UserId,
-            role = User.FindFirst(ClaimTypes.Role)?.Value,
-
-            discordAccounts = user.DiscordAccounts,
-            runescapeAccounts = user.RunescapeAccounts,
-
-            currentPoints = user.CurrentClanPoints,
-            rank = user.Rank
-        });
+        return Ok(new GetUserResponse
+        (
+            Id: user.UserId,
+            AppRole: user.AppRole,
+            ClanPoints: user.ClanPoints,
+            Rank: user.Rank,
+            IsActive: user.IsActive,
+            DateCreated: user.DateCreated,
+            DiscordAccount: user.DiscordAccount,
+            RunescapeAccounts: user.RunescapeAccounts.ToList()
+        ));
     }
 
     [HttpPost("login")]
     public IActionResult Login([FromBody] LoginRequest request)
     {
-        var authenticatedUser = _authStore.ValidateCredentials(
+        var authenticatedUser = credentialStore.ValidateCredentials(
             request.Username,
             request.Password);
+
         if (authenticatedUser is null)
             return Unauthorized();
+
+        if (!userSummaryReadStore.TryGetById(authenticatedUser.UserId, out var user) || user is null)
+            return BadRequest("User not found - contact an administrator.");
 
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, authenticatedUser.UserId.ToString()),
-            new Claim(ClaimTypes.Role, authenticatedUser.Role.ToString())
+            new Claim(ClaimTypes.Role, user.AppRole.ToString())
+
+            // Later:
+            // Discord Bot flow should also issue this same normal user JWT after validating the Discord snowflake through a bot-only endpoint.
         };
 
         var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(_config["Jwt:Key"]!)
+            Encoding.UTF8.GetBytes(config["Jwt:Key"]!)
         );
 
         var token = new JwtSecurityToken(
-            issuer: _config["Jwt:Issuer"],
-            audience: _config["Jwt:Audience"],
+            issuer: config["Jwt:Issuer"],
+            audience: config["Jwt:Audience"],
             claims: claims,
             expires: DateTime.UtcNow.AddHours(8),
             signingCredentials: new SigningCredentials(
@@ -86,9 +81,9 @@ public sealed class AuthController : ControllerBase
             )
         );
 
-        return Ok(new
+        return Ok(new LoginResponse
         {
-            token = new JwtSecurityTokenHandler().WriteToken(token)
+            Token = new JwtSecurityTokenHandler().WriteToken(token)
         });
     }
 }

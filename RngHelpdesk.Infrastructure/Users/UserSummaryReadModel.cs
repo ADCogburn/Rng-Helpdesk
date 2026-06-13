@@ -1,15 +1,26 @@
-﻿using RngHelpdesk.Contracts.Users.Views;
-using RngHelpdesk.Domain.Users;
+﻿using RngHelpdesk.Contracts.Common.Ranks;
+using RngHelpdesk.Contracts.Security;
+using RngHelpdesk.Contracts.Users.Views;
 
 namespace RngHelpdesk.Infrastructure.Users;
 
-public sealed record UserSummaryReadModel
-{
-    public int UserId { get; init; }
-    public AuthorityRole AuthorityRole { get; init; }
-    public bool IsActive { get; init; }
-    public DateTime DateCreated { get; init; }
-    public int ClanPoints { get; init; }
-    public IReadOnlyList<RunescapeAccountView> RunescapeAccounts { get; init; } = [];
-    public IReadOnlyList<DiscordAccountView> DiscordAccounts { get; init; } = [];
-}
+/// <summary>
+/// Summary record of a user (including both domain and infra concerns, like points and app role respetively).
+/// </summary>
+/// <param name="UserId"></param>
+/// <param name="IsActive"></param>
+/// <param name="AppRole"></param>
+/// <param name="Rank"></param>
+/// <param name="DateCreated"></param>
+/// <param name="ClanPoints"></param>
+/// <param name="RunescapeAccounts"></param>
+/// <param name="DiscordAccount"></param>
+public sealed record UserSummaryReadModel(
+    ulong UserId,
+    bool IsActive,
+    AppRole AppRole,
+    Rank Rank,
+    DateTimeOffset DateCreated,
+    int ClanPoints,
+    IReadOnlyList<RunescapeAccountView> RunescapeAccounts,
+    DiscordAccountView DiscordAccount);

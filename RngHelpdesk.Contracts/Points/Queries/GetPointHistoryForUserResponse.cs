@@ -7,7 +7,7 @@ namespace RngHelpdesk.Contracts.Points.Queries;
 /// </summary>
 public sealed class GetPointHistoryForUserResponse
 {
-    public int UserId { get; init; }
+    public ulong UserId { get; init; }
 
     /// <summary>
     /// Total number of events available (ignoring pagination).

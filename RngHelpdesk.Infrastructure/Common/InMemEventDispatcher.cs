@@ -11,17 +11,17 @@ public class InMemEventDispatcher : IEventDispatcher
         _handlers = handlers;
     }
 
-    public void Dispatch(IEnumerable<IDomainEvent> events)
+    public void Dispatch(IEnumerable<IEvent> events)
     {
-        foreach (var domainEvent in events)
+        foreach (var e in events)
         {
-            DispatchSingle(domainEvent);
+            DispatchSingle(e);
         }
     }
 
-    private void DispatchSingle(IDomainEvent domainEvent)
+    private void DispatchSingle(IEvent e)
     {
-        var eventType = domainEvent.GetType();
+        var eventType = e.GetType();
 
         foreach (var handler in _handlers)
         {
@@ -40,8 +40,8 @@ public class InMemEventDispatcher : IEventDispatcher
                 if (handledEventType == eventType)
                 {
                     handlerInterface
-                        .GetMethod(nameof(IProjectionHandler<IDomainEvent>.Project))!
-                        .Invoke(handler, new[] { domainEvent });
+                        .GetMethod(nameof(IProjectionHandler<IEvent>.Project))!
+                        .Invoke(handler, new[] { e });
                 }
             }
         }

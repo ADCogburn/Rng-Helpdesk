@@ -1,24 +1,27 @@
 ﻿using RngHelpdesk.Contracts.Common;
-using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Commands;
-using RngHelpdesk.Infrastructure.Security;
+using RngHelpdesk.Infrastructure.Common;
+using RngHelpdesk.Infrastructure.Users;
+using RngHelpdesk.Operations.Services;
 
 namespace RngHelpdesk.Operations.Admin;
 
-public sealed class ChangeUserRoleHandler
+public sealed class ChangeUserRoleHandler(
+    IUserRoleService userRoleService,
+    IUserSummaryReadStore userSummaryReadStore,
+    IEventDispatcher eventDispatcher)
 {
-    private readonly IAuthStore _authStore;
-
-    public ChangeUserRoleHandler(IAuthStore authStore)
+    public async Task<CommandResult> Handle(ChangeUserRoleCommand command)
     {
-        _authStore = authStore;
-    }
+        if (!userSummaryReadStore.TryGetById(command.TargetUserId, out var user) || user is null)
+            return CommandResult.Fail("User not found.");
 
-    public CommandResult Handle(
-        IRequestContext context,
-        ChangeUserRoleRequest request)
-    {
-        _authStore.ChangeRole(request.UserId, request.NewRole);
+        if (user.AppRole == command.NewRole)
+            return CommandResult.Fail("User role is already set to the requested role.");
+
+        var ev = await userRoleService.ChangeRoleAsync(command.ActingUserId, command.TargetUserId, user.AppRole, command.NewRole);
+
+        eventDispatcher.Dispatch(ev);
 
         return CommandResult.Ok();
     }

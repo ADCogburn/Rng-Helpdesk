@@ -1,5 +1,4 @@
-using RngHelpdesk.Contracts.Common.Ranks;
-using RngHelpdesk.Domain.Users;
+using RngHelpdesk.Contracts.Security;
 
 namespace RngHelpdesk.Contracts.Common.Ranks;
 
@@ -21,12 +20,12 @@ public sealed class RankResolver
     /// <returns></returns>
     /// <exception cref="InvalidOperationException"></exception>
     public Rank Resolve(
-       AuthorityRole authorityRole,
+       AppRole appRole,
        int totalClanPoints)
     {
-        if (authorityRole != AuthorityRole.Member)
+        if (appRole != AppRole.Member)
         {
-            return RankHelper.FromAuthority(authorityRole);
+            return RankHelper.FromAppRole(appRole);
         }
 
         var match = _thresholds.FirstOrDefault(t => totalClanPoints >= t.PointsRequired);
