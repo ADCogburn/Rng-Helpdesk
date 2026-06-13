@@ -2,7 +2,8 @@
 
 public sealed class RemovePointsFromUserRequest
 {
-    public int UserId { get; set; }
+    public ulong ActingUserId { get; set; }
+    public ulong UserId { get; set; }
     public int Points { get; set; }
     public string Reason { get; set; } = string.Empty;
 }

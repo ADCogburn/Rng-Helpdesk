@@ -5,22 +5,12 @@ using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Security;
 using RngHelpdesk.Infrastructure.Users;
 
-public sealed class CreateUserHandler
+public sealed class CreateUserHandler(
+    IUserLookupReadStore userLookupReadStore,
+    IUserRepository userRepository,
+    IEventDispatcher eventDispatcher,
+    ICredentialStore credentialStore)
 {
-    private readonly IUserRepository _userRepository;
-    private readonly IEventDispatcher _eventDispatcher;
-    private readonly ICredentialStore _credentialStore;
-
-    public CreateUserHandler(
-        IUserRepository userRepository,
-        IEventDispatcher eventDispatcher,
-        ICredentialStore credentialStore)
-    {
-        _userRepository = userRepository;
-        _eventDispatcher = eventDispatcher;
-        _credentialStore = credentialStore;
-    }
-
     public CommandResult<CreateUserResponse> Handle(
         ulong actingUserId,
         CreateUserRequest request)
@@ -31,45 +21,47 @@ public sealed class CreateUserHandler
         if (request.DiscordAccount.DiscordId == 0 || string.IsNullOrWhiteSpace(request.DiscordAccount.Username))
             return CommandResult<CreateUserResponse>.Fail("Discord account, its snowflake Id, and its username are required.");
 
-        if (_userRepository.UserExistsWithDiscordId(request.DiscordAccount.DiscordId) || _userRepository.UserExistsWithDiscordUsername(request.DiscordAccount.Username))
+        if (userLookupReadStore.ExistsWithDiscordId(request.DiscordAccount.DiscordId)
+            || userLookupReadStore.ExistsWithDiscordUsername(request.DiscordAccount.Username))
             return CommandResult<CreateUserResponse>.Fail("User with this Discord ID or username already exists.");
 
-        var discordAccount = new DiscordAccount(request.DiscordAccount.DiscordId, request.DiscordAccount.Username);
 
-        var runescapeAccounts = new List<RunescapeAccount>();
-
-        if (request.RunescapeAccounts != null && request.RunescapeAccounts.Count > 0)
+        return CommandHandler.Execute(() =>
         {
-            runescapeAccounts = request.RunescapeAccounts
-                .Select(x => new RunescapeAccount(x.Username))
-                .ToList();
-        }
+            var discordAccount = new DiscordAccount(
+                request.DiscordAccount.DiscordId,
+                request.DiscordAccount.Username);
 
-        var user = User.Create(
-           actingUserId,
-           discordAccount,
-           runescapeAccounts);
+            var runescapeAccounts = request.RunescapeAccounts is { Count: > 0 }
+                ? request.RunescapeAccounts
+                    .Select(x => new RunescapeAccount(x.Username))
+                    .ToList()
+                : new List<RunescapeAccount>();
 
-        var events = _userRepository.Save(user);
+            var user = User.Create(
+                actingUserId,
+                discordAccount,
+                runescapeAccounts);
 
-        _eventDispatcher.Dispatch(events);
+            var events = userRepository.Save(user);
 
-        // TODO: Rigorous name setup
+            eventDispatcher.Dispatch(events);
 
-        var preferredUsername = runescapeAccounts.Count > 0
-            ? runescapeAccounts.First().Username
-            : discordAccount.Username;
+            var preferredUsername = runescapeAccounts.Count > 0
+                ? runescapeAccounts.First().Username
+                : discordAccount.Username;
 
-        var (username, password) =
-            _credentialStore.CreateTemporaryCredentials(
-                user.Id,
-                preferredUsername);
+            var (username, password) =
+                credentialStore.CreateTemporaryCredentials(
+                    user.Id,
+                    preferredUsername);
 
-        return CommandResult<CreateUserResponse>.Ok(new CreateUserResponse
-        {
-            UserId = user.Id,
-            Username = username,
-            TemporaryPassword = password
+            return new CreateUserResponse
+            {
+                UserId = user.Id,
+                Username = username,
+                TemporaryPassword = password
+            };
         });
     }
 }

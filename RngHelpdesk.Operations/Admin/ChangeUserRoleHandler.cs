@@ -7,24 +7,21 @@ using RngHelpdesk.Operations.Services;
 namespace RngHelpdesk.Operations.Admin;
 
 public sealed class ChangeUserRoleHandler(
-    UserSummaryProjection users,
-    IEventDispatcher eventDispatcher,
-    IUserRoleService userRoleService)
+    IUserRoleService userRoleService,
+    IUserSummaryReadStore userSummaryReadStore,
+    IEventDispatcher eventDispatcher)
 {
-    private readonly UserSummaryProjection _usersSummaryProjection = users;
-    private readonly IEventDispatcher _eventDispatcher = eventDispatcher;
-    private readonly IUserRoleService _userRoleService = userRoleService;
-
     public async Task<CommandResult> Handle(ChangeUserRoleCommand command)
     {
-        var user = _usersSummaryProjection.GetSingleById(command.TargetUserId);
+        if (!userSummaryReadStore.TryGetById(command.TargetUserId, out var user) || user is null)
+            return CommandResult.Fail("User not found.");
 
         if (user.AppRole == command.NewRole)
             return CommandResult.Fail("User role is already set to the requested role.");
 
-        var ev = await _userRoleService.ChangeRoleAsync(command.ActingUserId, command.TargetUserId, user.AppRole, command.NewRole);
+        var ev = await userRoleService.ChangeRoleAsync(command.ActingUserId, command.TargetUserId, user.AppRole, command.NewRole);
 
-        _eventDispatcher.Dispatch(ev);
+        eventDispatcher.Dispatch(ev);
 
         return CommandResult.Ok();
     }

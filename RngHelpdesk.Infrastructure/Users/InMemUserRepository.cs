@@ -1,20 +1,21 @@
 using RngHelpdesk.Domain.Common;
 using RngHelpdesk.Domain.Users;
+using RngHelpdesk.Infrastructure.Common;
 
 namespace RngHelpdesk.Infrastructure.Users;
 
 public sealed class InMemUserRepository : IUserRepository
 {
-    private readonly Dictionary<int, List<IDomainEvent>> _events = new();
+    private readonly Dictionary<ulong, List<IDomainEvent>> _events = new();
 
-    public bool Exists(int userId) => _events.ContainsKey(userId);
+    public bool Exists(ulong userId) => _events.ContainsKey(userId);
 
     public bool HasAnyUsers() => _events.Count > 0;
 
-    public User GetById(int userId)
+    public User GetById(ulong userId)
     {
         if (!_events.TryGetValue(userId, out var events))
-            throw new InvalidOperationException($"User {userId} not found");
+            throw new AggregateNotFoundException(nameof(User), userId);
 
         return User.Rehydrate(events);
     }
@@ -36,7 +37,7 @@ public sealed class InMemUserRepository : IUserRepository
         return newEvents;
     }
 
-    public void Seed(int userId, IEnumerable<IDomainEvent> events)
+    public void Seed(ulong userId, IEnumerable<IDomainEvent> events)
     {
         _events[userId] = new List<IDomainEvent>(events);
     }

@@ -15,23 +15,19 @@ public sealed class AdminController(
                         ChangeUserRoleHandler changeUserRoleHandler,
                         CreateUserHandler createUserHandler) : ControllerBase
 {
-    private readonly ChangeUserRoleHandler _changeUserRoleHandler = changeUserRoleHandler;
-    private readonly CreateUserHandler _createUserHandler = createUserHandler;
-
-
     /// <summary>
     /// Creates a new user and generates temporary login credentials.
     /// </summary>
     [HttpPost("create")]
     public ActionResult<CreateUserResponse> CreateUser([FromBody] CreateUserRequest request)
     {
-        var result = _createUserHandler.Handle(User.GetUserId(), request);
+        var result = createUserHandler.Handle(User.GetUserId(), request);
 
         if (!result.Success)
             return BadRequest(result.Error);
 
         return CreatedAtAction(
-            nameof(UsersController.GetUser),
+            nameof(UsersController.GetUserById),
             "Users",
             new { id = result.Value!.UserId },
             result.Value);
@@ -50,7 +46,10 @@ public sealed class AdminController(
             NewRole: AppRole.Administrator
         );
 
-        await _changeUserRoleHandler.Handle(request);
+        var result = await changeUserRoleHandler.Handle(request);
+
+        if (!result.Success)
+            return BadRequest(result.Error);
 
         return NoContent();
     }
@@ -68,8 +67,13 @@ public sealed class AdminController(
             NewRole: AppRole.Member
         );
 
-        await _changeUserRoleHandler.Handle(request);
+        var result = await changeUserRoleHandler.Handle(request);
+
+        if (!result.Success)
+            return BadRequest(result.Error);
 
         return NoContent();
     }
+
+    // TODO Activate and Deactive a user.
 }

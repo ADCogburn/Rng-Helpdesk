@@ -9,7 +9,7 @@ public sealed class PointHistoryItem
 {
     public int Delta { get; init; }
     public string Reason { get; init; } = string.Empty;
-    public DateTime OccurredAt { get; init; }
+    public DateTimeOffset OccurredAt { get; init; }
 
     public Rank? RankBefore { get; init; }
     public Rank? RankAfter { get; init; }

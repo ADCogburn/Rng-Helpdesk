@@ -13,10 +13,10 @@ using RngHelpdesk.Infrastructure.Persistence.Projections;
 using RngHelpdesk.Infrastructure.Points;
 using RngHelpdesk.Infrastructure.Security;
 using RngHelpdesk.Infrastructure.Users;
+using RngHelpdesk.Infrastructure.Users.RunescapeAccount;
 using RngHelpdesk.Operations.Admin;
 using RngHelpdesk.Operations.Points;
 using RngHelpdesk.Operations.Users;
-using RngHelpdesk.Operations.Users.DiscordAccounts;
 using RngHelpdesk.Operations.Users.RunescapeAccounts;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -123,9 +123,6 @@ builder.Services.AddScoped<LinkRunescapeAccountHandler>();
 builder.Services.AddScoped<DelinkRunescapeAccountHandler>();
 builder.Services.AddScoped<RenameRunescapeAccountHandler>();
 
-builder.Services.AddScoped<LinkDiscordAccountHandler>();
-builder.Services.AddScoped<DelinkDiscordAccountHandler>();
-
 builder.Services.AddScoped<AddPointsToUserHandler>();
 builder.Services.AddScoped<RemovePointsFromUserHandler>();
 builder.Services.AddScoped<GetPointHistoryForUserHandler>();
@@ -146,13 +143,26 @@ builder.Services.AddScoped<RngHelpdesk.Contracts.Discord.IDiscordUsernameResolve
 // -- Projection (Singleton so read models are shared; InMemEventDispatcher captures them) --
 
 builder.Services.AddSingleton<PointHistoryProjection>();
-builder.Services.AddSingleton<UserSummaryProjection>();
-builder.Services.AddSingleton<UserLifecycleHistoryProjection>();
-builder.Services.AddSingleton<UserPointsTotalProjection>();
-builder.Services.AddSingleton<RunescapeAccountHistoryProjection>();
-builder.Services.AddSingleton<DiscordAccountHistoryProjection>();
+builder.Services.AddSingleton<IPointHistoryReadStore>(sp =>
+    sp.GetRequiredService<PointHistoryProjection>());
 
-// -- Event Dispatcher --
+builder.Services.AddSingleton<UserSummaryProjection>();
+builder.Services.AddSingleton<IUserLookupReadStore>(sp =>
+    sp.GetRequiredService<UserSummaryProjection>());
+builder.Services.AddSingleton<IUserSummaryReadStore>(sp =>
+    sp.GetRequiredService<UserSummaryProjection>());
+
+builder.Services.AddSingleton<UserLifecycleHistoryProjection>();
+builder.Services.AddSingleton<IUserLifecycleHistoryReadStore>(sp =>
+    sp.GetRequiredService<UserLifecycleHistoryProjection>());
+
+builder.Services.AddSingleton<RunescapeAccountHistoryProjection>();
+builder.Services.AddSingleton<IRunescapeAccountHistoryReadStore>(sp =>
+    sp.GetRequiredService<RunescapeAccountHistoryProjection>());
+
+// -- In-memory event dispatcher --
+// Important: dispatcher receives the same singleton projection instances
+// that the read-store interfaces resolve to.
 
 builder.Services.AddSingleton<IEventDispatcher>(sp =>
 {
@@ -161,9 +171,7 @@ builder.Services.AddSingleton<IEventDispatcher>(sp =>
         sp.GetRequiredService<PointHistoryProjection>(),
         sp.GetRequiredService<UserSummaryProjection>(),
         sp.GetRequiredService<UserLifecycleHistoryProjection>(),
-        sp.GetRequiredService<UserPointsTotalProjection>(),
-        sp.GetRequiredService<RunescapeAccountHistoryProjection>(),
-        sp.GetRequiredService<DiscordAccountHistoryProjection>()
+        sp.GetRequiredService<RunescapeAccountHistoryProjection>()
     };
 
     return new InMemEventDispatcher(handlers);
@@ -182,9 +190,7 @@ builder.Services.AddScoped<ProjectionRunner>(sp =>
             sp.GetRequiredService<PointHistoryProjection>(),
             sp.GetRequiredService<UserSummaryProjection>(),
             sp.GetRequiredService<UserLifecycleHistoryProjection>(),
-            sp.GetRequiredService<UserPointsTotalProjection>(),
-            sp.GetRequiredService<RunescapeAccountHistoryProjection>(),
-            sp.GetRequiredService<DiscordAccountHistoryProjection>()
+            sp.GetRequiredService<RunescapeAccountHistoryProjection>()
         });
 });
 

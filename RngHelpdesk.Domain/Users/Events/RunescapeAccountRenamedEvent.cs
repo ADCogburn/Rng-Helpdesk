@@ -5,12 +5,11 @@ public sealed class RunescapeAccountRenamedEvent : IDomainEvent
 {
     // Auditing properties
     public ulong ActingUserId { get; }
-    public DateTimeOffset OccuredAt { get; }
+    public DateTimeOffset OccurredAt { get; }
 
     public ulong UserId { get; }
     public string OldUsername { get; }
     public string NewUsername { get; }
-
 
     public RunescapeAccountRenamedEvent(
         ulong actingUserId,
@@ -20,7 +19,7 @@ public sealed class RunescapeAccountRenamedEvent : IDomainEvent
         string newUsername)
     {
         ActingUserId = actingUserId;
-        OccuredAt = occuredAt;
+        OccurredAt = occuredAt;
 
         UserId = userId;
         OldUsername = oldUsername;

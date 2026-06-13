@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using RngHelpdesk.Api.DTOs;
-using RngHelpdesk.Contracts.Common.Ranks;
 using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Infrastructure.Security;
@@ -15,25 +14,11 @@ namespace RngHelpdesk.Api.Controllers;
 
 [ApiController]
 [Route("auth")]
-public sealed class AuthController : ControllerBase
+public sealed class AuthController(
+    ICredentialStore credentialStore,
+    IConfiguration config,
+    IUserSummaryReadStore userSummaryReadStore) : ControllerBase
 {
-    private readonly ICredentialStore _authStore;
-    private readonly IConfiguration _config;
-    private readonly RankResolver _rankResolver;
-    private readonly UserSummaryProjection _users;
-
-    public AuthController(
-        ICredentialStore authStore,
-        IConfiguration config,
-        RankResolver rankResolver,
-        UserSummaryProjection users)
-    {
-        _authStore = authStore;
-        _config = config;
-        _rankResolver = rankResolver;
-        _users = users;
-    }
-
     [Authorize]
     [HttpGet("me")]
     public ActionResult<GetUserResponse> GetCurrentUser()
@@ -43,55 +28,51 @@ public sealed class AuthController : ControllerBase
         if (!ulong.TryParse(userIdClaim, out var userId))
             return Unauthorized();
 
-        var user = _users.GetSingleById(userId);
-
-        var roleText = User.FindFirst(ClaimTypes.Role)?.Value;
-
-        var appRole = Enum.TryParse<AppRole>(roleText, out var parsedRole)
-            ? parsedRole
-            : AppRole.Member;
-
-        var rank = _rankResolver.Resolve(appRole, user.ClanPoints);
+        if (!userSummaryReadStore.TryGetById(userId, out var user) || user is null)
+            return BadRequest("User not found - contact an administrator.");
 
         return Ok(new GetUserResponse
-        {
-            Id = user.UserId,
-            AppRole = appRole,
-            ClanPoints = user.ClanPoints,
-            Rank = rank.ToString(),
-            IsActive = user.IsActive,
-            DateCreated = user.DateCreated,
-            DiscordAccounts = user.DiscordAccount.ToList(),
-            RunescapeAccounts = user.RunescapeAccounts.ToList()
-        });
+        (
+            Id: user.UserId,
+            AppRole: user.AppRole,
+            ClanPoints: user.ClanPoints,
+            Rank: user.Rank,
+            IsActive: user.IsActive,
+            DateCreated: user.DateCreated,
+            DiscordAccount: user.DiscordAccount,
+            RunescapeAccounts: user.RunescapeAccounts.ToList()
+        ));
     }
 
     [HttpPost("login")]
     public IActionResult Login([FromBody] LoginRequest request)
     {
-        var authenticatedUser = _authStore.ValidateCredentials(
+        var authenticatedUser = credentialStore.ValidateCredentials(
             request.Username,
             request.Password);
 
         if (authenticatedUser is null)
             return Unauthorized();
 
+        if (!userSummaryReadStore.TryGetById(authenticatedUser.UserId, out var user) || user is null)
+            return BadRequest("User not found - contact an administrator.");
+
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, authenticatedUser.UserId.ToString()),
-            new Claim(ClaimTypes.Role, authenticatedUser.Role.ToString())
+            new Claim(ClaimTypes.Role, user.AppRole.ToString())
 
             // Later:
             // Discord Bot flow should also issue this same normal user JWT after validating the Discord snowflake through a bot-only endpoint.
         };
 
         var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(_config["Jwt:Key"]!)
+            Encoding.UTF8.GetBytes(config["Jwt:Key"]!)
         );
 
         var token = new JwtSecurityToken(
-            issuer: _config["Jwt:Issuer"],
-            audience: _config["Jwt:Audience"],
+            issuer: config["Jwt:Issuer"],
+            audience: config["Jwt:Audience"],
             claims: claims,
             expires: DateTime.UtcNow.AddHours(8),
             signingCredentials: new SigningCredentials(

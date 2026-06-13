@@ -1,40 +1,28 @@
 ﻿using RngHelpdesk.Contracts.Common;
-using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Commands;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Users;
 
 namespace RngHelpdesk.Operations.Users.RunescapeAccounts;
 
-public sealed class RenameRunescapeAccountHandler
+public sealed class RenameRunescapeAccountHandler(
+    IUserRepository userRepository,
+    IEventDispatcher eventDispatcher)
 {
-    private readonly IUserRepository _userRepository;
-    private readonly IEventDispatcher _eventDispatcher;
-
-    public RenameRunescapeAccountHandler(
-        IUserRepository userRepository,
-        IEventDispatcher eventDispatcher)
+    public CommandResult Handle(RenameRunescapeAccountRequest request)
     {
-        _userRepository = userRepository;
-        _eventDispatcher = eventDispatcher;
-    }
+        return CommandHandler.Execute(() =>
+        {
+            var user = userRepository.GetById(request.UserId);
 
-    public CommandResult Handle(
-        IRequestContext requestContext,
-        RenameRunescapeAccountRequest request)
-    {
-        AuthorizationRules.RequireAdminRole(requestContext);
+            user.RenameRunescapeAccount(
+                request.ActingUserId,
+                request.OldUsername,
+                request.NewUsername);
 
-        var user = _userRepository.GetById(request.UserId);
+            var events = userRepository.Save(user);
 
-        user.RenameRunescapeAccount(
-            request.OldUsername,
-            request.NewUsername);
-
-        var events = _userRepository.Save(user);
-
-        _eventDispatcher.Dispatch(events);
-
-        return CommandResult.Ok();
+            eventDispatcher.Dispatch(events);
+        });
     }
 }

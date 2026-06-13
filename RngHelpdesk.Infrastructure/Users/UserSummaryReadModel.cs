@@ -15,8 +15,7 @@ namespace RngHelpdesk.Infrastructure.Users;
 /// <param name="ClanPoints"></param>
 /// <param name="RunescapeAccounts"></param>
 /// <param name="DiscordAccount"></param>
-public sealed record UserSummaryReadModel
-(
+public sealed record UserSummaryReadModel(
     ulong UserId,
     bool IsActive,
     AppRole AppRole,
@@ -24,5 +23,4 @@ public sealed record UserSummaryReadModel
     DateTimeOffset DateCreated,
     int ClanPoints,
     IReadOnlyList<RunescapeAccountView> RunescapeAccounts,
-    DiscordAccountView DiscordAccount
-);
+    DiscordAccountView DiscordAccount);

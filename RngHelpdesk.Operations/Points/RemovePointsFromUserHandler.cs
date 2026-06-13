@@ -1,38 +1,28 @@
-﻿using RngHelpdesk.Contracts.Points.Commands;
-using RngHelpdesk.Contracts.Security;
-using RngHelpdesk.Domain.Users;
+﻿using RngHelpdesk.Contracts.Common;
+using RngHelpdesk.Contracts.Points.Commands;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Users;
 
 namespace RngHelpdesk.Operations.Points;
 
-public sealed class RemovePointsFromUserHandler
+public sealed class RemovePointsFromUserHandler(
+    IUserRepository userRepository,
+    IEventDispatcher eventDispatcher)
 {
-
-    private readonly IUserRepository _userRepository;
-    private readonly IEventDispatcher _eventDispatcher;
-
-    public RemovePointsFromUserHandler(
-        IUserRepository userRepository,
-        IEventDispatcher eventDispatcher)
+    public CommandResult Handle(RemovePointsFromUserRequest request)
     {
-        _userRepository = userRepository;
-        _eventDispatcher = eventDispatcher;
-    }
+        return CommandHandler.Execute(() =>
+        {
+            var user = userRepository.GetById(request.UserId);
 
-    public void Handle(
-        IRequestContext context,
-        RemovePointsFromUserRequest request)
-    {
-        AuthorizationRules.RequireRole(context, AuthorityRole.Administrator);
-        AuthorizationRules.RequireNonBot(context);
+            user.DeductClanPoints(
+                request.ActingUserId,
+                request.Points,
+                request.Reason);
 
-        var user = _userRepository.GetById(request.UserId);
+            var events = userRepository.Save(user);
 
-        user.DeductClanPoints(request.Points, request.Reason);
-
-        var events = _userRepository.Save(user);
-
-        _eventDispatcher.Dispatch(events);
+            eventDispatcher.Dispatch(events);
+        });
     }
 }

@@ -14,46 +14,60 @@ public sealed class UserSummaryProjection(RankResolver rankResolver) :
     IProjectionHandler<UserReactivatedEvent>,
     IProjectionHandler<ClanPointsChangedEvent>,
     IProjectionHandler<UserAppRoleChangedEvent>,
-    IProjectionHandler<DiscordAccountLinkedEvent>,
-    IProjectionHandler<DiscordAccountDelinkedEvent>,
     IProjectionHandler<RunescapeAccountLinkedEvent>,
     IProjectionHandler<RunescapeAccountDelinkedEvent>,
-    IProjectionHandler<RunescapeAccountRenamedEvent>
+    IProjectionHandler<RunescapeAccountRenamedEvent>,
+    IUserSummaryReadStore,
+    IUserLookupReadStore
 {
     private readonly Dictionary<ulong, UserSummaryReadModel> _users = new();
+    // Instead of scanning through every RSN of every account in the projection, simply keep the data in-memory for a quick search.
+    private readonly Dictionary<string, ulong> _runescapeUsernameIndex = new(StringComparer.OrdinalIgnoreCase);
     private readonly RankResolver _rankResolver = rankResolver;
 
     public bool IsEmpty => _users.Count == 0;
 
     public IReadOnlyCollection<UserSummaryReadModel> GetAll() => _users.Values;
 
-    public UserSummaryReadModel GetSingleById(ulong userId)
+    public bool TryGetById(ulong userId, out UserSummaryReadModel? user)
     {
-        if (!_users.TryGetValue(userId, out var user))
-            throw new InvalidOperationException($"User {userId} not found.");
-
-        return user;
+        return _users.TryGetValue(userId, out user);
     }
 
-    public UserSummaryReadModel GetByDiscordId(ulong discordId)
+    public bool TryGetByRunescapeUsername(string username, out UserSummaryReadModel? user)
     {
-        return GetSingleById(discordId);
+        user = null;
+
+        if (string.IsNullOrWhiteSpace(username))
+            throw new ArgumentException("Username must be provided.", nameof(username));
+
+        if (!_runescapeUsernameIndex.TryGetValue(username, out var userId))
+            return false;
+
+        return _users.TryGetValue(userId, out user);
     }
 
-    public UserSummaryReadModel GetByRunescapeUsername(string username)
+    public bool ExistsWithDiscordId(ulong discordId)
+    {
+        return _users.ContainsKey(discordId);
+    }
+
+    public bool ExistsWithDiscordUsername(string username)
     {
         if (string.IsNullOrWhiteSpace(username))
             throw new ArgumentException("Username must be provided.", nameof(username));
 
-        var user = _users.Values.FirstOrDefault(u =>
-            u.RunescapeAccounts.Any(r =>
-                r.Username.Equals(username, StringComparison.OrdinalIgnoreCase)));
+        var user = _users.Values.FirstOrDefault(u => u.DiscordAccount?.Username.Equals(username, StringComparison.OrdinalIgnoreCase) == true);
 
-        if (user is null)
-            throw new InvalidOperationException(
-                $"No user linked to Runescape account '{username}'");
+        return user != null;
+    }
 
-        return user;
+    public bool ExistsWithRunescapeUsername(string rsn)
+    {
+        if (string.IsNullOrWhiteSpace(rsn))
+            throw new ArgumentException("Username must be provided.", nameof(rsn));
+
+        return _runescapeUsernameIndex.ContainsKey(rsn);
     }
 
     #region Projections
@@ -84,6 +98,11 @@ public sealed class UserSummaryProjection(RankResolver rankResolver) :
                 Username: e.DiscordAccount.Username
             )
         );
+
+        foreach (var account in e.RunescapeAccounts)
+        {
+            _runescapeUsernameIndex[account.Username] = e.UserId;
+        }
     }
 
     public void Project(UserDeactivatedEvent e)
@@ -134,79 +153,27 @@ public sealed class UserSummaryProjection(RankResolver rankResolver) :
         };
     }
 
-    public void Project(DiscordAccountLinkedEvent e)
-    {
-        if (!_users.TryGetValue(e.UserId, out var existing))
-        {
-            existing = new UserSummaryReadModel
-            {
-                UserId = e.UserId,
-                AuthorityRole = AuthorityRole.Member,
-                IsActive = true,
-                DateCreated = e.OccurredAt,
-                RunescapeAccounts = [],
-                DiscordAccount = []
-            };
-        }
-
-        var updatedAccounts = existing.DiscordAccount
-            .Append(new DiscordAccountView
-            {
-                DiscordId = e.DiscordId,
-                Username = e.Username,
-                IsActive = true
-            })
-            .ToList();
-
-        _users[e.UserId] = existing with
-        {
-            DiscordAccount = updatedAccounts
-        };
-    }
-
-    public void Project(DiscordAccountDelinkedEvent e)
-    {
-        if (!_users.TryGetValue(e.UserId, out var existing))
-            return;
-
-        var updatedAccounts = existing.DiscordAccount
-            .Where(a => a.DiscordId != e.DiscordId)
-            .ToList();
-
-        _users[e.UserId] = existing with
-        {
-            DiscordAccount = updatedAccounts
-        };
-    }
-
     public void Project(RunescapeAccountLinkedEvent e)
     {
         if (!_users.TryGetValue(e.UserId, out var existing))
         {
-            // Replay from checkpoint can deliver later events before UserCreatedEvent
-            // when projection state was lost (e.g. app restart). Create a minimal stub.
-            existing = new UserSummaryReadModel
-            {
-                UserId = e.UserId,
-                AuthorityRole = AuthorityRole.Member,
-                IsActive = true,
-                DateCreated = e.OccurredAt,
-                RunescapeAccounts = [],
-                DiscordAccount = []
-            };
+            return;
         }
 
+        if (existing.RunescapeAccounts.Any(a =>
+            a.Username.Equals(e.Username, StringComparison.OrdinalIgnoreCase)))
+            return;
+
         var updatedAccounts = existing.RunescapeAccounts
-            .Append(new RunescapeAccountView
-            {
-                Username = e.Username
-            })
+            .Append(new RunescapeAccountView(e.Username))
             .ToList();
 
         _users[e.UserId] = existing with
         {
             RunescapeAccounts = updatedAccounts
         };
+
+        _runescapeUsernameIndex[e.Username] = e.UserId;
     }
 
     public void Project(RunescapeAccountDelinkedEvent e)
@@ -215,14 +182,15 @@ public sealed class UserSummaryProjection(RankResolver rankResolver) :
             return;
 
         var updatedAccounts = existing.RunescapeAccounts
-            .Where(a =>
-                !a.Username.Equals(e.Username, StringComparison.OrdinalIgnoreCase))
+            .Where(a => !a.Username.Equals(e.Username, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         _users[e.UserId] = existing with
         {
             RunescapeAccounts = updatedAccounts
         };
+
+        _runescapeUsernameIndex.Remove(e.Username);
     }
 
     public void Project(RunescapeAccountRenamedEvent e)
@@ -232,16 +200,16 @@ public sealed class UserSummaryProjection(RankResolver rankResolver) :
 
         var updatedAccounts = existing.RunescapeAccounts
             .Where(a => !a.Username.Equals(e.OldUsername, StringComparison.OrdinalIgnoreCase))
-            .Append(new RunescapeAccountView
-            {
-                Username = e.NewUsername
-            })
+            .Append(new RunescapeAccountView(e.NewUsername))
             .ToList();
 
         _users[e.UserId] = existing with
         {
             RunescapeAccounts = updatedAccounts
         };
+
+        _runescapeUsernameIndex.Remove(e.OldUsername);
+        _runescapeUsernameIndex[e.NewUsername] = e.UserId;
     }
 
     #endregion

@@ -2,5 +2,5 @@
 
 public sealed class GetRunescapeAccountsQuery
 {
-    public int UserId { get; init; }
+    public required ulong UserId { get; init; }
 }

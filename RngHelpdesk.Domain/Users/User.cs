@@ -201,7 +201,7 @@ public sealed class User : AggregateRoot
             a.Username.Equals(newUsername, StringComparison.OrdinalIgnoreCase)))
             throw new DomainException("Runescape account already exists.");
 
-        RaiseDomainEvent(RunescapeAccountRenamedEvent.Create(actingUserId: actingUserId, userId: Id, oldUsername: oldUsername, newUsername: newUsername));
+        RaiseDomainEvent(RunescapeAccountRenamedEvent.Create(actingUserId: actingUserId, userId: Id, oldUsername: account.Username, newUsername: newUsername));
     }
 
     public void RemoveRunescapeAccount(ulong actingUserId, string username)
@@ -218,6 +218,6 @@ public sealed class User : AggregateRoot
         if (account is null)
             throw new DomainException("Runescape account not linked.");
 
-        RaiseDomainEvent(RunescapeAccountDelinkedEvent.Create(actingUserId: actingUserId, userId: Id, username: username));
+        RaiseDomainEvent(RunescapeAccountDelinkedEvent.Create(actingUserId: actingUserId, userId: Id, username: account.Username));
     }
 }

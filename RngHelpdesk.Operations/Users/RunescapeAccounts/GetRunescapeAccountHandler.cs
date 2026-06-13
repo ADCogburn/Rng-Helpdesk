@@ -1,35 +1,21 @@
-﻿using RngHelpdesk.Contracts.Security;
+﻿using RngHelpdesk.Contracts.Common;
 using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Contracts.Users.Views;
 using RngHelpdesk.Infrastructure.Users;
 
 namespace RngHelpdesk.Operations.Users.RunescapeAccounts;
 
-public sealed class GetRunescapeAccountHandler
+public sealed class GetRunescapeAccountHandler(IUserSummaryReadStore userSummaryReadStore)
 {
-    private readonly UserSummaryProjection _users;
-
-    public GetRunescapeAccountHandler(UserSummaryProjection users)
+    public QueryResult<GetRunescapeAccountsResponse> Handle(GetRunescapeAccountsQuery query)
     {
-        _users = users;
-    }
+        if (!userSummaryReadStore.TryGetById(query.UserId, out var user) || user is null)
+            return QueryResult<GetRunescapeAccountsResponse>.Fail("User not found.");
 
-    public GetRunescapeAccountsResponse Handle(
-        IRequestContext requestContext,
-        GetRunescapeAccountsQuery query)
-    {
-        AuthorizationRules.RequireAuthentication(requestContext);
-
-        var user = _users.GetSingleById(query.UserId);
-
-        return new GetRunescapeAccountsResponse
-        {
-            Accounts = user.RunescapeAccounts
-                .Select(a => new RunescapeAccountView
-                {
-                    Username = a.Username
-                })
+        return QueryResult<GetRunescapeAccountsResponse>.Ok(new GetRunescapeAccountsResponse(
+            Accounts: user.RunescapeAccounts
+                .Select(a => new RunescapeAccountView(Username: a.Username))
                 .ToList()
-        };
+        ));
     }
 }
