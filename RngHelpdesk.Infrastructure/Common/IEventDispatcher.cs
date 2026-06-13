@@ -7,5 +7,5 @@ namespace RngHelpdesk.Infrastructure.Common;
 /// </summary>
 public interface IEventDispatcher
 {
-    void Dispatch(IEnumerable<IDomainEvent> events);
+    void Dispatch(IEnumerable<IEvent> events);
 }

@@ -1,37 +1,33 @@
-﻿using RngHelpdesk.Contracts.Common;
-using RngHelpdesk.Contracts.Security;
+﻿using FluentValidation;
+using RngHelpdesk.Contracts.Common;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Users;
 
 namespace RngHelpdesk.Operations.Users.RunescapeAccounts;
 
-public sealed class LinkRunescapeAccountHandler
+public sealed class LinkRunescapeAccountHandler(
+    IUserRepository userRepository,
+    IEventDispatcher eventDispatcher,
+    IValidator<LinkRunescapeAccountRequest> validator)
 {
-    private readonly IUserRepository _userRepository;
-    private readonly IEventDispatcher _eventDispatcher;
-
-    public LinkRunescapeAccountHandler(
-        IUserRepository userRepository,
-        IEventDispatcher eventDispatcher)
+    public CommandResult Handle(LinkRunescapeAccountRequest request)
     {
-        _userRepository = userRepository;
-        _eventDispatcher = eventDispatcher;
-    }
+        var validation = validator.Validate(request);
 
-    public CommandResult Handle(
-        IRequestContext requestContext,
-        LinkRunescapeAccountRequest request)
-    {
-        AuthorizationRules.RequireAdminRole(requestContext);
+        if (!validation.IsValid)
+            return CommandResult.Fail(string.Join(
+                "; ",
+                validation.Errors.Select(e => e.ErrorMessage)));
 
-        var user = _userRepository.GetById(request.UserId);
+        return CommandHandler.Execute(() =>
+        {
+            var user = userRepository.GetById(request.UserId);
 
-        user.AddRunescapeAccount(request.Username);
+            user.AddRunescapeAccount(request.ActingUserId, request.Username);
 
-        var events = _userRepository.Save(user);
+            var events = userRepository.Save(user);
 
-        _eventDispatcher.Dispatch(events);
-
-        return CommandResult.Ok();
+            eventDispatcher.Dispatch(events);
+        });
     }
 }

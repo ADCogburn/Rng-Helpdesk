@@ -5,34 +5,49 @@ namespace RngHelpdesk.Domain.Users.Events;
 
 public sealed class UserCreatedEvent : IDomainEvent
 {
-    public int UserId { get; }
-    public AuthorityRole AuthorityRole { get; }
-    public IReadOnlyList<DiscordAccount> DiscordAccounts { get; }
-    public IReadOnlyList<RunescapeAccount> RunescapeAccounts { get; }
-    public DateTime OccurredAt { get; } = DateTime.UtcNow;
+    // Audting properties
+    public ulong ActingUserId { get; }
+    public DateTimeOffset OccurredAt { get; }
 
+    public ulong UserId { get; }
+    public DiscordAccount DiscordAccount { get; }
+    public IReadOnlyList<RunescapeAccount> RunescapeAccounts { get; }
+
+    /// <summary>
+    /// Constructor that allows for JSON Serialization when rehydrating from the event store.
+    /// Other code should call Create below for domain event creation, not this constructor.
+    /// </summary>
+    /// <param name="actingUserId"></param>
+    /// <param name="occurredAt"></param>
+    /// <param name="discordAccount"></param>
+    /// <param name="runescapeAccounts"></param>
     [JsonConstructor]
     public UserCreatedEvent(
-        int userId,
-        AuthorityRole authorityRole,
-        IReadOnlyList<DiscordAccount> discordAccounts,
-        IReadOnlyList<RunescapeAccount> runescapeAccounts)
+        ulong actingUserId,
+        DateTimeOffset occurredAt,
+        DiscordAccount discordAccount,
+        IEnumerable<RunescapeAccount> runescapeAccounts)
     {
-        UserId = userId;
-        AuthorityRole = authorityRole;
-        DiscordAccounts = discordAccounts ?? [];
-        RunescapeAccounts = runescapeAccounts ?? [];
+        ActingUserId = actingUserId;
+        OccurredAt = occurredAt;
+
+        UserId = discordAccount.DiscordId;
+        DiscordAccount = discordAccount;
+        RunescapeAccounts = runescapeAccounts.ToList();
     }
 
     /// <summary>
     /// Domain factory for creating the event (not used by JSON deserialization).
     /// </summary>
-    public UserCreatedEvent(
-        int userId,
-        AuthorityRole authorityRole,
-        IEnumerable<DiscordAccount> discordAccounts,
+    public static UserCreatedEvent Create(
+        ulong actingUserId,
+        DiscordAccount discordAccount,
         IEnumerable<RunescapeAccount> runescapeAccounts)
-        : this(userId, authorityRole, discordAccounts.ToList(), runescapeAccounts.ToList())
     {
+        return new UserCreatedEvent(
+            actingUserId: actingUserId,
+            occurredAt: DateTimeOffset.UtcNow,
+            discordAccount: discordAccount,
+            runescapeAccounts: runescapeAccounts);
     }
 }

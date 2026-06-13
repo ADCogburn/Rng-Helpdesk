@@ -8,7 +8,7 @@ public sealed class RunescapeAccountHistoryItem
     public string? OldUsername { get; init; }
     public string? NewUsername { get; init; }
 
-    public DateTime OccurredAt { get; init; }
+    public DateTimeOffset OccurredAt { get; init; }
 }
 
 public enum RunescapeAccountChangeType

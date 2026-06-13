@@ -9,7 +9,7 @@ public interface IEventStore
 {
     Task<IReadOnlyList<StoredEvent>> LoadStreamAsync(
         string streamType,
-        int streamId,
+        ulong streamId,
         CancellationToken ct = default);
 
     Task<IReadOnlyList<StoredEvent>> LoadFromPositionAsync(
@@ -18,9 +18,9 @@ public interface IEventStore
 
     Task AppendAsync(
         string streamType,
-        int streamId,
+        ulong streamId,
         int expectedVersion,
-        IReadOnlyList<IDomainEvent> events,
+        IReadOnlyList<IEvent> events,
         EventStoreMetadata metadata,
         CancellationToken ct = default);
 
@@ -28,7 +28,11 @@ public interface IEventStore
 }
 
 /// <summary>
-/// Persisted domain event.
+/// A persisted event record in the EventStore.
+///
+/// Contains the serialized event payload along with stream, version,
+/// and ordering information required for event sourcing, projection
+/// rebuilding, and auditing.
 /// </summary>
 /// <param name="GlobalPosition"></param>
 /// <param name="StreamType"></param>
@@ -36,31 +40,28 @@ public interface IEventStore
 /// <param name="StreamVersion"></param>
 /// <param name="EventType"></param>
 /// <param name="SchemaVersion"></param>
-/// <param name="OccurredUtc"></param>
+/// <param name="OccuredAt"></param>
 /// <param name="PayloadJson"></param>
 /// <param name="MetadataJson"></param>
 public sealed record StoredEvent(
     long GlobalPosition,
     string StreamType,
-    int StreamId,
+    ulong StreamId,
     int StreamVersion,
     string EventType,
     int SchemaVersion,
-    DateTime OccurredUtc,
+    DateTimeOffset OccuredAt,
     string PayloadJson,
     string MetadataJson
 );
 
 /// <summary>
-/// Data about the initiator of a command.
+/// Supplemental event storage metadata useful for tracing information such as correlation and
+/// causation identifiers that help link related events across requests, workflows, and projections.
 /// </summary>
-/// <param name="ActorId"></param>
-/// <param name="ActorType"></param>
 /// <param name="CorrelationId"></param>
 /// <param name="CausationId"></param>
 public sealed record EventStoreMetadata(
-    Guid? ActorId,
-    string? ActorType,
-    Guid? CorrelationId,
-    Guid? CausationId
+    Guid? CorrelationId = null,
+    Guid? CausationId = null
 );

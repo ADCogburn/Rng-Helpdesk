@@ -1,29 +1,16 @@
-﻿using RngHelpdesk.Contracts.Security;
+﻿using RngHelpdesk.Contracts.Common;
 using RngHelpdesk.Contracts.Users.Queries;
-using RngHelpdesk.Infrastructure.Users;
+using RngHelpdesk.Infrastructure.Users.RunescapeAccount;
 
 namespace RngHelpdesk.Operations.Users.RunescapeAccounts;
 
-public sealed class GetRunescapeAccountHistoryHandler
+public sealed class GetRunescapeAccountHistoryHandler(IRunescapeAccountHistoryReadStore runescapeAccountHistoryReadStore)
 {
-    private readonly RunescapeAccountHistoryProjection _history;
 
-    public GetRunescapeAccountHistoryHandler(
-        RunescapeAccountHistoryProjection history)
+    public QueryResult<GetRunescapeAccountHistoryResponse> Handle(ulong userId)
     {
-        _history = history;
-    }
+        var historicalRsnChangedEvents = runescapeAccountHistoryReadStore.GetHistory(userId);
 
-    public GetRunescapeAccountHistoryResponse Handle(
-        IRequestContext requestContext,
-        GetRunescapeAccountHistoryQuery query)
-    {
-        AuthorizationRules.RequireAuthentication(requestContext);
-
-        return new GetRunescapeAccountHistoryResponse
-        {
-            UserId = query.UserId,
-            History = _history.GetForUser(query.UserId)
-        };
+        return QueryResult<GetRunescapeAccountHistoryResponse>.Ok(new GetRunescapeAccountHistoryResponse(historicalRsnChangedEvents));
     }
 }

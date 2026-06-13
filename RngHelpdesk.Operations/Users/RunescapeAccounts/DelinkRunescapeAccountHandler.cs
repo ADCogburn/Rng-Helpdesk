@@ -1,38 +1,25 @@
 ﻿using RngHelpdesk.Contracts.Common;
-using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Commands;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Users;
 
 namespace RngHelpdesk.Operations.Users.RunescapeAccounts;
 
-public sealed class DelinkRunescapeAccountHandler
+public sealed class DelinkRunescapeAccountHandler(
+    IUserRepository userRepository,
+    IEventDispatcher eventDispatcher)
 {
-    private readonly IUserRepository _userRepository;
-    private readonly IEventDispatcher _eventDispatcher;
-
-    public DelinkRunescapeAccountHandler(
-        IUserRepository userRepository,
-        IEventDispatcher eventDispatcher)
+    public CommandResult Handle(DelinkRunescapeAccountRequest request)
     {
-        _userRepository = userRepository;
-        _eventDispatcher = eventDispatcher;
-    }
+        return CommandHandler.Execute(() =>
+        {
+            var user = userRepository.GetById(request.UserId);
 
-    public CommandResult Handle(
-        IRequestContext requestContext,
-        DelinkRunescapeAccountRequest request)
-    {
-        AuthorizationRules.RequireAdminRole(requestContext);
+            user.RemoveRunescapeAccount(request.ActingUserId, request.Username);
 
-        var user = _userRepository.GetById(request.UserId);
+            var events = userRepository.Save(user);
 
-        user.RemoveRunescapeAccount(request.Username);
-
-        var events = _userRepository.Save(user);
-
-        _eventDispatcher.Dispatch(events);
-
-        return CommandResult.Ok();
+            eventDispatcher.Dispatch(events);
+        });
     }
 }

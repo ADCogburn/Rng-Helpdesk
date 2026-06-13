@@ -1,92 +1,57 @@
-using RngHelpdesk.Contracts.Security;
+using RngHelpdesk.Contracts.Common;
 using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Contracts.Users.Views;
-using RngHelpdesk.Infrastructure.Points;
 using RngHelpdesk.Infrastructure.Users;
-using RngHelpdesk.Contracts.Common.Ranks;
+using RngHelpdesk.Infrastructure.Users.RunescapeAccount;
 
 namespace RngHelpdesk.Operations.Users;
 
-public sealed class GetUserHandler
+public sealed class GetUserHandler(
+    IUserSummaryReadStore userSummaryReadStore,
+    IRunescapeAccountHistoryReadStore runescapeAccountHistoryReadStore)
 {
-    private readonly UserSummaryProjection _users;
-    private readonly UserPointsTotalProjection _pointsTotal;
-    private readonly RankResolver _rankResolver;
-
-    public GetUserHandler(
-        UserSummaryProjection users,
-        UserPointsTotalProjection pointsTotal,
-        RankResolver rankResolver)
+    public QueryResult<GetUserResponse> Handle(GetUserByIdQuery query)
     {
-        _users = users;
-        _pointsTotal = pointsTotal;
-        _rankResolver = rankResolver;
+        if (!userSummaryReadStore.TryGetById(query.UserId, out var user) || user is null)
+            return QueryResult<GetUserResponse>.Fail("User not found.");
+
+        return QueryResult<GetUserResponse>.Ok(MapToResponse(user));
     }
 
-    public GetUserResponse Handle(
-        IRequestContext requestContext,
-        GetUserByIdQuery query)
+    public QueryResult<GetUserResponse> Handle(GetUserByRunescapeUsernameQuery query)
     {
-        AuthorizationRules.RequireAuthentication(requestContext);
+        if (string.IsNullOrWhiteSpace(query.RunescapeUsername))
+            return QueryResult<GetUserResponse>.Fail("Blank username was requested.");
 
-        var user = _users.GetSingleById(query.UserId);
+        if (!userSummaryReadStore.TryGetByRunescapeUsername(query.RunescapeUsername, out var user) || user is null)
+            return QueryResult<GetUserResponse>.Fail("User not found.");
 
-        return MapToResponse(user);
-    }
-
-    public GetUserResponse Handle(
-        IRequestContext requestContext,
-        GetUserByDiscordIdQuery query)
-    {
-        AuthorizationRules.RequireAuthentication(requestContext);
-
-        var user = _users.GetByDiscordId(query.DiscordAccountId);
-
-        return MapToResponse(user);
-    }
-
-    public GetUserResponse Handle(
-        IRequestContext requestContext,
-        GetUserByRunescapeUsernameQuery query)
-    {
-        AuthorizationRules.RequireAuthentication(requestContext);
-
-        var user = _users.GetByRunescapeUsername(query.RunescapeUsername);
-
-        return MapToResponse(user);
+        return QueryResult<GetUserResponse>.Ok(MapToResponse(user));
     }
 
     private GetUserResponse MapToResponse(UserSummaryReadModel user)
     {
-        var totalPoints = _pointsTotal.GetTotalPoints(user.UserId);
+        var previousRsns = runescapeAccountHistoryReadStore
+            .GetPreviousRunescapeAccounts(user.UserId)
+            .ToList();
 
-        var rank = _rankResolver.Resolve(
-            user.AuthorityRole,
-            totalPoints);
+        return new GetUserResponse(
+            Id: user.UserId,
+            AppRole: user.AppRole,
+            ClanPoints: user.ClanPoints,
+            Rank: user.Rank,
+            IsActive: user.IsActive,
+            DateCreated: user.DateCreated,
 
-        return new GetUserResponse
-        {
-            Id = user.UserId,
-            ClanPoints = totalPoints,
-            Rank = rank.ToString(),
-            IsActive = user.IsActive,
-            DateCreated = user.DateCreated,
-
-            RunescapeAccounts = user.RunescapeAccounts
-                .Select(a => new RunescapeAccountView
-                {
-                    Username = a.Username
-                })
+            RunescapeAccounts: user.RunescapeAccounts
+                .Select(acc => new RunescapeAccountView(acc.Username))
                 .ToList(),
 
-            DiscordAccounts = user.DiscordAccounts
-                .Select(d => new DiscordAccountView
-                {
-                    DiscordId = d.DiscordId,
-                    Username = d.Username,
-                    IsActive = d.IsActive
-                })
-                .ToList()
-        };
+            PreviousRunescapeAccounts: previousRsns,
+
+            DiscordAccount: new DiscordAccountView(
+                user.DiscordAccount.DiscordId,
+                user.DiscordAccount.Username)
+        );
     }
 }

@@ -4,16 +4,19 @@ namespace RngHelpdesk.Domain.Users;
 
 public sealed class DiscordAccount
 {
-    public int Id { get; set; }
-    public ulong DiscordId { get; set; }
-    public string Username { get; set; } = string.Empty;
-    public bool IsActive { get; private set; } = true;
+    public ulong DiscordId { get; private set; }
+    public string Username { get; private set; }
 
     [JsonConstructor]
-    public DiscordAccount(ulong discordId, string username, bool isActive = true)
+    public DiscordAccount(ulong discordId, string username)
     {
+        if (discordId == 0)
+            throw new ArgumentNullException(nameof(discordId));
+
+        if (username == null)
+            throw new ArgumentNullException(nameof(username));
+
         DiscordId = discordId;
         Username = username;
-        IsActive = isActive;
     }
 }

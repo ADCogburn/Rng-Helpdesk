@@ -5,8 +5,10 @@ namespace RngHelpdesk.Infrastructure.Users;
 
 public interface IUserRepository
 {
-    User GetById(int userId);
+    User GetById(ulong userId);
     IReadOnlyCollection<IDomainEvent> Save(User user);
-    bool Exists(int userId);
+    bool Exists(ulong userId);
     bool HasAnyUsers();
+    bool UserExistsWithDiscordId(ulong discordId);
+    bool UserExistsWithDiscordUsername(string username);
 }

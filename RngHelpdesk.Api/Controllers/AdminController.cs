@@ -1,41 +1,33 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RngHelpdesk.Api.Controllers;
+using RngHelpdesk.Api.Helpers;
+using RngHelpdesk.Api.Security;
 using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Commands;
-using RngHelpdesk.Domain.Users;
 using RngHelpdesk.Operations.Admin;
 
+namespace RngHelpdesk.Api.Controllers;
+
 [ApiController]
-[Route("admin/users")]
-public sealed class AdminController : ControllerBase
+[Authorize(Policy = AuthPolicies.AdminPlus)]
+[Route("[controller]/users")]
+public sealed class AdminController(
+                        ChangeUserRoleHandler changeUserRoleHandler,
+                        CreateUserHandler createUserHandler) : ControllerBase
 {
-    private readonly IRequestContextAccessor _requestContextAccessor;
-    private readonly ChangeAdminStatusHandler _changeAdminStatusHandler;
-    private readonly CreateUserHandler _createUserHandler;
-
-    public AdminController(
-        IRequestContextAccessor requestContextAccessor,
-        ChangeAdminStatusHandler changeAdminStatusHandler,
-        CreateUserHandler createUserHandler)
-    {
-        _requestContextAccessor = requestContextAccessor;
-        _changeAdminStatusHandler = changeAdminStatusHandler;
-        _createUserHandler = createUserHandler;
-    }
-
     /// <summary>
     /// Creates a new user and generates temporary login credentials.
     /// </summary>
     [HttpPost("create")]
     public ActionResult<CreateUserResponse> CreateUser([FromBody] CreateUserRequest request)
     {
-        var result = _createUserHandler.Handle(_requestContextAccessor.Context, request);
+        var result = createUserHandler.Handle(User.GetUserId(), request);
 
         if (!result.Success)
             return BadRequest(result.Error);
 
         return CreatedAtAction(
-            nameof(UsersController.GetUser),
+            nameof(UsersController.GetUserById),
             "Users",
             new { id = result.Value!.UserId },
             result.Value);
@@ -44,36 +36,44 @@ public sealed class AdminController : ControllerBase
     /// <summary>
     /// Promotes a user to Administrator.
     /// </summary>
-    [HttpPost("{id:int}")]
-    public IActionResult AdminUser(int id)
+    [HttpPost("{id:ulong}/promote")]
+    public async Task<IActionResult> AdminUser(ulong id)
     {
-        var requestContext = _requestContextAccessor.Context;
+        var request = new ChangeUserRoleCommand
+        (
+            ActingUserId: User.GetUserId(),
+            TargetUserId: id,
+            NewRole: AppRole.Administrator
+        );
 
-        var request = new ChangeAdminStatusRequest
-        {
-            UserId = id,
-            NewRole = AuthorityRole.Administrator
-        };
+        var result = await changeUserRoleHandler.Handle(request);
 
-        _changeAdminStatusHandler.Handle(requestContext, request);
+        if (!result.Success)
+            return BadRequest(result.Error);
+
         return NoContent();
     }
 
     /// <summary>
     /// Removes administrative privileges from a user.
     /// </summary>
-    [HttpDelete("{id:int}")]
-    public IActionResult DeAdminUser(int id)
+    [HttpPost("{id:ulong}/demote")]
+    public async Task<IActionResult> DeAdminUser(ulong id)
     {
-        var requestContext = _requestContextAccessor.Context;
+        var request = new ChangeUserRoleCommand
+        (
+            ActingUserId: User.GetUserId(),
+            TargetUserId: id,
+            NewRole: AppRole.Member
+        );
 
-        var request = new ChangeAdminStatusRequest
-        {
-            UserId = id,
-            NewRole = AuthorityRole.Member
-        };
+        var result = await changeUserRoleHandler.Handle(request);
 
-        _changeAdminStatusHandler.Handle(requestContext, request);
+        if (!result.Success)
+            return BadRequest(result.Error);
+
         return NoContent();
     }
+
+    // TODO Activate and Deactive a user.
 }

@@ -1,5 +1,4 @@
-﻿public sealed class LinkRunescapeAccountRequest
-{
-    public int UserId { get; init; }
-    public string Username { get; init; } = default!;
-}
+﻿public sealed record LinkRunescapeAccountRequest(
+    ulong ActingUserId,
+    ulong UserId,
+    string Username);

@@ -1,25 +1,27 @@
-using RngHelpdesk.Domain.Users;
+using RngHelpdesk.Contracts.Common.Ranks;
+using RngHelpdesk.Contracts.Points.Views;
+using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Domain.Users.Events;
 using RngHelpdesk.Infrastructure.Common;
-using RngHelpdesk.Contracts.Points.Views;
-using RngHelpdesk.Contracts.Common.Ranks;
+using RngHelpdesk.Infrastructure.Security;
 
 namespace RngHelpdesk.Infrastructure.Points;
 
 public sealed class PointHistoryProjection :
     IProjectionState,
     IProjectionHandler<UserCreatedEvent>,
-    IProjectionHandler<AuthorityRoleChangedEvent>,
-    IProjectionHandler<ClanPointsChangedEvent>
+    IProjectionHandler<ClanPointsChangedEvent>,
+    IProjectionHandler<UserAppRoleChangedEvent>,
+    IPointHistoryReadStore
 {
     private sealed class UserPointState
     {
         public int TotalPoints;
-        public AuthorityRole AuthorityRole;
+        public AppRole AppRole = AppRole.Member;
         public List<PointHistoryItem> History = new();
     }
 
-    private readonly Dictionary<int, UserPointState> _store = new();
+    private readonly Dictionary<ulong, UserPointState> _store = new();
     private readonly RankResolver _rankResolver;
 
     public bool IsEmpty => _store.Count == 0;
@@ -29,19 +31,35 @@ public sealed class PointHistoryProjection :
         _rankResolver = rankResolver;
     }
 
+    public IReadOnlyList<PointHistoryItem> GetPointHistoryForUser(ulong userId)
+        => _store.TryGetValue(userId, out var state)
+            ? state.History
+            : Array.Empty<PointHistoryItem>();
+
+    public int GetCountForUser(ulong userId)
+        => _store.TryGetValue(userId, out var state)
+            ? state.History.Count
+            : 0;
+
+    private Rank? GetDisplayedRank(UserPointState state)
+    {
+        return _rankResolver.Resolve(state.AppRole, state.TotalPoints);
+    }
+
+    #region Projections
+
     public void Project(UserCreatedEvent e)
     {
         if (_store.ContainsKey(e.UserId))
             return;
 
-        Rank? initialRank = e.AuthorityRole == AuthorityRole.Member
-            ? _rankResolver.Resolve(AuthorityRole.Member, 0)
-            : null;
+        var initialRole = AppRole.Member;
+        var initialRank = _rankResolver.Resolve(initialRole, 0);
 
         _store[e.UserId] = new UserPointState
         {
             TotalPoints = 0,
-            AuthorityRole = e.AuthorityRole,
+            AppRole = initialRole,
             History =
             {
                 new PointHistoryItem
@@ -56,14 +74,14 @@ public sealed class PointHistoryProjection :
         };
     }
 
-    public void Project(AuthorityRoleChangedEvent e)
+    public void Project(UserAppRoleChangedEvent e)
     {
         if (!_store.TryGetValue(e.UserId, out var state))
             return;
 
         var rankBefore = GetDisplayedRank(state);
 
-        state.AuthorityRole = e.NewRole;
+        state.AppRole = e.NewRole;
 
         var rankAfter = GetDisplayedRank(state);
 
@@ -87,7 +105,7 @@ public sealed class PointHistoryProjection :
 
         var rankBefore = GetDisplayedRank(state);
 
-        state.TotalPoints += e.Delta;   // ✅ ADD ONCE
+        state.TotalPoints += e.Delta;
 
         var rankAfter = GetDisplayedRank(state);
 
@@ -101,20 +119,5 @@ public sealed class PointHistoryProjection :
         });
     }
 
-    public IReadOnlyList<PointHistoryItem> GetForUser(int userId)
-        => _store.TryGetValue(userId, out var state)
-            ? state.History
-            : Array.Empty<PointHistoryItem>();
-
-    public int GetCountForUser(int userId)
-        => _store.TryGetValue(userId, out var state)
-            ? state.History.Count
-            : 0;
-
-    private Rank? GetDisplayedRank(UserPointState state)
-    {
-        return state.AuthorityRole == AuthorityRole.Member
-            ? _rankResolver.Resolve(AuthorityRole.Member, state.TotalPoints)
-            : RankHelper.FromAuthority(state.AuthorityRole);
-    }
+    #endregion
 }

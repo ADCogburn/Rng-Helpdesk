@@ -1,32 +1,32 @@
-﻿using RngHelpdesk.Contracts.Points.Queries;
-using RngHelpdesk.Contracts.Security;
+﻿using RngHelpdesk.Contracts.Common;
+using RngHelpdesk.Contracts.Points.Queries;
 using RngHelpdesk.Infrastructure.Points;
+using RngHelpdesk.Infrastructure.Users;
 
 namespace RngHelpdesk.Operations.Points;
 
-public sealed class GetPointHistoryForUserHandler
+public sealed class GetPointHistoryForUserHandler(
+    IPointHistoryReadStore pointHistoryReadStore,
+    IUserSummaryReadStore userSummaryReadStore)
 {
-    private readonly PointHistoryProjection _projection;
-
-    public GetPointHistoryForUserHandler(PointHistoryProjection projection)
+    public CommandResult<GetPointHistoryForUserResponse> Handle(GetPointHistoryForUserQuery query)
     {
-        _projection = projection;
-    }
+        if (!userSummaryReadStore.TryGetById(query.UserId, out _))
+            return CommandResult<GetPointHistoryForUserResponse>.Fail("User not found");
 
-    public GetPointHistoryForUserResponse Handle(
-        IRequestContext context,
-        GetPointHistoryForUserQuery query)
-    {
-        AuthorizationRules.RequireAdminRole(context);
+        var events = pointHistoryReadStore.GetPointHistoryForUser(query.UserId);
+        var count = pointHistoryReadStore.GetCountForUser(query.UserId);
 
-        var events = _projection.GetForUser(query.UserId);
+        if (count == 0)
+            throw new InvalidOperationException("Point history projection is missing expected user creation event.");
 
-        return new GetPointHistoryForUserResponse
-        {
-            UserId = query.UserId,
-            TotalEventCount = _projection.GetCountForUser(query.UserId),
-            Events = events
-        };
+        return CommandResult<GetPointHistoryForUserResponse>.Ok(
+            new GetPointHistoryForUserResponse
+            {
+                UserId = query.UserId,
+                TotalEventCount = count,
+                Events = events
+            });
     }
 }
 
