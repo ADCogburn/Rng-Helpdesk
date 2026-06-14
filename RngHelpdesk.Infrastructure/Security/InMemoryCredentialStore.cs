@@ -4,7 +4,8 @@ namespace RngHelpdesk.Infrastructure.Security;
 
 public sealed class InMemoryCredentialStore : ICredentialStore
 {
-    private readonly Dictionary<string, CredentialRecord> _users = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, ulong> _usernameIndex = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<ulong, CredentialRecord> _credentials = new();
 
     public (string Username, string TemporaryPassword) CreateTemporaryCredentials(
         ulong userId,
@@ -13,34 +14,58 @@ public sealed class InMemoryCredentialStore : ICredentialStore
         var username = GenerateUniqueUsername(preferredUsername);
         var password = GenerateTemporaryPassword();
 
-        _users[username] = new CredentialRecord
-        (
+        _credentials[userId] = new CredentialRecord(
             UserId: userId,
             Username: username,
             PasswordHash: BCrypt.Net.BCrypt.HashPassword(password),
-            MustChangePassword: true
-        );
+            MustChangePassword: true);
+
+        _usernameIndex[username] = userId;
 
         return (username, password);
     }
 
-    public AuthenticatedUser? ValidateCredentials(string username, string password)
+    public void SeedCredentials(
+        ulong userId,
+        string username,
+        string password)
     {
-        if (!_users.TryGetValue(username, out var user))
+        _credentials[userId] = new CredentialRecord(
+            UserId: userId,
+            Username: username,
+            PasswordHash: BCrypt.Net.BCrypt.HashPassword(password),
+            MustChangePassword: false);
+
+        _usernameIndex[username] = userId;
+    }
+
+    public AuthenticatedUser? ValidateCredentials(
+        string username,
+        string password)
+    {
+        if (!_usernameIndex.TryGetValue(username, out var userId))
+            return null;
+
+        if (!_credentials.TryGetValue(userId, out var user))
             return null;
 
         if (!BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
             return null;
 
-        return new AuthenticatedUser(UserId: user.UserId, Username: user.Username, MustChangePassword: user.MustChangePassword);
+        return new AuthenticatedUser(
+            UserId: user.UserId,
+            Username: user.Username,
+            MustChangePassword: user.MustChangePassword);
     }
 
-    public void ChangePassword(string username, string newPassword)
+    public void ChangePassword(
+        ulong userId,
+        string newPassword)
     {
-        if (!_users.TryGetValue(username, out var user))
+        if (!_credentials.TryGetValue(userId, out var user))
             throw new InvalidOperationException("User not found.");
 
-        _users[username] = user with
+        _credentials[userId] = user with
         {
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword),
             MustChangePassword = false
@@ -59,12 +84,12 @@ public sealed class InMemoryCredentialStore : ICredentialStore
             .Replace(" ", "")
             .ToLowerInvariant();
 
-        if (!_users.ContainsKey(preferredUsername))
+        if (!_usernameIndex.ContainsKey(preferredUsername))
             return preferredUsername;
 
         var suffix = 2;
 
-        while (_users.ContainsKey($"{preferredUsername}_{suffix}"))
+        while (_usernameIndex.ContainsKey($"{preferredUsername}_{suffix}"))
         {
             suffix++;
         }

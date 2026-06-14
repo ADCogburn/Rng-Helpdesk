@@ -40,7 +40,7 @@ public sealed class UsersController(
     /// </summary>
     /// <param name="id"></param>
     /// <returns></returns>
-    [HttpGet("{id:ulong}")]
+    [HttpGet("{id:long}")]
     public ActionResult<GetUserResponse> GetUserById(ulong id)
     {
         var query = new GetUserByIdQuery(id);
@@ -74,9 +74,9 @@ public sealed class UsersController(
     /// <summary>
     /// Returns all users who used a particular RSN before.
     /// </summary>
-    /// <param name="rsn"></param>
+    /// <param name="previousRsn"></param>
     /// <returns></returns>
-    [HttpGet("by-histoical-rsn/{previousRsn}")]
+    [HttpGet("by-historical-rsn/{previousRsn}")]
     public ActionResult<GetUsersResponse> GetUsersByPreviousRsn(string previousRsn)
     {
         var query = new GetUsersByHistoricalRunescapeUsernameQuery(previousRsn);
@@ -94,7 +94,7 @@ public sealed class UsersController(
     /// </summary>
     /// <param name="id"></param>
     /// <returns></returns>
-    [HttpGet("{id:ulong}/lifecycle")]
+    [HttpGet("{id:long}/lifecycle")]
     public ActionResult<GetUserLifecycleHistoryResponse> GetUserLifecycle(ulong id)
     {
         var query = new GetUserLifecycleHistoryQuery()
@@ -110,12 +110,15 @@ public sealed class UsersController(
         return Ok(result.Value);
     }
 
+    // TODO: Get admin lifecycle (history of admin/deadmin)
+    // TODO: Consider if any of these could be non-admin commands.
+
     /// <summary>
     /// Adds points to a user.
     /// </summary>
     /// <param name="id"></param>
     /// <returns></returns>
-    [HttpPost("{id:ulong}/points/add")]
+    [HttpPost("{id:long}/points/add")]
     public IActionResult AddPoints(ulong id, [FromBody] AddPointsDto request)
     {
         var command = new AddPointsToUserRequest
@@ -141,7 +144,7 @@ public sealed class UsersController(
     /// </summary>
     /// <param name="id"></param>
     /// <returns></returns>
-    [HttpPost("{id:ulong}/points/remove")]
+    [HttpPost("{id:long}/points/remove")]
     public IActionResult RemovePoints(ulong id, [FromBody] RemovePointsDto request)
     {
         var command = new RemovePointsFromUserRequest
@@ -168,7 +171,7 @@ public sealed class UsersController(
     /// </summary>
     /// <param name="id"></param>
     /// <returns></returns>
-    [HttpGet("{id:ulong}/point-history")]
+    [HttpGet("{id:long}/point-history")]
     public ActionResult<GetPointHistoryForUserResponse> GetPointHistoryForUser(ulong id)
     {
         var query = new GetPointHistoryForUserQuery()

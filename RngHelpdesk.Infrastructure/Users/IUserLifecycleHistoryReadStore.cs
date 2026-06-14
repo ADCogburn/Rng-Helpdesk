@@ -4,5 +4,5 @@ namespace RngHelpdesk.Infrastructure.Users;
 
 public interface IUserLifecycleHistoryReadStore
 {
-    IReadOnlyList<UserLifecycleHistoryItem> GetLifecycleHistoryForUserById(ulong userId)
+    IReadOnlyList<UserLifecycleHistoryItem> GetLifecycleHistoryForUserById(ulong userId);
 }
