@@ -1,21 +1,23 @@
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using RngHelpdesk.Api.Security;
 using RngHelpdesk.Api.Validators.Users;
 using RngHelpdesk.Contracts.Common.Ranks;
 using RngHelpdesk.Contracts.Security;
+using RngHelpdesk.Domain.Users;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Persistence.EventStore;
 using RngHelpdesk.Infrastructure.Persistence.Points;
-using RngHelpdesk.Infrastructure.Persistence.Projections;
 using RngHelpdesk.Infrastructure.Points;
 using RngHelpdesk.Infrastructure.Security;
 using RngHelpdesk.Infrastructure.Users;
 using RngHelpdesk.Infrastructure.Users.RunescapeAccount;
 using RngHelpdesk.Operations.Admin;
 using RngHelpdesk.Operations.Points;
+using RngHelpdesk.Operations.Services;
 using RngHelpdesk.Operations.Users;
 using RngHelpdesk.Operations.Users.RunescapeAccounts;
 using System.Text;
@@ -35,6 +37,12 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "RngHelpdesk API",
+        Version = "v1"
+    });
+
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -42,7 +50,7 @@ builder.Services.AddSwaggerGen(options =>
         Scheme = "bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Enter: Bearer {your JWT token}"
+        Description = "Enter ONLY your JWT token: {your JWT token}"
     });
 
     options.AddSecurityRequirement((document) => new OpenApiSecurityRequirement
@@ -52,21 +60,20 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 builder.Services
-    .AddAuthentication("Bearer")
-    .AddJwtBearer("Bearer", options =>
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
     {
-        options.TokenValidationParameters = new()
+        options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidateAudience = true,
-            ValidateLifetime = false, // TODO: change to true in production
+            ValidateLifetime = false, // dev only
             ValidateIssuerSigningKey = true,
 
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)
-            )
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
         };
     });
 
@@ -105,19 +112,22 @@ builder.Services.AddValidatorsFromAssemblyContaining<LinkRunescapeAccountRequest
 // -- Operations Level Handlers --
 
 builder.Services.AddScoped<ChangeUserRoleHandler>();
+builder.Services.AddScoped<IUserRoleService, UserRoleService>();
 
-builder.Services.AddScoped<IEventStore, PostgresEventStore>();
+builder.Services.AddSingleton<IEventStore, InMemoryEventStore>();
 
-builder.Services.AddScoped<PostgresRankThresholdProvider>();
-builder.Services.AddSingleton<IRankThresholdProvider, CachingRankThresholdProvider>();
+builder.Services.AddSingleton<IRankThresholdProvider, InMemoryRankThresholdProvider>();
+//builder.Services.AddSingleton<IRankThresholdProvider, CachingRankThresholdProvider>();
 builder.Services.AddSingleton<RankResolver>();
 
 builder.Services.AddScoped<GetAllUsersHandler>();
 builder.Services.AddScoped<GetUserHandler>();
+builder.Services.AddScoped<GetUsersHandler>();
 builder.Services.AddScoped<GetUserLifecycleHistoryHandler>();
 builder.Services.AddScoped<CreateUserHandler>();
 
 builder.Services.AddScoped<GetRunescapeAccountHandler>();
+builder.Services.AddScoped<GetPreviousRunescapeAccountsHandler>();
 builder.Services.AddScoped<GetRunescapeAccountHistoryHandler>();
 builder.Services.AddScoped<LinkRunescapeAccountHandler>();
 builder.Services.AddScoped<DelinkRunescapeAccountHandler>();
@@ -129,16 +139,16 @@ builder.Services.AddScoped<GetPointHistoryForUserHandler>();
 
 // -- Repositories --
 
-builder.Services.AddScoped<IUserRepository, InMemUserRepository>();
-builder.Services.AddScoped<ICredentialStore, InMemoryCredentialStore>();
+builder.Services.AddSingleton<IUserRepository, InMemUserRepository>();
+builder.Services.AddSingleton<ICredentialStore, InMemoryCredentialStore>();
 
-builder.Services.AddHttpClient<RngHelpdesk.Infrastructure.Discord.HttpDiscordUsernameResolver>(client =>
-{
-    var baseUrl = builder.Configuration["DiscordBot:BaseUrl"] ?? "http://localhost:59854";
-    client.BaseAddress = new Uri(baseUrl);
-});
-builder.Services.AddScoped<RngHelpdesk.Contracts.Discord.IDiscordUsernameResolver>(
-    sp => sp.GetRequiredService<RngHelpdesk.Infrastructure.Discord.HttpDiscordUsernameResolver>());
+//builder.Services.AddHttpClient<RngHelpdesk.Infrastructure.Discord.HttpDiscordUsernameResolver>(client =>
+//{
+//    var baseUrl = builder.Configuration["DiscordBot:BaseUrl"] ?? "http://localhost:59854";
+//    client.BaseAddress = new Uri(baseUrl);
+//});
+//builder.Services.AddScoped<RngHelpdesk.Contracts.Discord.IDiscordUsernameResolver>(
+//    sp => sp.GetRequiredService<RngHelpdesk.Infrastructure.Discord.HttpDiscordUsernameResolver>());
 
 // -- Projection (Singleton so read models are shared; InMemEventDispatcher captures them) --
 
@@ -177,32 +187,31 @@ builder.Services.AddSingleton<IEventDispatcher>(sp =>
     return new InMemEventDispatcher(handlers);
 });
 
-builder.Services.AddScoped<IProjectionCheckpointStore, PostgresProjectionCheckpointStore>();
+// This is only needed when restarting the app and pulling the checkpoints/rebuilding projections from a DB.
+//builder.Services.AddScoped<IProjectionCheckpointStore, PostgresProjectionCheckpointStore>();
 
-builder.Services.AddScoped<ProjectionRunner>(sp =>
-{
-    return new ProjectionRunner(
-        sp.GetRequiredService<IEventStore>(),
-        sp.GetRequiredService<EventTypeRegistry>(),
-        sp.GetRequiredService<IProjectionCheckpointStore>(),
-        new object[]
-        {
-            sp.GetRequiredService<PointHistoryProjection>(),
-            sp.GetRequiredService<UserSummaryProjection>(),
-            sp.GetRequiredService<UserLifecycleHistoryProjection>(),
-            sp.GetRequiredService<RunescapeAccountHistoryProjection>()
-        });
-});
+//builder.Services.AddScoped<ProjectionRunner>(sp =>
+//{
+//    return new ProjectionRunner(
+//        sp.GetRequiredService<IEventStore>(),
+//        sp.GetRequiredService<EventTypeRegistry>(),
+//        sp.GetRequiredService<IProjectionCheckpointStore>(),
+//        new object[]
+//        {
+//            sp.GetRequiredService<PointHistoryProjection>(),
+//            sp.GetRequiredService<UserSummaryProjection>(),
+//            sp.GetRequiredService<UserLifecycleHistoryProjection>(),
+//            sp.GetRequiredService<RunescapeAccountHistoryProjection>()
+//        });
+//});
 
 // Register the mapped Domain Events -> String names for permanent linkage, even if the classes change over time.
 var registry = EventStoreRegistration.CreateRegistry();
 builder.Services.AddSingleton(registry);
 
-builder.Services.AddSingleton(NpgsqlDataSource.Create(builder.Configuration.GetConnectionString("RngHelpdeskDB")));
+//builder.Services.AddSingleton(NpgsqlDataSource.Create(builder.Configuration.GetConnectionString("RngHelpdeskDB")));
 
-builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("RngHelpdeskDB")));
-
-var app = builder.Build();
+//builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("RngHelpdeskDB")));
 
 // TEMP: Seed in-mem data for debugging
 //var userRepo = app.Services
@@ -251,20 +260,57 @@ var app = builder.Build();
 
 // --- END TEMP ---
 
-using (var scope = app.Services.CreateScope())
-{
-    var runner = scope.ServiceProvider.GetRequiredService<ProjectionRunner>();
-    await runner.RunAsync();
-}
+//using (var scope = app.Services.CreateScope())
+//{
+//    var runner = scope.ServiceProvider.GetRequiredService<ProjectionRunner>();
+//    await runner.RunAsync();
+//}
 
-app.UseDefaultFiles();
-app.MapStaticAssets();
+var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+
+    using var scope = app.Services.CreateScope();
+
+    var userRepo = (InMemUserRepository)scope.ServiceProvider
+        .GetRequiredService<IUserRepository>();
+
+    var credentialStore = (InMemoryCredentialStore)scope.ServiceProvider
+        .GetRequiredService<ICredentialStore>();
+
+    var dispatcher = scope.ServiceProvider
+        .GetRequiredService<IEventDispatcher>();
+
+    var roleService = scope.ServiceProvider
+        .GetRequiredService<IUserRoleService>();
+
+    const ulong adminId = 123456789012345678UL;
+
+    var user = User.Create(
+        actingUserId: adminId,
+        discordAccount: new DiscordAccount(
+            adminId,
+            "admin"),
+        runescapeAccounts: []);
+
+    var events = userRepo.Save(user);
+    dispatcher.Dispatch(events);
+
+    credentialStore.SeedCredentials(
+        userId: adminId,
+        username: "admin",
+        password: "password");
+
+    var roleEvents = await roleService.ChangeRoleAsync(
+        actingUserId: adminId,
+        userId: adminId,
+        oldRole: AppRole.Member,
+        newRole: AppRole.Owner);
+
+    dispatcher.Dispatch(roleEvents);
 }
 
 app.UseHttpsRedirection();
@@ -275,7 +321,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-app.MapFallbackToFile("/index.html");
 
 app.Run();

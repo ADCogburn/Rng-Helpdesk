@@ -10,7 +10,7 @@ namespace RngHelpdesk.Api.Controllers;
 
 [ApiController]
 [Authorize(Policy = AuthPolicies.AdminPlus)]
-[Route("[controller]/users")]
+[Route("[controller]")]
 public sealed class AdminController(
                         ChangeUserRoleHandler changeUserRoleHandler,
                         CreateUserHandler createUserHandler) : ControllerBase
@@ -36,7 +36,7 @@ public sealed class AdminController(
     /// <summary>
     /// Promotes a user to Administrator.
     /// </summary>
-    [HttpPost("{id:ulong}/promote")]
+    [HttpPost("{id:long}/promote")]
     public async Task<IActionResult> AdminUser(ulong id)
     {
         var request = new ChangeUserRoleCommand
@@ -57,7 +57,7 @@ public sealed class AdminController(
     /// <summary>
     /// Removes administrative privileges from a user.
     /// </summary>
-    [HttpPost("{id:ulong}/demote")]
+    [HttpPost("{id:long}/demote")]
     public async Task<IActionResult> DeAdminUser(ulong id)
     {
         var request = new ChangeUserRoleCommand

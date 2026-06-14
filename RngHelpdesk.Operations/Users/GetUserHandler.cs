@@ -2,13 +2,10 @@ using RngHelpdesk.Contracts.Common;
 using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Contracts.Users.Views;
 using RngHelpdesk.Infrastructure.Users;
-using RngHelpdesk.Infrastructure.Users.RunescapeAccount;
 
 namespace RngHelpdesk.Operations.Users;
 
-public sealed class GetUserHandler(
-    IUserSummaryReadStore userSummaryReadStore,
-    IRunescapeAccountHistoryReadStore runescapeAccountHistoryReadStore)
+public sealed class GetUserHandler(IUserSummaryReadStore userSummaryReadStore)
 {
     public QueryResult<GetUserResponse> Handle(GetUserByIdQuery query)
     {
@@ -31,10 +28,6 @@ public sealed class GetUserHandler(
 
     private GetUserResponse MapToResponse(UserSummaryReadModel user)
     {
-        var previousRsns = runescapeAccountHistoryReadStore
-            .GetPreviousRunescapeAccounts(user.UserId)
-            .ToList();
-
         return new GetUserResponse(
             Id: user.UserId,
             AppRole: user.AppRole,
@@ -46,8 +39,6 @@ public sealed class GetUserHandler(
             RunescapeAccounts: user.RunescapeAccounts
                 .Select(acc => new RunescapeAccountView(acc.Username))
                 .ToList(),
-
-            PreviousRunescapeAccounts: previousRsns,
 
             DiscordAccount: new DiscordAccountView(
                 user.DiscordAccount.DiscordId,
