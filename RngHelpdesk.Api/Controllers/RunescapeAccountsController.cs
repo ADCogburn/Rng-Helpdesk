@@ -4,6 +4,7 @@ using RngHelpdesk.Api.DTOs;
 using RngHelpdesk.Api.Helpers;
 using RngHelpdesk.Api.Security;
 using RngHelpdesk.Contracts.Common;
+using RngHelpdesk.Contracts.Models.Users.Dtos;
 using RngHelpdesk.Contracts.Users.Commands;
 using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Operations.Users.RunescapeAccounts;
@@ -12,7 +13,7 @@ namespace RngHelpdesk.Api.Controllers;
 
 [Authorize(Policy = AuthPolicies.AdminPlus)]
 [ApiController]
-[Route("users/{userId:ulong}/runescape-accounts")]
+[Route("users/{userId:long}/runescape-accounts")]
 public class RunescapeAccountsController(
     GetRunescapeAccountHandler getRunescapeHandler,
     GetPreviousRunescapeAccountsHandler getPreviousRunescapeAccountsHandler,
@@ -61,12 +62,12 @@ public class RunescapeAccountsController(
     /// <param name="request"></param>
     /// <returns></returns>
     [HttpPost]
-    public IActionResult LinkRunescapeAccount(ulong userId, [FromBody] string username)
+    public IActionResult LinkRunescapeAccount(ulong userId, [FromBody] RunescapeAccountDto username)
     {
         var request = new LinkRunescapeAccountRequest(
             ActingUserId: User.GetUserId(),
             UserId: userId,
-            Username: username);
+            Username: username.Username);
 
         var result = linkRunescapeAccountHandler.Handle(request);
 
@@ -82,12 +83,12 @@ public class RunescapeAccountsController(
     /// Removes a Runescape account username from a users active accounts.
     /// </summary>
     [HttpDelete]
-    public IActionResult DelinkRunescapeAccount(ulong userId, [FromBody] string username)
+    public IActionResult DelinkRunescapeAccount(ulong userId, [FromBody] RunescapeAccountDto username)
     {
         var request = new DelinkRunescapeAccountRequest(
             ActingUserId: User.GetUserId(),
             UserId: userId,
-            Username: username);
+            Username: username.Username);
 
         var result = delinkRunescapeHandler.Handle(request);
 

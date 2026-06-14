@@ -47,10 +47,6 @@ public sealed class GetUsersHandler(
                 .Select(acc => new RunescapeAccountView(acc.Username))
                 .ToList(),
 
-            PreviousRunescapeAccounts: runescapeAccountHistoryReadStore
-                .GetPreviousRunescapeAccounts(user.UserId)
-                .ToList(),
-
             DiscordAccount: new DiscordAccountView(
                 user.DiscordAccount.DiscordId,
                 user.DiscordAccount.Username)

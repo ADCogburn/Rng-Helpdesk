@@ -10,7 +10,7 @@ public sealed class EventTypeRegistry
     private readonly Dictionary<string, Type> _byName = new();
     private readonly Dictionary<Type, string> _byType = new();
 
-    public void Register<T>(string name) where T : IDomainEvent
+    public void Register<T>(string name) where T : IEvent
     {
         _byName[name] = typeof(T);
         _byType[typeof(T)] = name;
