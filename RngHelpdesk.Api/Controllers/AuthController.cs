@@ -86,14 +86,4 @@ public sealed class AuthController(
             Token = new JwtSecurityTokenHandler().WriteToken(token)
         });
     }
-
-    [AllowAnonymous]
-    [HttpGet("debug-auth-header")]
-    public IActionResult DebugAuthHeader()
-    {
-        return Ok(new
-        {
-            Authorization = Request.Headers.Authorization.ToString()
-        });
-    }
 }
