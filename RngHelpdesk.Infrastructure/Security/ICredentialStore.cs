@@ -18,4 +18,8 @@ public interface ICredentialStore
     void ChangePassword(
         ulong userId,
         string newPassword);
+
+    void ChangeUsername(
+        ulong userId,
+        string newUsername);
 }

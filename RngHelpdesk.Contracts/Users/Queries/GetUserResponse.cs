@@ -1,6 +1,4 @@
-﻿using RngHelpdesk.Contracts.Common.Ranks;
-using RngHelpdesk.Contracts.Security;
-using RngHelpdesk.Contracts.Users.Views;
+﻿using RngHelpdesk.Contracts.Models.Users;
 
 namespace RngHelpdesk.Contracts.Users.Queries;
 
@@ -14,12 +12,4 @@ public sealed record GetUserByRunescapeUsernameQuery(string RunescapeUsername);
 /// <summary>
 /// The promise data of a user.
 /// </summary>
-public sealed record GetUserResponse(
-    ulong Id,
-    AppRole AppRole,
-    int ClanPoints,
-    Rank Rank,
-    bool IsActive,
-    DateTimeOffset DateCreated,
-    DiscordAccountView DiscordAccount,
-    List<RunescapeAccountView> RunescapeAccounts);
+public sealed record GetUserResponse(UserDto User);

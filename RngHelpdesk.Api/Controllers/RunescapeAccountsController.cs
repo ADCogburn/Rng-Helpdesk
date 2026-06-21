@@ -2,9 +2,9 @@
 using Microsoft.AspNetCore.Mvc;
 using RngHelpdesk.Api.DTOs;
 using RngHelpdesk.Api.Helpers;
-using RngHelpdesk.Api.Security;
 using RngHelpdesk.Contracts.Common;
 using RngHelpdesk.Contracts.Models.Users.Dtos;
+using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Commands;
 using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Operations.Users.RunescapeAccounts;

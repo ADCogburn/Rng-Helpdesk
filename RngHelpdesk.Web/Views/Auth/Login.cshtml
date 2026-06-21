@@ -1,0 +1,19 @@
+﻿@model RngHelpdesk.Web.Models.Auth.LoginViewModel
+
+<h1>Login</h1>
+
+<form asp-action="Login" method="post">
+    <div>
+        <label asp-for="Username"></label>
+        <input asp-for="Username" />
+    </div>
+
+    <div>
+        <label asp-for="Password"></label>
+        <input asp-for="Password" type="password" />
+    </div>
+
+    <button type="submit">Login</button>
+</form>
+
+<div asp-validation-summary="All"></div>

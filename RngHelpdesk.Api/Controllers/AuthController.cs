@@ -1,11 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
-using RngHelpdesk.Api.DTOs;
+using RngHelpdesk.Api.Helpers;
 using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Infrastructure.Security;
 using RngHelpdesk.Infrastructure.Users;
+using RngHelpdesk.Operations.Helpers;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -31,17 +32,7 @@ public sealed class AuthController(
         if (!userSummaryReadStore.TryGetById(userId, out var user) || user is null)
             return BadRequest("User not found - contact an administrator.");
 
-        return Ok(new GetUserResponse
-        (
-            Id: user.UserId,
-            AppRole: user.AppRole,
-            ClanPoints: user.ClanPoints,
-            Rank: user.Rank,
-            IsActive: user.IsActive,
-            DateCreated: user.DateCreated,
-            DiscordAccount: user.DiscordAccount,
-            RunescapeAccounts: user.RunescapeAccounts.ToList()
-        ));
+        return Ok(new GetUserResponse(user.ToDto()));
     }
 
     [HttpPost("login")]
@@ -86,4 +77,21 @@ public sealed class AuthController(
             Token = new JwtSecurityTokenHandler().WriteToken(token)
         });
     }
+
+    [Authorize]
+    [HttpPost("change-username")]
+    public IActionResult ChangeUsername([FromBody] ChangeUsernameRequest request)
+    {
+        var userId = User.GetUserId();
+
+        if (string.IsNullOrWhiteSpace(request.NewUsername))
+            return BadRequest("Username is required.");
+
+        credentialStore.ChangeUsername(userId, request.NewUsername);
+
+        return NoContent();
+    }
+
+    // TODO: Change password
+
 }

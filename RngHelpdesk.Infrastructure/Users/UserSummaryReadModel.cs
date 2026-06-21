@@ -16,6 +16,7 @@ namespace RngHelpdesk.Infrastructure.Users;
 /// <param name="RunescapeAccounts"></param>
 /// <param name="DiscordAccount"></param>
 public sealed record UserSummaryReadModel(
+    string DisplayName,
     ulong UserId,
     bool IsActive,
     AppRole AppRole,

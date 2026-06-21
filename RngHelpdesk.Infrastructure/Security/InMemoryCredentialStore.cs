@@ -72,6 +72,19 @@ public sealed class InMemoryCredentialStore : ICredentialStore
         };
     }
 
+    public void ChangeUsername(
+        ulong userId,
+        string newUsername)
+    {
+        if (!_credentials.TryGetValue(userId, out var user))
+            throw new InvalidOperationException("User not found.");
+
+        _credentials[userId] = user with
+        {
+            Username = newUsername
+        };
+    }
+
     private static string GenerateTemporaryPassword() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(12));
 
     private string GenerateUniqueUsername(string preferredUsername)

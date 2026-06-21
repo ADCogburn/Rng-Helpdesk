@@ -1,8 +1,9 @@
 using RngHelpdesk.Contracts.Common;
+using RngHelpdesk.Contracts.Models.Users;
 using RngHelpdesk.Contracts.Users.Queries;
-using RngHelpdesk.Contracts.Users.Views;
 using RngHelpdesk.Infrastructure.Users;
 using RngHelpdesk.Infrastructure.Users.RunescapeAccount;
+using RngHelpdesk.Operations.Helpers;
 
 namespace RngHelpdesk.Operations.Users;
 
@@ -18,38 +19,16 @@ public sealed class GetUsersHandler(
         if (!runescapeAccountHistoryReadStore.TryGetUserIdsByHistoricalRunescapeUsername(query.HistoricalRunescapeUsername, out var userIds) || userIds is null)
             return QueryResult<GetUsersResponse>.Fail("User not found.");
 
-        var users = new List<GetUserResponse>();
+        var users = new List<UserDto>();
 
         foreach (var userId in userIds)
         {
             if (!userSummaryReadStore.TryGetById(userId, out var user) || user is null)
                 continue;
 
-            users.Add(MapToResponse(user));
+            users.Add(user.ToDto());
         }
 
-        var usersReponse = new GetUsersResponse(Users: users);
-
-        return QueryResult<GetUsersResponse>.Ok(usersReponse);
-    }
-
-    private GetUserResponse MapToResponse(UserSummaryReadModel user)
-    {
-        return new GetUserResponse(
-            Id: user.UserId,
-            AppRole: user.AppRole,
-            ClanPoints: user.ClanPoints,
-            Rank: user.Rank,
-            IsActive: user.IsActive,
-            DateCreated: user.DateCreated,
-
-            RunescapeAccounts: user.RunescapeAccounts
-                .Select(acc => new RunescapeAccountView(acc.Username))
-                .ToList(),
-
-            DiscordAccount: new DiscordAccountView(
-                user.DiscordAccount.DiscordId,
-                user.DiscordAccount.Username)
-        );
+        return QueryResult<GetUsersResponse>.Ok(new GetUsersResponse(users));
     }
 }

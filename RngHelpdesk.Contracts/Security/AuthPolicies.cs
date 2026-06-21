@@ -1,4 +1,4 @@
-﻿namespace RngHelpdesk.Api.Security;
+﻿namespace RngHelpdesk.Contracts.Security;
 
 public static class AuthPolicies
 {

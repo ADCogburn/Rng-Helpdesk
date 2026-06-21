@@ -1,4 +1,5 @@
 using RngHelpdesk.Contracts.Common;
+using RngHelpdesk.Contracts.Models.Users;
 using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Infrastructure.Users;
 
@@ -9,8 +10,8 @@ public sealed class GetAllUsersHandler(IUserSummaryReadStore userSummaryReadStor
     public QueryResult<GetAllUsersResponse> Handle()
     {
         var users = userSummaryReadStore.GetAll()
-            .Select(u => new GetUserResponse(
-                Id: u.UserId,
+            .Select(u => new UserDto(
+                UserId: u.UserId,
                 AppRole: u.AppRole,
                 ClanPoints: u.ClanPoints,
                 Rank: u.Rank,

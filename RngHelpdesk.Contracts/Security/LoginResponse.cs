@@ -1,4 +1,4 @@
-﻿namespace RngHelpdesk.Api.DTOs;
+﻿namespace RngHelpdesk.Contracts.Security;
 
 public sealed class LoginResponse
 {

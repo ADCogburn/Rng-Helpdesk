@@ -1,0 +1,37 @@
+﻿@model RngHelpdesk.Web.Models.Users.GetAllUsersResponseViewModel
+
+<h1>Users</h1>
+
+<h2>Total Count: @Model.TotalCount</h2>
+
+<table>
+    <thead>
+        <tr>
+            <th>User ID</th>
+            <th>Role</th>
+            <th>Rank</th>
+            <th>Clan Points</th>
+            <th>Active</th>
+            <th>Date Created</th>
+            <th>Discord Username</th>
+            <th>Runescape Usernames</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var user in Model.Users)
+        {
+            <tr>
+                <td>@user.Username</td>
+                <td>@user.AppRole</td>
+                <td>@user.Rank</td>
+                <td>@user.ClanPoints</td>
+                <td>@user.IsActive</td>
+                <td>@user.DateCreated</td>
+                <td>@user.DiscordAccount.Username</td>
+                <td>
+                    @string.Join(", ", user.RunescapeAccounts.Select(r => r.Username))
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

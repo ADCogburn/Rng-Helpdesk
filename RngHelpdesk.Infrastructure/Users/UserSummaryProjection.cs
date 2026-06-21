@@ -80,6 +80,7 @@ public sealed class UserSummaryProjection(RankResolver rankResolver) :
 
         _users[e.UserId] = new UserSummaryReadModel
         (
+            DisplayName: e.DiscordAccount.Username,
             UserId: e.UserId,
             IsActive: true,
             DateCreated: e.OccurredAt,
@@ -124,6 +125,16 @@ public sealed class UserSummaryProjection(RankResolver rankResolver) :
         _users[e.UserId] = existing with
         {
             IsActive = true
+        };
+    }
+
+    public void Project(UserDisplayNameChangedEvent e)
+    {
+        var user = _users[e.UserId];
+
+        _users[e.UserId] = user with
+        {
+            DisplayName = e.NewDisplayName
         };
     }
 

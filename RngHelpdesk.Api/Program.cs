@@ -3,7 +3,6 @@ using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
-using RngHelpdesk.Api.Security;
 using RngHelpdesk.Api.Validators.Users;
 using RngHelpdesk.Contracts.Common.Ranks;
 using RngHelpdesk.Contracts.Security;
