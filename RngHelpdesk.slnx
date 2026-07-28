@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/Adapters/">
     <Project Path="RngHelpdesk.Api/RngHelpdesk.Api.csproj" />
+    <Project Path="RngHelpdesk.Api.Tests/RngHelpdesk.Api.Tests.csproj" />
   </Folder>
   <Folder Name="/Applications/">
     <Project Path="RngHelpdesk.DiscordBot/RngHelpdesk.DiscordBot.csproj" Id="f8100c0f-fddc-47b0-a9fb-541d5ccd7735" />
