@@ -2,16 +2,17 @@
 using RngHelpdesk.Contracts.Users.Commands;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Users;
+using RngHelpdesk.Operations.Common;
 
 namespace RngHelpdesk.Operations.Users.RunescapeAccounts;
 
 public sealed class RenameRunescapeAccountHandler(
     IUserRepository userRepository,
-    IEventDispatcher eventDispatcher)
+    IEventDispatcher eventDispatcher) : ICommandHandler<RenameRunescapeAccountRequest>
 {
-    public CommandResult Handle(RenameRunescapeAccountRequest request)
+    public Task<CommandResult> Handle(RenameRunescapeAccountRequest request, CancellationToken cancellationToken = default)
     {
-        return CommandHandler.Execute(() =>
+        var result = CommandHandler.Execute(() =>
         {
             var user = userRepository.GetById(request.UserId);
 
@@ -24,5 +25,7 @@ public sealed class RenameRunescapeAccountHandler(
 
             eventDispatcher.Dispatch(events);
         });
+
+        return Task.FromResult(result);
     }
 }

@@ -4,29 +4,28 @@ using RngHelpdesk.Domain.Users;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Security;
 using RngHelpdesk.Infrastructure.Users;
+using RngHelpdesk.Operations.Common;
 
 public sealed class CreateUserHandler(
     IUserLookupReadStore userLookupReadStore,
     IUserRepository userRepository,
     IEventDispatcher eventDispatcher,
-    ICredentialStore credentialStore)
+    ICredentialStore credentialStore) : ICommandHandler<CreateUserRequest, CreateUserResponse>
 {
-    public CommandResult<CreateUserResponse> Handle(
-        ulong actingUserId,
-        CreateUserRequest request)
+    public Task<CommandResult<CreateUserResponse>> Handle(CreateUserRequest request, CancellationToken cancellationToken = default)
     {
         if (request.DiscordAccount == null)
-            return CommandResult<CreateUserResponse>.Fail("Discord account is required.");
+            return Task.FromResult(CommandResult<CreateUserResponse>.Fail("Discord account is required."));
 
         if (request.DiscordAccount.DiscordId == 0 || string.IsNullOrWhiteSpace(request.DiscordAccount.Username))
-            return CommandResult<CreateUserResponse>.Fail("Discord account, its snowflake Id, and its username are required.");
+            return Task.FromResult(CommandResult<CreateUserResponse>.Fail("Discord account, its snowflake Id, and its username are required."));
 
         if (userLookupReadStore.ExistsWithDiscordId(request.DiscordAccount.DiscordId)
             || userLookupReadStore.ExistsWithDiscordUsername(request.DiscordAccount.Username))
-            return CommandResult<CreateUserResponse>.Fail("User with this Discord ID or username already exists.");
+            return Task.FromResult(CommandResult<CreateUserResponse>.Fail("User with this Discord ID or username already exists."));
 
 
-        return CommandHandler.Execute(() =>
+        var result = CommandHandler.Execute(() =>
         {
             var discordAccount = new DiscordAccount(
                 request.DiscordAccount.DiscordId,
@@ -39,7 +38,7 @@ public sealed class CreateUserHandler(
                 : new List<RunescapeAccount>();
 
             var user = User.Create(
-                actingUserId,
+                request.ActingUserId,
                 discordAccount,
                 runescapeAccounts);
 
@@ -63,5 +62,7 @@ public sealed class CreateUserHandler(
                 TemporaryPassword = password
             };
         });
+
+        return Task.FromResult(result);
     }
 }

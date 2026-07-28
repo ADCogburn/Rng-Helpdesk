@@ -6,7 +6,11 @@ using Microsoft.OpenApi;
 using RngHelpdesk.Api.Security;
 using RngHelpdesk.Api.Validators.Users;
 using RngHelpdesk.Contracts.Common.Ranks;
+using RngHelpdesk.Contracts.Points.Commands;
+using RngHelpdesk.Contracts.Points.Queries;
 using RngHelpdesk.Contracts.Security;
+using RngHelpdesk.Contracts.Users.Commands;
+using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Domain.Users;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Persistence.EventStore;
@@ -16,6 +20,7 @@ using RngHelpdesk.Infrastructure.Security;
 using RngHelpdesk.Infrastructure.Users;
 using RngHelpdesk.Infrastructure.Users.RunescapeAccount;
 using RngHelpdesk.Operations.Admin;
+using RngHelpdesk.Operations.Common;
 using RngHelpdesk.Operations.Points;
 using RngHelpdesk.Operations.Services;
 using RngHelpdesk.Operations.Users;
@@ -111,7 +116,7 @@ builder.Services.AddValidatorsFromAssemblyContaining<LinkRunescapeAccountRequest
 
 // -- Operations Level Handlers --
 
-builder.Services.AddScoped<ChangeUserRoleHandler>();
+builder.Services.AddScoped<ICommandHandler<ChangeUserRoleCommand>, ChangeUserRoleHandler>();
 builder.Services.AddScoped<IUserRoleService, UserRoleService>();
 
 builder.Services.AddSingleton<IEventStore, InMemoryEventStore>();
@@ -120,22 +125,23 @@ builder.Services.AddSingleton<IRankThresholdProvider, InMemoryRankThresholdProvi
 //builder.Services.AddSingleton<IRankThresholdProvider, CachingRankThresholdProvider>();
 builder.Services.AddSingleton<RankResolver>();
 
-builder.Services.AddScoped<GetAllUsersHandler>();
-builder.Services.AddScoped<GetUserHandler>();
-builder.Services.AddScoped<GetUsersHandler>();
-builder.Services.AddScoped<GetUserLifecycleHistoryHandler>();
-builder.Services.AddScoped<CreateUserHandler>();
+builder.Services.AddScoped<IQueryHandler<GetAllUsersQuery, GetAllUsersResponse>, GetAllUsersHandler>();
+builder.Services.AddScoped<IQueryHandler<GetUserByIdQuery, GetUserResponse>, GetUserByIdHandler>();
+builder.Services.AddScoped<IQueryHandler<GetUserByRunescapeUsernameQuery, GetUserResponse>, GetUserByRunescapeUsernameHandler>();
+builder.Services.AddScoped<IQueryHandler<GetUsersByHistoricalRunescapeUsernameQuery, GetUsersResponse>, GetUsersHandler>();
+builder.Services.AddScoped<IQueryHandler<GetUserLifecycleHistoryQuery, GetUserLifecycleHistoryResponse>, GetUserLifecycleHistoryHandler>();
+builder.Services.AddScoped<ICommandHandler<CreateUserRequest, CreateUserResponse>, CreateUserHandler>();
 
-builder.Services.AddScoped<GetRunescapeAccountHandler>();
-builder.Services.AddScoped<GetPreviousRunescapeAccountsHandler>();
-builder.Services.AddScoped<GetRunescapeAccountHistoryHandler>();
-builder.Services.AddScoped<LinkRunescapeAccountHandler>();
-builder.Services.AddScoped<DelinkRunescapeAccountHandler>();
-builder.Services.AddScoped<RenameRunescapeAccountHandler>();
+builder.Services.AddScoped<IQueryHandler<GetRunescapeAccountsQuery, GetRunescapeAccountsResponse>, GetRunescapeAccountHandler>();
+builder.Services.AddScoped<IQueryHandler<GetPreviousRunescapeAccountsQuery, GetRunescapeAccountsResponse>, GetPreviousRunescapeAccountsHandler>();
+builder.Services.AddScoped<IQueryHandler<GetRunescapeAccountHistoryQuery, GetRunescapeAccountHistoryResponse>, GetRunescapeAccountHistoryHandler>();
+builder.Services.AddScoped<ICommandHandler<LinkRunescapeAccountRequest>, LinkRunescapeAccountHandler>();
+builder.Services.AddScoped<ICommandHandler<DelinkRunescapeAccountRequest>, DelinkRunescapeAccountHandler>();
+builder.Services.AddScoped<ICommandHandler<RenameRunescapeAccountRequest>, RenameRunescapeAccountHandler>();
 
-builder.Services.AddScoped<AddPointsToUserHandler>();
-builder.Services.AddScoped<RemovePointsFromUserHandler>();
-builder.Services.AddScoped<GetPointHistoryForUserHandler>();
+builder.Services.AddScoped<ICommandHandler<AddPointsToUserRequest>, AddPointsToUserHandler>();
+builder.Services.AddScoped<ICommandHandler<RemovePointsFromUserRequest>, RemovePointsFromUserHandler>();
+builder.Services.AddScoped<IQueryHandler<GetPointHistoryForUserQuery, GetPointHistoryForUserResponse>, GetPointHistoryForUserHandler>();
 
 // -- Repositories --
 

@@ -2,16 +2,17 @@
 using RngHelpdesk.Contracts.Points.Commands;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Users;
+using RngHelpdesk.Operations.Common;
 
 namespace RngHelpdesk.Operations.Points;
 
 public sealed class RemovePointsFromUserHandler(
     IUserRepository userRepository,
-    IEventDispatcher eventDispatcher)
+    IEventDispatcher eventDispatcher) : ICommandHandler<RemovePointsFromUserRequest>
 {
-    public CommandResult Handle(RemovePointsFromUserRequest request)
+    public Task<CommandResult> Handle(RemovePointsFromUserRequest request, CancellationToken cancellationToken = default)
     {
-        return CommandHandler.Execute(() =>
+        var result = CommandHandler.Execute(() =>
         {
             var user = userRepository.GetById(request.UserId);
 
@@ -24,5 +25,7 @@ public sealed class RemovePointsFromUserHandler(
 
             eventDispatcher.Dispatch(events);
         });
+
+        return Task.FromResult(result);
     }
 }
