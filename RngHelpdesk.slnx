@@ -8,6 +8,7 @@
   <Folder Name="/Core/">
     <Project Path="RngHelpdesk.Contracts/RngHelpdesk.Contracts.csproj" />
     <Project Path="RngHelpdesk.Domain/RngHelpdesk.Domain.csproj" />
+    <Project Path="RngHelpdesk.Domain.Tests/RngHelpdesk.Domain.Tests.csproj" />
     <Project Path="RngHelpdesk.Operations/RngHelpdesk.Operations.csproj" />
   </Folder>
   <Folder Name="/Infrastructure/">
