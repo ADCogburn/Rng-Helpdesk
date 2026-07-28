@@ -35,6 +35,7 @@ public class AddPointsToUserHandlerTests
         var result = await handler.Handle(request);
 
         Assert.Equal(ResultStatus.Failure, result.Status);
+        Assert.Equal("Points to add must be greater than zero.", result.Error);
     }
 
     [Fact]

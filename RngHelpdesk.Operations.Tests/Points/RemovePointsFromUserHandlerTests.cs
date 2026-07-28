@@ -33,6 +33,7 @@ public class RemovePointsFromUserHandlerTests
         var result = await handler.Handle(request);
 
         Assert.Equal(ResultStatus.Failure, result.Status);
+        Assert.Equal("Cannot deduct clan points below zero.", result.Error);
     }
 
     [Fact]
