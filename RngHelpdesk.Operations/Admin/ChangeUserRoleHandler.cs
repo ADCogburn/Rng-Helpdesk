@@ -20,10 +20,11 @@ public sealed class ChangeUserRoleHandler(
         if (user.AppRole == command.NewRole)
             return CommandResult.Fail("User role is already set to the requested role.");
 
-        var ev = await userRoleService.ChangeRoleAsync(command.ActingUserId, command.TargetUserId, user.AppRole, command.NewRole);
+        return await CommandHandler.ExecuteAsync(async () =>
+        {
+            var ev = await userRoleService.ChangeRoleAsync(command.ActingUserId, command.TargetUserId, user.AppRole, command.NewRole);
 
-        eventDispatcher.Dispatch(ev);
-
-        return CommandResult.Ok();
+            eventDispatcher.Dispatch(ev);
+        });
     }
 }
