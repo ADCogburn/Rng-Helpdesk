@@ -36,7 +36,13 @@ public class RunescapeAccountsController(
         };
 
         var result = await getRunescapeHandler.Handle(query);
-        return Ok(result);
+
+        return result.Status switch
+        {
+            ResultStatus.NotFound => NotFound(result.Error),
+            ResultStatus.Success => Ok(result.Value),
+            _ => BadRequest(result.Error)
+        };
     }
 
     /// <summary>
