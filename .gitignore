@@ -874,3 +874,9 @@ vite/
 *.tsbuildinfo
 
 .localpilot
+
+.agents
+.claude
+docs
+CLAUDE.md
+skills-lock.json
