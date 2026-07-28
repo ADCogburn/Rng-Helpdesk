@@ -138,7 +138,7 @@ public sealed class User : AggregateRoot
         if (string.IsNullOrWhiteSpace(reason))
             throw new DomainException("Reason for adding points must be provided.");
 
-        if (_currentClanPoints + points > int.MaxValue)
+        if (points > int.MaxValue - _currentClanPoints)
             throw new DomainException("Cannot add clan points above maximum limit.");
 
         RaiseDomainEvent(ClanPointsChangedEvent.Create(actingUserId: actingUserId, userId: Id, delta: points, reason: reason));
