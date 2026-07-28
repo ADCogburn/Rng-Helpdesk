@@ -36,7 +36,7 @@ public class LinkRunescapeAccountHandlerTests
     [Fact]
     public async Task Handle_UsernameAlreadyLinked_ReturnsFailure()
     {
-        var user = _fixture.CreateAndDispatchUser(
+        var user = await _fixture.CreateAndDispatchUserAsync(
             TestUsers.DefaultActingUserId,
             TestUsers.ValidDiscordAccount(),
             [new RunescapeAccount("Zezima")]);
@@ -51,13 +51,14 @@ public class LinkRunescapeAccountHandlerTests
     [Fact]
     public async Task Handle_ValidRequest_LinksAccountAndIsVisibleOnReadStore()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         var handler = CreateHandler(FakeLinkRunescapeAccountValidator.Passing());
 
         var result = await handler.Handle(new LinkRunescapeAccountRequest(TestUsers.DefaultActingUserId, user.Id, "Zezima"));
 
         Assert.Equal(ResultStatus.Success, result.Status);
-        Assert.True(_fixture.UserSummaryProjection.TryGetById(user.Id, out var summary));
+        var summary = await _fixture.UserSummaryProjection.GetByIdAsync(user.Id);
+        Assert.NotNull(summary);
         Assert.Contains(summary!.RunescapeAccounts, a => a.Username == "Zezima");
     }
 }

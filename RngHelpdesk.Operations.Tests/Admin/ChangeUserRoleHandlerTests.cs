@@ -26,7 +26,7 @@ public class ChangeUserRoleHandlerTests
     [Fact]
     public async Task Handle_NewRoleMatchesCurrentRole_ReturnsFailure()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         var handler = CreateHandler();
 
         var result = await handler.Handle(new ChangeUserRoleCommand(TestUsers.DefaultActingUserId, user.Id, AppRole.Member));
@@ -38,20 +38,21 @@ public class ChangeUserRoleHandlerTests
     [Fact]
     public async Task Handle_ValidRequest_ChangesRoleAndIsVisibleOnReadStore()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         var handler = CreateHandler();
 
         var result = await handler.Handle(new ChangeUserRoleCommand(TestUsers.DefaultActingUserId, user.Id, AppRole.Administrator));
 
         Assert.Equal(ResultStatus.Success, result.Status);
-        Assert.True(_fixture.UserSummaryProjection.TryGetById(user.Id, out var summary));
+        var summary = await _fixture.UserSummaryProjection.GetByIdAsync(user.Id);
+        Assert.NotNull(summary);
         Assert.Equal(AppRole.Administrator, summary!.AppRole);
     }
 
     [Fact]
     public async Task Handle_UserRoleServiceThrows_ReturnsFailureInsteadOfPropagating()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         var handler = new ChangeUserRoleHandler(
             new ThrowingUserRoleService(new InvalidOperationException("Concurrency conflict: Expected version 0, but current version is 1.")),
             _fixture.UserSummaryProjection,

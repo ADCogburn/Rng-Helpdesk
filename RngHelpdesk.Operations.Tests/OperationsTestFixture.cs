@@ -51,13 +51,13 @@ internal sealed class OperationsTestFixture
     /// Creates a User via the real aggregate factory, saves it to the repository, and dispatches
     /// the resulting events through every projection, mirroring how Program.cs seeds users.
     /// </summary>
-    public User CreateAndDispatchUser(
+    public async Task<User> CreateAndDispatchUserAsync(
         ulong actingUserId,
         DiscordAccount discordAccount,
         IEnumerable<RunescapeAccount>? runescapeAccounts = null)
     {
         var user = User.Create(actingUserId, discordAccount, runescapeAccounts ?? []);
-        var events = UserRepository.Save(user);
+        var events = await UserRepository.SaveAsync(user);
         EventDispatcher.Dispatch(events);
         return user;
     }

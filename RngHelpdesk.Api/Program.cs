@@ -302,10 +302,10 @@ if (app.Environment.IsDevelopment())
             "admin"),
         runescapeAccounts: []);
 
-    var events = userRepo.Save(user);
+    var events = await userRepo.SaveAsync(user);
     dispatcher.Dispatch(events);
 
-    credentialStore.SeedCredentials(
+    await credentialStore.SeedCredentialsAsync(
         userId: adminId,
         username: "admin",
         password: "password");

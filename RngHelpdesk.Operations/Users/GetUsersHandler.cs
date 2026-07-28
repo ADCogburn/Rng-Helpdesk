@@ -10,19 +10,23 @@ public sealed class GetUsersHandler(
     IRunescapeAccountHistoryReadStore runescapeAccountHistoryReadStore,
     IUserSummaryReadStore userSummaryReadStore) : IQueryHandler<GetUsersByHistoricalRunescapeUsernameQuery, GetUsersResponse>
 {
-    public Task<QueryResult<GetUsersResponse>> Handle(GetUsersByHistoricalRunescapeUsernameQuery query, CancellationToken cancellationToken = default)
+    public async Task<QueryResult<GetUsersResponse>> Handle(GetUsersByHistoricalRunescapeUsernameQuery query, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(query.HistoricalRunescapeUsername))
-            return Task.FromResult(QueryResult<GetUsersResponse>.Fail("Blank username was requested."));
+            return QueryResult<GetUsersResponse>.Fail("Blank username was requested.");
 
-        if (!runescapeAccountHistoryReadStore.TryGetUserIdsByHistoricalRunescapeUsername(query.HistoricalRunescapeUsername, out var userIds) || userIds is null)
-            return Task.FromResult(QueryResult<GetUsersResponse>.Fail("User not found."));
+        var userIds = await runescapeAccountHistoryReadStore.GetUserIdsByHistoricalRunescapeUsernameAsync(query.HistoricalRunescapeUsername, cancellationToken);
+
+        if (userIds is null)
+            return QueryResult<GetUsersResponse>.Fail("User not found.");
 
         var users = new List<GetUserResponse>();
 
         foreach (var userId in userIds)
         {
-            if (!userSummaryReadStore.TryGetById(userId, out var user) || user is null)
+            var user = await userSummaryReadStore.GetByIdAsync(userId, cancellationToken);
+
+            if (user is null)
                 continue;
 
             users.Add(GetUserResponseMapper.MapToResponse(user));
@@ -30,6 +34,6 @@ public sealed class GetUsersHandler(
 
         var usersReponse = new GetUsersResponse(Users: users);
 
-        return Task.FromResult(QueryResult<GetUsersResponse>.Ok(usersReponse));
+        return QueryResult<GetUsersResponse>.Ok(usersReponse);
     }
 }

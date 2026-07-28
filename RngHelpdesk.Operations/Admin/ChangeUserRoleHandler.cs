@@ -14,7 +14,9 @@ public sealed class ChangeUserRoleHandler(
 {
     public async Task<CommandResult> Handle(ChangeUserRoleCommand command, CancellationToken cancellationToken = default)
     {
-        if (!userSummaryReadStore.TryGetById(command.TargetUserId, out var user) || user is null)
+        var user = await userSummaryReadStore.GetByIdAsync(command.TargetUserId, cancellationToken);
+
+        if (user is null)
             return CommandResult.Fail("User not found.");
 
         if (user.AppRole == command.NewRole)
@@ -22,7 +24,7 @@ public sealed class ChangeUserRoleHandler(
 
         return await CommandHandler.ExecuteAsync(async () =>
         {
-            var ev = await userRoleService.ChangeRoleAsync(command.ActingUserId, command.TargetUserId, user.AppRole, command.NewRole);
+            var ev = await userRoleService.ChangeRoleAsync(command.ActingUserId, command.TargetUserId, user.AppRole, command.NewRole, cancellationToken);
 
             eventDispatcher.Dispatch(ev);
         });

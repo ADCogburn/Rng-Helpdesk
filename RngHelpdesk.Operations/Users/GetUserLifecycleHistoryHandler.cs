@@ -9,16 +9,18 @@ public sealed class GetUserLifecycleHistoryHandler(
     IUserLifecycleHistoryReadStore userLifecycleHistoryReadStore,
     IUserSummaryReadStore userSummaryReadStore) : IQueryHandler<GetUserLifecycleHistoryQuery, GetUserLifecycleHistoryResponse>
 {
-    public Task<QueryResult<GetUserLifecycleHistoryResponse>> Handle(GetUserLifecycleHistoryQuery query, CancellationToken cancellationToken = default)
+    public async Task<QueryResult<GetUserLifecycleHistoryResponse>> Handle(GetUserLifecycleHistoryQuery query, CancellationToken cancellationToken = default)
     {
-        if (!userSummaryReadStore.TryGetById(query.UserId, out _))
-            return Task.FromResult(QueryResult<GetUserLifecycleHistoryResponse>.Fail("User not found."));
+        var user = await userSummaryReadStore.GetByIdAsync(query.UserId, cancellationToken);
 
-        return Task.FromResult(QueryResult<GetUserLifecycleHistoryResponse>.Ok(
+        if (user is null)
+            return QueryResult<GetUserLifecycleHistoryResponse>.Fail("User not found.");
+
+        return QueryResult<GetUserLifecycleHistoryResponse>.Ok(
             new GetUserLifecycleHistoryResponse
             {
                 UserId = query.UserId,
-                History = userLifecycleHistoryReadStore.GetLifecycleHistoryForUserById(query.UserId)
-            }));
+                History = await userLifecycleHistoryReadStore.GetLifecycleHistoryForUserByIdAsync(query.UserId, cancellationToken)
+            });
     }
 }

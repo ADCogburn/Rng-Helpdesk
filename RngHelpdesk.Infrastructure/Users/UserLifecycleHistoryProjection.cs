@@ -18,13 +18,13 @@ public sealed class UserLifecycleHistoryProjection :
         get { lock (_lock) { return _history.Count == 0; } }
     }
 
-    public IReadOnlyList<UserLifecycleHistoryItem> GetLifecycleHistoryForUserById(ulong userId)
+    public Task<IReadOnlyList<UserLifecycleHistoryItem>> GetLifecycleHistoryForUserByIdAsync(ulong userId, CancellationToken ct = default)
     {
         lock (_lock)
         {
-            return _history.TryGetValue(userId, out var list)
+            return Task.FromResult<IReadOnlyList<UserLifecycleHistoryItem>>(_history.TryGetValue(userId, out var list)
                 ? list.ToList()
-                : Array.Empty<UserLifecycleHistoryItem>();
+                : Array.Empty<UserLifecycleHistoryItem>());
         }
     }
 

@@ -8,15 +8,17 @@ namespace RngHelpdesk.Operations.Users.RunescapeAccounts;
 
 public sealed class GetRunescapeAccountHandler(IUserSummaryReadStore userSummaryReadStore) : IQueryHandler<GetRunescapeAccountsQuery, GetRunescapeAccountsResponse>
 {
-    public Task<QueryResult<GetRunescapeAccountsResponse>> Handle(GetRunescapeAccountsQuery query, CancellationToken cancellationToken = default)
+    public async Task<QueryResult<GetRunescapeAccountsResponse>> Handle(GetRunescapeAccountsQuery query, CancellationToken cancellationToken = default)
     {
-        if (!userSummaryReadStore.TryGetById(query.UserId, out var user) || user is null)
-            return Task.FromResult(QueryResult<GetRunescapeAccountsResponse>.Fail("User not found."));
+        var user = await userSummaryReadStore.GetByIdAsync(query.UserId, cancellationToken);
 
-        return Task.FromResult(QueryResult<GetRunescapeAccountsResponse>.Ok(new GetRunescapeAccountsResponse(
+        if (user is null)
+            return QueryResult<GetRunescapeAccountsResponse>.Fail("User not found.");
+
+        return QueryResult<GetRunescapeAccountsResponse>.Ok(new GetRunescapeAccountsResponse(
             Accounts: user.RunescapeAccounts
                 .Select(a => new RunescapeAccountView(Username: a.Username))
                 .ToList()
-        )));
+        ));
     }
 }

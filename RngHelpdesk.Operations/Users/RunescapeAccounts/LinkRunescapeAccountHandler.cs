@@ -11,26 +11,24 @@ public sealed class LinkRunescapeAccountHandler(
     IEventDispatcher eventDispatcher,
     IValidator<LinkRunescapeAccountRequest> validator) : ICommandHandler<LinkRunescapeAccountRequest>
 {
-    public Task<CommandResult> Handle(LinkRunescapeAccountRequest request, CancellationToken cancellationToken = default)
+    public async Task<CommandResult> Handle(LinkRunescapeAccountRequest request, CancellationToken cancellationToken = default)
     {
         var validation = validator.Validate(request);
 
         if (!validation.IsValid)
-            return Task.FromResult(CommandResult.Fail(string.Join(
+            return CommandResult.Fail(string.Join(
                 "; ",
-                validation.Errors.Select(e => e.ErrorMessage))));
+                validation.Errors.Select(e => e.ErrorMessage)));
 
-        var result = CommandHandler.Execute(() =>
+        return await CommandHandler.ExecuteAsync(async () =>
         {
-            var user = userRepository.GetById(request.UserId);
+            var user = await userRepository.GetByIdAsync(request.UserId, cancellationToken);
 
             user.AddRunescapeAccount(request.ActingUserId, request.Username);
 
-            var events = userRepository.Save(user);
+            var events = await userRepository.SaveAsync(user, cancellationToken);
 
             eventDispatcher.Dispatch(events);
         });
-
-        return Task.FromResult(result);
     }
 }

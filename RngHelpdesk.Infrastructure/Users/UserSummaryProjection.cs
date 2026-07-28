@@ -31,47 +31,45 @@ public sealed class UserSummaryProjection(RankResolver rankResolver) :
         get { lock (_lock) { return _users.Count == 0; } }
     }
 
-    public IReadOnlyCollection<UserSummaryReadModel> GetAll()
+    public Task<IReadOnlyCollection<UserSummaryReadModel>> GetAllAsync(CancellationToken ct = default)
     {
         lock (_lock)
         {
-            return _users.Values.ToList();
+            return Task.FromResult<IReadOnlyCollection<UserSummaryReadModel>>(_users.Values.ToList());
         }
     }
 
-    public bool TryGetById(ulong userId, out UserSummaryReadModel? user)
+    public Task<UserSummaryReadModel?> GetByIdAsync(ulong userId, CancellationToken ct = default)
     {
         lock (_lock)
         {
-            return _users.TryGetValue(userId, out user);
+            return Task.FromResult(_users.TryGetValue(userId, out var user) ? user : null);
         }
     }
 
-    public bool TryGetByRunescapeUsername(string username, out UserSummaryReadModel? user)
+    public Task<UserSummaryReadModel?> GetByRunescapeUsernameAsync(string username, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(username))
             throw new ArgumentException("Username must be provided.", nameof(username));
 
         lock (_lock)
         {
-            user = null;
-
             if (!_runescapeUsernameIndex.TryGetValue(username, out var userId))
-                return false;
+                return Task.FromResult<UserSummaryReadModel?>(null);
 
-            return _users.TryGetValue(userId, out user);
+            return Task.FromResult(_users.TryGetValue(userId, out var user) ? user : null);
         }
     }
 
-    public bool ExistsWithDiscordId(ulong discordId)
+    public Task<bool> ExistsWithDiscordIdAsync(ulong discordId, CancellationToken ct = default)
     {
         lock (_lock)
         {
-            return _users.ContainsKey(discordId);
+            return Task.FromResult(_users.ContainsKey(discordId));
         }
     }
 
-    public bool ExistsWithDiscordUsername(string username)
+    public Task<bool> ExistsWithDiscordUsernameAsync(string username, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(username))
             throw new ArgumentException("Username must be provided.", nameof(username));
@@ -80,18 +78,18 @@ public sealed class UserSummaryProjection(RankResolver rankResolver) :
         {
             var user = _users.Values.FirstOrDefault(u => u.DiscordAccount?.Username.Equals(username, StringComparison.OrdinalIgnoreCase) == true);
 
-            return user != null;
+            return Task.FromResult(user != null);
         }
     }
 
-    public bool ExistsWithRunescapeUsername(string rsn)
+    public Task<bool> ExistsWithRunescapeUsernameAsync(string rsn, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(rsn))
             throw new ArgumentException("Username must be provided.", nameof(rsn));
 
         lock (_lock)
         {
-            return _runescapeUsernameIndex.ContainsKey(rsn);
+            return Task.FromResult(_runescapeUsernameIndex.ContainsKey(rsn));
         }
     }
 

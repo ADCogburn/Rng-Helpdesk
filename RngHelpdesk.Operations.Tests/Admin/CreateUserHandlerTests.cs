@@ -45,7 +45,7 @@ public class CreateUserHandlerTests
     [Fact]
     public async Task Handle_DiscordIdAlreadyExists_ReturnsFailure()
     {
-        _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         var handler = CreateHandler();
         var request = new CreateUserRequest
         {
@@ -62,7 +62,7 @@ public class CreateUserHandlerTests
     [Fact]
     public async Task Handle_DiscordUsernameAlreadyExists_ReturnsFailure()
     {
-        _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         var handler = CreateHandler();
         var request = new CreateUserRequest
         {
@@ -92,7 +92,7 @@ public class CreateUserHandlerTests
         Assert.Equal(TestUsers.DefaultDiscordId, result.Value!.UserId);
         Assert.Equal(TestUsers.DefaultDiscordUsername.ToLowerInvariant(), result.Value.Username);
         Assert.NotEmpty(result.Value.TemporaryPassword);
-        Assert.True(_fixture.UserSummaryProjection.TryGetById(TestUsers.DefaultDiscordId, out _));
+        Assert.NotNull(await _fixture.UserSummaryProjection.GetByIdAsync(TestUsers.DefaultDiscordId));
     }
 
     [Fact]

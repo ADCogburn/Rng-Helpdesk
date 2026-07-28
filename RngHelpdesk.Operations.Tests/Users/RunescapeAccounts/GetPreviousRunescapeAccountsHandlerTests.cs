@@ -25,13 +25,13 @@ public class GetPreviousRunescapeAccountsHandlerTests
     [Fact]
     public async Task Handle_UserIdHasDelinkedAccounts_ReturnsPreviousAccounts()
     {
-        var user = _fixture.CreateAndDispatchUser(
+        var user = await _fixture.CreateAndDispatchUserAsync(
             TestUsers.DefaultActingUserId,
             TestUsers.ValidDiscordAccount(),
             [new RunescapeAccount("Zezima")]);
 
         user.RemoveRunescapeAccount(TestUsers.DefaultActingUserId, "Zezima");
-        var events = _fixture.UserRepository.Save(user);
+        var events = await _fixture.UserRepository.SaveAsync(user);
         _fixture.EventDispatcher.Dispatch(events);
 
         var handler = CreateHandler();

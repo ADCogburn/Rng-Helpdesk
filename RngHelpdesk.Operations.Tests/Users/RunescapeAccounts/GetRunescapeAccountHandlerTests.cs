@@ -25,7 +25,7 @@ public class GetRunescapeAccountHandlerTests
     [Fact]
     public async Task Handle_UserExists_ReturnsCurrentlyLinkedAccounts()
     {
-        var user = _fixture.CreateAndDispatchUser(
+        var user = await _fixture.CreateAndDispatchUserAsync(
             TestUsers.DefaultActingUserId,
             TestUsers.ValidDiscordAccount(),
             [new RunescapeAccount("Zezima")]);

@@ -8,10 +8,10 @@ namespace RngHelpdesk.Operations.Users.RunescapeAccounts;
 public sealed class GetRunescapeAccountHistoryHandler(IRunescapeAccountHistoryReadStore runescapeAccountHistoryReadStore) : IQueryHandler<GetRunescapeAccountHistoryQuery, GetRunescapeAccountHistoryResponse>
 {
 
-    public Task<QueryResult<GetRunescapeAccountHistoryResponse>> Handle(GetRunescapeAccountHistoryQuery query, CancellationToken cancellationToken = default)
+    public async Task<QueryResult<GetRunescapeAccountHistoryResponse>> Handle(GetRunescapeAccountHistoryQuery query, CancellationToken cancellationToken = default)
     {
-        var historicalRsnChangedEvents = runescapeAccountHistoryReadStore.GetHistory(query.UserId);
+        var historicalRsnChangedEvents = await runescapeAccountHistoryReadStore.GetHistoryAsync(query.UserId, cancellationToken);
 
-        return Task.FromResult(QueryResult<GetRunescapeAccountHistoryResponse>.Ok(new GetRunescapeAccountHistoryResponse(historicalRsnChangedEvents)));
+        return QueryResult<GetRunescapeAccountHistoryResponse>.Ok(new GetRunescapeAccountHistoryResponse(historicalRsnChangedEvents));
     }
 }

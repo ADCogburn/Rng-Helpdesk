@@ -29,13 +29,13 @@ public class RunescapeAccountsControllerTests
     [Fact]
     public async Task GetRunescapeAccounts_UserExists_ReturnsOkWithLinkedAccounts()
     {
-        var user = _fixture.CreateAndDispatchUser(
+        var user = await _fixture.CreateAndDispatchUserAsync(
             TestUsers.DefaultActingUserId,
             TestUsers.ValidDiscordAccount(),
             [new RunescapeAccount("Zezima")]);
         var controller = CreateController();
 
-        var result = await controller.GetRunescapeAccounts(user.Id);
+        var result = await controller.GetRunescapeAccounts(user.Id, CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result);
         var response = Assert.IsType<GetRunescapeAccountsResponse>(ok.Value);
@@ -48,7 +48,7 @@ public class RunescapeAccountsControllerTests
     {
         var controller = CreateController();
 
-        var result = await controller.GetRunescapeAccounts(999);
+        var result = await controller.GetRunescapeAccounts(999, CancellationToken.None);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
         Assert.Equal("User not found.", badRequest.Value);
@@ -57,15 +57,15 @@ public class RunescapeAccountsControllerTests
     [Fact]
     public async Task GetPreviousRunescapeAccountUsernames_UserHasDelinkHistory_ReturnsOkWithPreviousAccounts()
     {
-        var user = _fixture.CreateAndDispatchUser(
+        var user = await _fixture.CreateAndDispatchUserAsync(
             TestUsers.DefaultActingUserId,
             TestUsers.ValidDiscordAccount(),
             [new RunescapeAccount("Zezima")]);
         user.RemoveRunescapeAccount(TestUsers.DefaultActingUserId, "Zezima");
-        _fixture.EventDispatcher.Dispatch(_fixture.UserRepository.Save(user));
+        _fixture.EventDispatcher.Dispatch(await _fixture.UserRepository.SaveAsync(user));
         var controller = CreateController();
 
-        var result = await controller.GetPreviousRunescapeAccountUsernames(user.Id);
+        var result = await controller.GetPreviousRunescapeAccountUsernames(user.Id, CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<GetRunescapeAccountsResponse>(ok.Value);
@@ -78,7 +78,7 @@ public class RunescapeAccountsControllerTests
     {
         var controller = CreateController();
 
-        var result = await controller.GetPreviousRunescapeAccountUsernames(999);
+        var result = await controller.GetPreviousRunescapeAccountUsernames(999, CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<GetRunescapeAccountsResponse>(ok.Value);
@@ -88,23 +88,24 @@ public class RunescapeAccountsControllerTests
     [Fact]
     public async Task LinkRunescapeAccount_ValidRequest_ReturnsOkAndLinksAccount()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         var controller = CreateController();
 
-        var result = await controller.LinkRunescapeAccount(user.Id, new RunescapeAccountDto { Username = "Zezima" });
+        var result = await controller.LinkRunescapeAccount(user.Id, new RunescapeAccountDto { Username = "Zezima" }, CancellationToken.None);
 
         Assert.IsType<OkResult>(result);
-        Assert.True(_fixture.UserSummaryProjection.TryGetById(user.Id, out var summary));
+        var summary = await _fixture.UserSummaryProjection.GetByIdAsync(user.Id);
+        Assert.NotNull(summary);
         Assert.Contains(summary!.RunescapeAccounts, a => a.Username == "Zezima");
     }
 
     [Fact]
     public async Task LinkRunescapeAccount_InvalidUsername_ReturnsBadRequestWithValidationError()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         var controller = CreateController();
 
-        var result = await controller.LinkRunescapeAccount(user.Id, new RunescapeAccountDto { Username = "Zez!ma" });
+        var result = await controller.LinkRunescapeAccount(user.Id, new RunescapeAccountDto { Username = "Zez!ma" }, CancellationToken.None);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
         Assert.Equal("Invalid RuneScape username.", badRequest.Value);
@@ -115,7 +116,7 @@ public class RunescapeAccountsControllerTests
     {
         var controller = CreateController();
 
-        var result = await controller.LinkRunescapeAccount(999, new RunescapeAccountDto { Username = "Zezima" });
+        var result = await controller.LinkRunescapeAccount(999, new RunescapeAccountDto { Username = "Zezima" }, CancellationToken.None);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
         Assert.Equal("User not found.", badRequest.Value);
@@ -124,26 +125,27 @@ public class RunescapeAccountsControllerTests
     [Fact]
     public async Task DelinkRunescapeAccount_ValidRequest_ReturnsOkAndRemovesAccount()
     {
-        var user = _fixture.CreateAndDispatchUser(
+        var user = await _fixture.CreateAndDispatchUserAsync(
             TestUsers.DefaultActingUserId,
             TestUsers.ValidDiscordAccount(),
             [new RunescapeAccount("Zezima")]);
         var controller = CreateController();
 
-        var result = await controller.DelinkRunescapeAccount(user.Id, new RunescapeAccountDto { Username = "Zezima" });
+        var result = await controller.DelinkRunescapeAccount(user.Id, new RunescapeAccountDto { Username = "Zezima" }, CancellationToken.None);
 
         Assert.IsType<OkResult>(result);
-        Assert.True(_fixture.UserSummaryProjection.TryGetById(user.Id, out var summary));
+        var summary = await _fixture.UserSummaryProjection.GetByIdAsync(user.Id);
+        Assert.NotNull(summary);
         Assert.Empty(summary!.RunescapeAccounts);
     }
 
     [Fact]
     public async Task DelinkRunescapeAccount_UsernameNotLinked_ReturnsBadRequestWithHandlerError()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         var controller = CreateController();
 
-        var result = await controller.DelinkRunescapeAccount(user.Id, new RunescapeAccountDto { Username = "Zezima" });
+        var result = await controller.DelinkRunescapeAccount(user.Id, new RunescapeAccountDto { Username = "Zezima" }, CancellationToken.None);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
         Assert.Equal("Runescape account not linked.", badRequest.Value);
@@ -152,26 +154,27 @@ public class RunescapeAccountsControllerTests
     [Fact]
     public async Task RenameRunescapeAccount_ValidRequest_ReturnsNoContentAndRenamesAccount()
     {
-        var user = _fixture.CreateAndDispatchUser(
+        var user = await _fixture.CreateAndDispatchUserAsync(
             TestUsers.DefaultActingUserId,
             TestUsers.ValidDiscordAccount(),
             [new RunescapeAccount("Zezima")]);
         var controller = CreateController();
 
-        var result = await controller.RenameRunescapeAccount(user.Id, new RenameRunescapeAccountDto("Zezima", "NotZezima"));
+        var result = await controller.RenameRunescapeAccount(user.Id, new RenameRunescapeAccountDto("Zezima", "NotZezima"), CancellationToken.None);
 
         Assert.IsType<NoContentResult>(result);
-        Assert.True(_fixture.UserSummaryProjection.TryGetById(user.Id, out var summary));
+        var summary = await _fixture.UserSummaryProjection.GetByIdAsync(user.Id);
+        Assert.NotNull(summary);
         Assert.Contains(summary!.RunescapeAccounts, a => a.Username == "NotZezima");
     }
 
     [Fact]
     public async Task RenameRunescapeAccount_OldUsernameNotLinked_ReturnsBadRequestWithHandlerError()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         var controller = CreateController();
 
-        var result = await controller.RenameRunescapeAccount(user.Id, new RenameRunescapeAccountDto("Zezima", "NotZezima"));
+        var result = await controller.RenameRunescapeAccount(user.Id, new RenameRunescapeAccountDto("Zezima", "NotZezima"), CancellationToken.None);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
         Assert.Equal("Runescape account not found.", badRequest.Value);
@@ -180,12 +183,12 @@ public class RunescapeAccountsControllerTests
     [Fact]
     public async Task GetRunescapeAccountHistory_UserHasHistory_ReturnsOkWithFullHistory()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         user.AddRunescapeAccount(TestUsers.DefaultActingUserId, "Zezima");
-        _fixture.EventDispatcher.Dispatch(_fixture.UserRepository.Save(user));
+        _fixture.EventDispatcher.Dispatch(await _fixture.UserRepository.SaveAsync(user));
         var controller = CreateController();
 
-        var result = await controller.GetRunescapeAccountHistory(user.Id);
+        var result = await controller.GetRunescapeAccountHistory(user.Id, CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<GetRunescapeAccountHistoryResponse>(ok.Value);
@@ -198,7 +201,7 @@ public class RunescapeAccountsControllerTests
     {
         var controller = CreateController();
 
-        var result = await controller.GetRunescapeAccountHistory(999);
+        var result = await controller.GetRunescapeAccountHistory(999, CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<GetRunescapeAccountHistoryResponse>(ok.Value);

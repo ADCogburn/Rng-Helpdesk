@@ -19,11 +19,11 @@ public sealed class AdminController(
     /// Creates a new user and generates temporary login credentials.
     /// </summary>
     [HttpPost("create")]
-    public async Task<ActionResult<CreateUserResponse>> CreateUser([FromBody] CreateUserRequest request)
+    public async Task<ActionResult<CreateUserResponse>> CreateUser([FromBody] CreateUserRequest request, CancellationToken cancellationToken)
     {
         request.ActingUserId = User.GetUserId();
 
-        var result = await createUserHandler.Handle(request);
+        var result = await createUserHandler.Handle(request, cancellationToken);
 
         if (!result.Success)
             return BadRequest(result.Error);
@@ -39,7 +39,7 @@ public sealed class AdminController(
     /// Promotes a user to Administrator.
     /// </summary>
     [HttpPost("{id:long}/promote")]
-    public async Task<IActionResult> AdminUser(ulong id)
+    public async Task<IActionResult> AdminUser(ulong id, CancellationToken cancellationToken)
     {
         var request = new ChangeUserRoleCommand
         (
@@ -48,7 +48,7 @@ public sealed class AdminController(
             NewRole: AppRole.Administrator
         );
 
-        var result = await changeUserRoleHandler.Handle(request);
+        var result = await changeUserRoleHandler.Handle(request, cancellationToken);
 
         if (!result.Success)
             return BadRequest(result.Error);
@@ -60,7 +60,7 @@ public sealed class AdminController(
     /// Removes administrative privileges from a user.
     /// </summary>
     [HttpPost("{id:long}/demote")]
-    public async Task<IActionResult> DeAdminUser(ulong id)
+    public async Task<IActionResult> DeAdminUser(ulong id, CancellationToken cancellationToken)
     {
         var request = new ChangeUserRoleCommand
         (
@@ -69,7 +69,7 @@ public sealed class AdminController(
             NewRole: AppRole.Member
         );
 
-        var result = await changeUserRoleHandler.Handle(request);
+        var result = await changeUserRoleHandler.Handle(request, cancellationToken);
 
         if (!result.Success)
             return BadRequest(result.Error);

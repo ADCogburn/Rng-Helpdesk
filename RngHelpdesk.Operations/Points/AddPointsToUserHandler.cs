@@ -10,22 +10,20 @@ public sealed class AddPointsToUserHandler(
     IUserRepository userRepository,
     IEventDispatcher eventDispatcher) : ICommandHandler<AddPointsToUserRequest>
 {
-    public Task<CommandResult> Handle(AddPointsToUserRequest request, CancellationToken cancellationToken = default)
+    public async Task<CommandResult> Handle(AddPointsToUserRequest request, CancellationToken cancellationToken = default)
     {
-        var result = CommandHandler.Execute(() =>
+        return await CommandHandler.ExecuteAsync(async () =>
         {
-            var user = userRepository.GetById(request.UserId);
+            var user = await userRepository.GetByIdAsync(request.UserId, cancellationToken);
 
             user.AddClanPoints(
                 request.ActingUserId,
                 request.Points,
                 request.Reason);
 
-            var events = userRepository.Save(user);
+            var events = await userRepository.SaveAsync(user, cancellationToken);
 
             eventDispatcher.Dispatch(events);
         });
-
-        return Task.FromResult(result);
     }
 }

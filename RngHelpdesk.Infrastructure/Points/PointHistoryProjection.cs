@@ -35,23 +35,23 @@ public sealed class PointHistoryProjection :
         _rankResolver = rankResolver;
     }
 
-    public IReadOnlyList<PointHistoryItem> GetPointHistoryForUser(ulong userId)
+    public Task<IReadOnlyList<PointHistoryItem>> GetPointHistoryForUserAsync(ulong userId, CancellationToken ct = default)
     {
         lock (_lock)
         {
-            return _store.TryGetValue(userId, out var state)
+            return Task.FromResult<IReadOnlyList<PointHistoryItem>>(_store.TryGetValue(userId, out var state)
                 ? state.History.ToList()
-                : Array.Empty<PointHistoryItem>();
+                : Array.Empty<PointHistoryItem>());
         }
     }
 
-    public int GetCountForUser(ulong userId)
+    public Task<int> GetCountForUserAsync(ulong userId, CancellationToken ct = default)
     {
         lock (_lock)
         {
-            return _store.TryGetValue(userId, out var state)
+            return Task.FromResult(_store.TryGetValue(userId, out var state)
                 ? state.History.Count
-                : 0;
+                : 0);
         }
     }
 

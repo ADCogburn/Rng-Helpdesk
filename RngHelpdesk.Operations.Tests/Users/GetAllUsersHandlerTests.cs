@@ -25,8 +25,8 @@ public class GetAllUsersHandlerTests
     [Fact]
     public async Task Handle_UsersExist_ReturnsAllMappedUsers()
     {
-        _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
-        _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount(discordId: 200, username: "otherUser"));
+        await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount(discordId: 200, username: "otherUser"));
         var handler = CreateHandler();
 
         var result = await handler.Handle(new GetAllUsersQuery());

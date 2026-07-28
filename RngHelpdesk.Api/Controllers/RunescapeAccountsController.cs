@@ -28,14 +28,14 @@ public class RunescapeAccountsController(
     /// <param name="userId"></param>
     /// <returns></returns>
     [HttpGet]
-    public async Task<IActionResult> GetRunescapeAccounts(ulong userId)
+    public async Task<IActionResult> GetRunescapeAccounts(ulong userId, CancellationToken cancellationToken)
     {
         var query = new GetRunescapeAccountsQuery()
         {
             UserId = userId
         };
 
-        var result = await getRunescapeHandler.Handle(query);
+        var result = await getRunescapeHandler.Handle(query, cancellationToken);
 
         return result.Status switch
         {
@@ -49,11 +49,11 @@ public class RunescapeAccountsController(
     /// Gets the full list of previously user RSNs by a user.
     /// </summary>
     [HttpGet("previous")]
-    public async Task<ActionResult<GetRunescapeAccountsResponse>> GetPreviousRunescapeAccountUsernames(ulong userId)
+    public async Task<ActionResult<GetRunescapeAccountsResponse>> GetPreviousRunescapeAccountUsernames(ulong userId, CancellationToken cancellationToken)
     {
         var query = new GetPreviousRunescapeAccountsQuery(userId);
 
-        var result = await getPreviousRunescapeAccountsHandler.Handle(query);
+        var result = await getPreviousRunescapeAccountsHandler.Handle(query, cancellationToken);
 
         return result.Status switch
         {
@@ -70,14 +70,14 @@ public class RunescapeAccountsController(
     /// <param name="request"></param>
     /// <returns></returns>
     [HttpPost]
-    public async Task<IActionResult> LinkRunescapeAccount(ulong userId, [FromBody] RunescapeAccountDto username)
+    public async Task<IActionResult> LinkRunescapeAccount(ulong userId, [FromBody] RunescapeAccountDto username, CancellationToken cancellationToken)
     {
         var request = new LinkRunescapeAccountRequest(
             ActingUserId: User.GetUserId(),
             UserId: userId,
             Username: username.Username);
 
-        var result = await linkRunescapeAccountHandler.Handle(request);
+        var result = await linkRunescapeAccountHandler.Handle(request, cancellationToken);
 
         return result.Status switch
         {
@@ -91,14 +91,14 @@ public class RunescapeAccountsController(
     /// Removes a Runescape account username from a users active accounts.
     /// </summary>
     [HttpDelete]
-    public async Task<IActionResult> DelinkRunescapeAccount(ulong userId, [FromBody] RunescapeAccountDto username)
+    public async Task<IActionResult> DelinkRunescapeAccount(ulong userId, [FromBody] RunescapeAccountDto username, CancellationToken cancellationToken)
     {
         var request = new DelinkRunescapeAccountRequest(
             ActingUserId: User.GetUserId(),
             UserId: userId,
             Username: username.Username);
 
-        var result = await delinkRunescapeHandler.Handle(request);
+        var result = await delinkRunescapeHandler.Handle(request, cancellationToken);
 
         return result.Status switch
         {
@@ -112,7 +112,7 @@ public class RunescapeAccountsController(
     /// Renames a Runescape account username for a user.
     /// </summary>
     [HttpPut("rename")]
-    public async Task<IActionResult> RenameRunescapeAccount(ulong userId, [FromBody] RenameRunescapeAccountDto body)
+    public async Task<IActionResult> RenameRunescapeAccount(ulong userId, [FromBody] RenameRunescapeAccountDto body, CancellationToken cancellationToken)
     {
         var request = new RenameRunescapeAccountRequest(
             ActingUserId: User.GetUserId(),
@@ -120,7 +120,7 @@ public class RunescapeAccountsController(
             OldUsername: body.OldUsername,
             NewUsername: body.NewUsername);
 
-        var result = await renameRunescapeHandler.Handle(request);
+        var result = await renameRunescapeHandler.Handle(request, cancellationToken);
 
         return result.Status switch
         {
@@ -134,11 +134,11 @@ public class RunescapeAccountsController(
     /// Gets the full history of Runescape accounts for a user, including linked, delinked, and renamed accounts.
     /// </summary>
     [HttpGet("history")]
-    public async Task<ActionResult<GetRunescapeAccountHistoryResponse>> GetRunescapeAccountHistory(ulong userId)
+    public async Task<ActionResult<GetRunescapeAccountHistoryResponse>> GetRunescapeAccountHistory(ulong userId, CancellationToken cancellationToken)
     {
         var query = new GetRunescapeAccountHistoryQuery(userId);
 
-        var result = await getRunescapeAccountHistoryHandler.Handle(query);
+        var result = await getRunescapeAccountHistoryHandler.Handle(query, cancellationToken);
 
         return result.Status switch
         {

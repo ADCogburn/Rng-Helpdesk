@@ -5,10 +5,10 @@ namespace RngHelpdesk.Infrastructure.Users;
 
 public interface IUserRepository
 {
-    User GetById(ulong userId);
-    IReadOnlyCollection<IDomainEvent> Save(User user);
-    bool Exists(ulong userId);
-    bool HasAnyUsers();
-    bool UserExistsWithDiscordId(ulong discordId);
-    bool UserExistsWithDiscordUsername(string username);
+    Task<User> GetByIdAsync(ulong userId, CancellationToken ct = default);
+    Task<IReadOnlyCollection<IDomainEvent>> SaveAsync(User user, CancellationToken ct = default);
+    Task<bool> ExistsAsync(ulong userId, CancellationToken ct = default);
+    Task<bool> HasAnyUsersAsync(CancellationToken ct = default);
+    Task<bool> UserExistsWithDiscordIdAsync(ulong discordId, CancellationToken ct = default);
+    Task<bool> UserExistsWithDiscordUsernameAsync(string username, CancellationToken ct = default);
 }

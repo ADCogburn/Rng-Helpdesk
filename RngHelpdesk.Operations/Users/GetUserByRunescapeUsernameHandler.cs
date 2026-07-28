@@ -7,14 +7,16 @@ namespace RngHelpdesk.Operations.Users;
 
 public sealed class GetUserByRunescapeUsernameHandler(IUserSummaryReadStore userSummaryReadStore) : IQueryHandler<GetUserByRunescapeUsernameQuery, GetUserResponse>
 {
-    public Task<QueryResult<GetUserResponse>> Handle(GetUserByRunescapeUsernameQuery query, CancellationToken cancellationToken = default)
+    public async Task<QueryResult<GetUserResponse>> Handle(GetUserByRunescapeUsernameQuery query, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(query.RunescapeUsername))
-            return Task.FromResult(QueryResult<GetUserResponse>.Fail("Blank username was requested."));
+            return QueryResult<GetUserResponse>.Fail("Blank username was requested.");
 
-        if (!userSummaryReadStore.TryGetByRunescapeUsername(query.RunescapeUsername, out var user) || user is null)
-            return Task.FromResult(QueryResult<GetUserResponse>.Fail("User not found."));
+        var user = await userSummaryReadStore.GetByRunescapeUsernameAsync(query.RunescapeUsername, cancellationToken);
 
-        return Task.FromResult(QueryResult<GetUserResponse>.Ok(GetUserResponseMapper.MapToResponse(user)));
+        if (user is null)
+            return QueryResult<GetUserResponse>.Fail("User not found.");
+
+        return QueryResult<GetUserResponse>.Ok(GetUserResponseMapper.MapToResponse(user));
     }
 }

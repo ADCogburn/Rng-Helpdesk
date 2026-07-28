@@ -31,10 +31,10 @@ public class UsersControllerTests
     [Fact]
     public async Task GetAllUsers_UsersExist_ReturnsOkWithAllUsers()
     {
-        _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         var controller = CreateController();
 
-        var result = await controller.GetAllUsers();
+        var result = await controller.GetAllUsers(CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<GetAllUsersResponse>(ok.Value);
@@ -46,7 +46,7 @@ public class UsersControllerTests
     {
         var controller = CreateController();
 
-        var result = await controller.GetAllUsers();
+        var result = await controller.GetAllUsers(CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<GetAllUsersResponse>(ok.Value);
@@ -57,10 +57,10 @@ public class UsersControllerTests
     [Fact]
     public async Task GetUserById_UserExists_ReturnsOkWithUser()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         var controller = CreateController();
 
-        var result = await controller.GetUserById(user.Id);
+        var result = await controller.GetUserById(user.Id, CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<GetUserResponse>(ok.Value);
@@ -72,7 +72,7 @@ public class UsersControllerTests
     {
         var controller = CreateController();
 
-        var result = await controller.GetUserById(999);
+        var result = await controller.GetUserById(999, CancellationToken.None);
 
         var notFound = Assert.IsType<NotFoundObjectResult>(result.Result);
         Assert.Equal("User not found.", notFound.Value);
@@ -81,13 +81,13 @@ public class UsersControllerTests
     [Fact]
     public async Task GetUserByRsn_UsernameLinkedToUser_ReturnsOkWithUser()
     {
-        var user = _fixture.CreateAndDispatchUser(
+        var user = await _fixture.CreateAndDispatchUserAsync(
             TestUsers.DefaultActingUserId,
             TestUsers.ValidDiscordAccount(),
             [new RunescapeAccount("Zezima")]);
         var controller = CreateController();
 
-        var result = await controller.GetUserByRsn("Zezima");
+        var result = await controller.GetUserByRsn("Zezima", CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<GetUserResponse>(ok.Value);
@@ -99,7 +99,7 @@ public class UsersControllerTests
     {
         var controller = CreateController();
 
-        var result = await controller.GetUserByRsn("Zezima");
+        var result = await controller.GetUserByRsn("Zezima", CancellationToken.None);
 
         var notFound = Assert.IsType<NotFoundObjectResult>(result.Result);
         Assert.Equal("User not found.", notFound.Value);
@@ -108,15 +108,15 @@ public class UsersControllerTests
     [Fact]
     public async Task GetUsersByPreviousRsn_HistoricalUsernameMatches_ReturnsOkWithUsers()
     {
-        var user = _fixture.CreateAndDispatchUser(
+        var user = await _fixture.CreateAndDispatchUserAsync(
             TestUsers.DefaultActingUserId,
             TestUsers.ValidDiscordAccount(),
             [new RunescapeAccount("Zezima")]);
         user.RemoveRunescapeAccount(TestUsers.DefaultActingUserId, "Zezima");
-        _fixture.EventDispatcher.Dispatch(_fixture.UserRepository.Save(user));
+        _fixture.EventDispatcher.Dispatch(await _fixture.UserRepository.SaveAsync(user));
         var controller = CreateController();
 
-        var result = await controller.GetUsersByPreviousRsn("Zezima");
+        var result = await controller.GetUsersByPreviousRsn("Zezima", CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<GetUsersResponse>(ok.Value);
@@ -129,7 +129,7 @@ public class UsersControllerTests
     {
         var controller = CreateController();
 
-        var result = await controller.GetUsersByPreviousRsn("Zezima");
+        var result = await controller.GetUsersByPreviousRsn("Zezima", CancellationToken.None);
 
         var notFound = Assert.IsType<NotFoundObjectResult>(result.Result);
         Assert.Equal("User not found.", notFound.Value);
@@ -138,11 +138,11 @@ public class UsersControllerTests
     [Fact]
     public async Task GetUserLifecycle_UserHasHistory_ReturnsOkWithHistory()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         _fixture.UserLifecycleHistoryProjection.Project(UserDeactivatedEvent.Create(TestUsers.DefaultActingUserId, user.Id));
         var controller = CreateController();
 
-        var result = await controller.GetUserLifecycle(user.Id);
+        var result = await controller.GetUserLifecycle(user.Id, CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<GetUserLifecycleHistoryResponse>(ok.Value);
@@ -155,7 +155,7 @@ public class UsersControllerTests
     {
         var controller = CreateController();
 
-        var result = await controller.GetUserLifecycle(999);
+        var result = await controller.GetUserLifecycle(999, CancellationToken.None);
 
         var notFound = Assert.IsType<NotFoundObjectResult>(result.Result);
         Assert.Equal("User not found.", notFound.Value);
@@ -164,13 +164,14 @@ public class UsersControllerTests
     [Fact]
     public async Task AddPoints_ValidRequest_ReturnsNoContentAndUpdatesTotal()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         var controller = CreateController();
 
-        var result = await controller.AddPoints(user.Id, new AddPointsDto { Points = 50, Reason = "Boss kill" });
+        var result = await controller.AddPoints(user.Id, new AddPointsDto { Points = 50, Reason = "Boss kill" }, CancellationToken.None);
 
         Assert.IsType<NoContentResult>(result);
-        Assert.True(_fixture.UserSummaryProjection.TryGetById(user.Id, out var summary));
+        var summary = await _fixture.UserSummaryProjection.GetByIdAsync(user.Id);
+        Assert.NotNull(summary);
         Assert.Equal(50, summary!.ClanPoints);
     }
 
@@ -179,7 +180,7 @@ public class UsersControllerTests
     {
         var controller = CreateController();
 
-        var result = await controller.AddPoints(999, new AddPointsDto { Points = 50, Reason = "Boss kill" });
+        var result = await controller.AddPoints(999, new AddPointsDto { Points = 50, Reason = "Boss kill" }, CancellationToken.None);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
         Assert.Equal("User not found.", badRequest.Value);
@@ -188,25 +189,26 @@ public class UsersControllerTests
     [Fact]
     public async Task RemovePoints_ValidRequest_ReturnsNoContentAndUpdatesTotal()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         user.AddClanPoints(TestUsers.DefaultActingUserId, 50, "Boss kill");
-        _fixture.EventDispatcher.Dispatch(_fixture.UserRepository.Save(user));
+        _fixture.EventDispatcher.Dispatch(await _fixture.UserRepository.SaveAsync(user));
         var controller = CreateController();
 
-        var result = await controller.RemovePoints(user.Id, new RemovePointsDto { Points = 20, Reason = "Rule violation" });
+        var result = await controller.RemovePoints(user.Id, new RemovePointsDto { Points = 20, Reason = "Rule violation" }, CancellationToken.None);
 
         Assert.IsType<NoContentResult>(result);
-        Assert.True(_fixture.UserSummaryProjection.TryGetById(user.Id, out var summary));
+        var summary = await _fixture.UserSummaryProjection.GetByIdAsync(user.Id);
+        Assert.NotNull(summary);
         Assert.Equal(30, summary!.ClanPoints);
     }
 
     [Fact]
     public async Task RemovePoints_DeductionWouldGoBelowZero_ReturnsBadRequestWithHandlerError()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         var controller = CreateController();
 
-        var result = await controller.RemovePoints(user.Id, new RemovePointsDto { Points = 10, Reason = "Rule violation" });
+        var result = await controller.RemovePoints(user.Id, new RemovePointsDto { Points = 10, Reason = "Rule violation" }, CancellationToken.None);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
         Assert.Equal("Cannot deduct clan points below zero.", badRequest.Value);
@@ -215,12 +217,12 @@ public class UsersControllerTests
     [Fact]
     public async Task GetPointHistoryForUser_ValidRequest_ReturnsOkWithHistory()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         user.AddClanPoints(TestUsers.DefaultActingUserId, 50, "Boss kill");
-        _fixture.EventDispatcher.Dispatch(_fixture.UserRepository.Save(user));
+        _fixture.EventDispatcher.Dispatch(await _fixture.UserRepository.SaveAsync(user));
         var controller = CreateController();
 
-        var result = await controller.GetPointHistoryForUser(user.Id);
+        var result = await controller.GetPointHistoryForUser(user.Id, CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<GetPointHistoryForUserResponse>(ok.Value);
@@ -232,7 +234,7 @@ public class UsersControllerTests
     {
         var controller = CreateController();
 
-        var result = await controller.GetPointHistoryForUser(999);
+        var result = await controller.GetPointHistoryForUser(999, CancellationToken.None);
 
         var notFound = Assert.IsType<NotFoundObjectResult>(result.Result);
         Assert.Equal("User not found", notFound.Value);

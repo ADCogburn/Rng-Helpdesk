@@ -8,19 +8,19 @@ public sealed class InMemUserRepository : IUserRepository
 {
     private readonly Dictionary<ulong, List<IDomainEvent>> _events = new();
 
-    public bool Exists(ulong userId) => _events.ContainsKey(userId);
+    public Task<bool> ExistsAsync(ulong userId, CancellationToken ct = default) => Task.FromResult(_events.ContainsKey(userId));
 
-    public bool HasAnyUsers() => _events.Count > 0;
+    public Task<bool> HasAnyUsersAsync(CancellationToken ct = default) => Task.FromResult(_events.Count > 0);
 
-    public User GetById(ulong userId)
+    public Task<User> GetByIdAsync(ulong userId, CancellationToken ct = default)
     {
         if (!_events.TryGetValue(userId, out var events))
             throw new AggregateNotFoundException(nameof(User), userId);
 
-        return User.Rehydrate(events);
+        return Task.FromResult(User.Rehydrate(events));
     }
 
-    public IReadOnlyCollection<IDomainEvent> Save(User user)
+    public Task<IReadOnlyCollection<IDomainEvent>> SaveAsync(User user, CancellationToken ct = default)
     {
         if (!_events.TryGetValue(user.Id, out var stream))
         {
@@ -34,7 +34,7 @@ public sealed class InMemUserRepository : IUserRepository
 
         user.ClearUncommittedDomainEvents();
 
-        return newEvents;
+        return Task.FromResult<IReadOnlyCollection<IDomainEvent>>(newEvents);
     }
 
     public void Seed(ulong userId, IEnumerable<IDomainEvent> events)
@@ -42,12 +42,12 @@ public sealed class InMemUserRepository : IUserRepository
         _events[userId] = new List<IDomainEvent>(events);
     }
 
-    public bool UserExistsWithDiscordId(ulong discordId)
+    public Task<bool> UserExistsWithDiscordIdAsync(ulong discordId, CancellationToken ct = default)
     {
         throw new NotImplementedException();
     }
 
-    public bool UserExistsWithDiscordUsername(string username)
+    public Task<bool> UserExistsWithDiscordUsernameAsync(string username, CancellationToken ct = default)
     {
         throw new NotImplementedException();
     }

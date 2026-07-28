@@ -21,6 +21,7 @@ internal sealed class ThrowingUserRoleService : IUserRoleService
         ulong actingUserId,
         ulong userId,
         AppRole oldRole,
-        AppRole newRole)
+        AppRole newRole,
+        CancellationToken ct = default)
         => throw _exception;
 }

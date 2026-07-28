@@ -26,16 +26,16 @@ public class GetRunescapeAccountHistoryHandlerTests
     [Fact]
     public async Task Handle_UserIdHasLinkRenameDelinkHistory_ReturnsFullEventHistory()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
 
         user.AddRunescapeAccount(TestUsers.DefaultActingUserId, "Zezima");
-        _fixture.EventDispatcher.Dispatch(_fixture.UserRepository.Save(user));
+        _fixture.EventDispatcher.Dispatch(await _fixture.UserRepository.SaveAsync(user));
 
         user.RenameRunescapeAccount(TestUsers.DefaultActingUserId, "Zezima", "NotZezima");
-        _fixture.EventDispatcher.Dispatch(_fixture.UserRepository.Save(user));
+        _fixture.EventDispatcher.Dispatch(await _fixture.UserRepository.SaveAsync(user));
 
         user.RemoveRunescapeAccount(TestUsers.DefaultActingUserId, "NotZezima");
-        _fixture.EventDispatcher.Dispatch(_fixture.UserRepository.Save(user));
+        _fixture.EventDispatcher.Dispatch(await _fixture.UserRepository.SaveAsync(user));
 
         var handler = CreateHandler();
 

@@ -39,7 +39,7 @@ public class GetUserByRunescapeUsernameHandlerTests
     [Fact]
     public async Task Handle_UsernameLinkedToUser_ReturnsMappedUser()
     {
-        var user = _fixture.CreateAndDispatchUser(
+        var user = await _fixture.CreateAndDispatchUserAsync(
             TestUsers.DefaultActingUserId,
             TestUsers.ValidDiscordAccount(),
             [new RunescapeAccount("Zezima")]);
