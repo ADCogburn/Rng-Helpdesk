@@ -7,8 +7,7 @@ using RngHelpdesk.Contracts.Common;
 using RngHelpdesk.Contracts.Points.Commands;
 using RngHelpdesk.Contracts.Points.Queries;
 using RngHelpdesk.Contracts.Users.Queries;
-using RngHelpdesk.Operations.Points;
-using RngHelpdesk.Operations.Users;
+using RngHelpdesk.Operations.Common;
 
 namespace RngHelpdesk.Api.Controllers;
 
@@ -16,22 +15,23 @@ namespace RngHelpdesk.Api.Controllers;
 [ApiController]
 [Route("[controller]")]
 public sealed class UsersController(
-    GetAllUsersHandler getAllUsersHandler,
-    GetUserHandler getUserHandler,
-    GetUsersHandler getUsersHandler,
-    GetUserLifecycleHistoryHandler getUserLifecycleHistoryHandler,
-    AddPointsToUserHandler addPointsHandler,
-    RemovePointsFromUserHandler removePointsFromUserHandler,
-    GetPointHistoryForUserHandler getPointHistoryHandler) : ControllerBase
+    IQueryHandler<GetAllUsersQuery, GetAllUsersResponse> getAllUsersHandler,
+    IQueryHandler<GetUserByIdQuery, GetUserResponse> getUserByIdHandler,
+    IQueryHandler<GetUserByRunescapeUsernameQuery, GetUserResponse> getUserByRunescapeUsernameHandler,
+    IQueryHandler<GetUsersByHistoricalRunescapeUsernameQuery, GetUsersResponse> getUsersHandler,
+    IQueryHandler<GetUserLifecycleHistoryQuery, GetUserLifecycleHistoryResponse> getUserLifecycleHistoryHandler,
+    ICommandHandler<AddPointsToUserRequest> addPointsHandler,
+    ICommandHandler<RemovePointsFromUserRequest> removePointsFromUserHandler,
+    IQueryHandler<GetPointHistoryForUserQuery, GetPointHistoryForUserResponse> getPointHistoryHandler) : ControllerBase
 {
     /// <summary>
     /// Returns all users and a count of total users.
     /// </summary>
     /// <returns></returns>
     [HttpGet]
-    public ActionResult<GetAllUsersResponse> GetAllUsers()
+    public async Task<ActionResult<GetAllUsersResponse>> GetAllUsers()
     {
-        var result = getAllUsersHandler.Handle();
+        var result = await getAllUsersHandler.Handle(new GetAllUsersQuery());
         return Ok(result.Value);
     }
 
@@ -41,11 +41,11 @@ public sealed class UsersController(
     /// <param name="id"></param>
     /// <returns></returns>
     [HttpGet("{id:long}")]
-    public ActionResult<GetUserResponse> GetUserById(ulong id)
+    public async Task<ActionResult<GetUserResponse>> GetUserById(ulong id)
     {
         var query = new GetUserByIdQuery(id);
 
-        var result = getUserHandler.Handle(query);
+        var result = await getUserByIdHandler.Handle(query);
 
         if (!result.Success)
             return NotFound(result.Error);
@@ -59,11 +59,11 @@ public sealed class UsersController(
     /// <param name="rsn"></param>
     /// <returns></returns>
     [HttpGet("by-rsn/{rsn}")]
-    public ActionResult<GetUserResponse> GetUserByRsn(string rsn)
+    public async Task<ActionResult<GetUserResponse>> GetUserByRsn(string rsn)
     {
         var query = new GetUserByRunescapeUsernameQuery(rsn);
 
-        var result = getUserHandler.Handle(query);
+        var result = await getUserByRunescapeUsernameHandler.Handle(query);
 
         if (!result.Success)
             return NotFound(result.Error);
@@ -77,11 +77,11 @@ public sealed class UsersController(
     /// <param name="previousRsn"></param>
     /// <returns></returns>
     [HttpGet("by-historical-rsn/{previousRsn}")]
-    public ActionResult<GetUsersResponse> GetUsersByPreviousRsn(string previousRsn)
+    public async Task<ActionResult<GetUsersResponse>> GetUsersByPreviousRsn(string previousRsn)
     {
         var query = new GetUsersByHistoricalRunescapeUsernameQuery(previousRsn);
 
-        var result = getUsersHandler.Handle(query);
+        var result = await getUsersHandler.Handle(query);
 
         if (!result.Success)
             return NotFound(result.Error);
@@ -95,14 +95,14 @@ public sealed class UsersController(
     /// <param name="id"></param>
     /// <returns></returns>
     [HttpGet("{id:long}/lifecycle")]
-    public ActionResult<GetUserLifecycleHistoryResponse> GetUserLifecycle(ulong id)
+    public async Task<ActionResult<GetUserLifecycleHistoryResponse>> GetUserLifecycle(ulong id)
     {
         var query = new GetUserLifecycleHistoryQuery()
         {
             UserId = id
         };
 
-        var result = getUserLifecycleHistoryHandler.Handle(query);
+        var result = await getUserLifecycleHistoryHandler.Handle(query);
 
         if (!result.Success)
             return NotFound(result.Error);
@@ -119,7 +119,7 @@ public sealed class UsersController(
     /// <param name="id"></param>
     /// <returns></returns>
     [HttpPost("{id:long}/points/add")]
-    public IActionResult AddPoints(ulong id, [FromBody] AddPointsDto request)
+    public async Task<IActionResult> AddPoints(ulong id, [FromBody] AddPointsDto request)
     {
         var command = new AddPointsToUserRequest
         {
@@ -129,7 +129,7 @@ public sealed class UsersController(
             Reason = request.Reason
         };
 
-        var result = addPointsHandler.Handle(command);
+        var result = await addPointsHandler.Handle(command);
 
         return result.Status switch
         {
@@ -145,7 +145,7 @@ public sealed class UsersController(
     /// <param name="id"></param>
     /// <returns></returns>
     [HttpPost("{id:long}/points/remove")]
-    public IActionResult RemovePoints(ulong id, [FromBody] RemovePointsDto request)
+    public async Task<IActionResult> RemovePoints(ulong id, [FromBody] RemovePointsDto request)
     {
         var command = new RemovePointsFromUserRequest
         {
@@ -155,7 +155,7 @@ public sealed class UsersController(
             Reason = request.Reason
         };
 
-        var result = removePointsFromUserHandler.Handle(command);
+        var result = await removePointsFromUserHandler.Handle(command);
 
 
         return result.Status switch
@@ -172,14 +172,14 @@ public sealed class UsersController(
     /// <param name="id"></param>
     /// <returns></returns>
     [HttpGet("{id:long}/point-history")]
-    public ActionResult<GetPointHistoryForUserResponse> GetPointHistoryForUser(ulong id)
+    public async Task<ActionResult<GetPointHistoryForUserResponse>> GetPointHistoryForUser(ulong id)
     {
         var query = new GetPointHistoryForUserQuery()
         {
             UserId = id
         };
 
-        var result = getPointHistoryHandler.Handle(query);
+        var result = await getPointHistoryHandler.Handle(query);
 
         if (!result.Success)
             return NotFound(result.Error);

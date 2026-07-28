@@ -2,6 +2,7 @@
 using RngHelpdesk.Contracts.Users.Commands;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Users;
+using RngHelpdesk.Operations.Common;
 using RngHelpdesk.Operations.Services;
 
 namespace RngHelpdesk.Operations.Admin;
@@ -9,9 +10,9 @@ namespace RngHelpdesk.Operations.Admin;
 public sealed class ChangeUserRoleHandler(
     IUserRoleService userRoleService,
     IUserSummaryReadStore userSummaryReadStore,
-    IEventDispatcher eventDispatcher)
+    IEventDispatcher eventDispatcher) : ICommandHandler<ChangeUserRoleCommand>
 {
-    public async Task<CommandResult> Handle(ChangeUserRoleCommand command)
+    public async Task<CommandResult> Handle(ChangeUserRoleCommand command, CancellationToken cancellationToken = default)
     {
         if (!userSummaryReadStore.TryGetById(command.TargetUserId, out var user) || user is null)
             return CommandResult.Fail("User not found.");

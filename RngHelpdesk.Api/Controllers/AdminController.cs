@@ -4,7 +4,7 @@ using RngHelpdesk.Api.Helpers;
 using RngHelpdesk.Api.Security;
 using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Commands;
-using RngHelpdesk.Operations.Admin;
+using RngHelpdesk.Operations.Common;
 
 namespace RngHelpdesk.Api.Controllers;
 
@@ -12,16 +12,18 @@ namespace RngHelpdesk.Api.Controllers;
 [Authorize(Policy = AuthPolicies.AdminPlus)]
 [Route("[controller]")]
 public sealed class AdminController(
-                        ChangeUserRoleHandler changeUserRoleHandler,
-                        CreateUserHandler createUserHandler) : ControllerBase
+                        ICommandHandler<ChangeUserRoleCommand> changeUserRoleHandler,
+                        ICommandHandler<CreateUserRequest, CreateUserResponse> createUserHandler) : ControllerBase
 {
     /// <summary>
     /// Creates a new user and generates temporary login credentials.
     /// </summary>
     [HttpPost("create")]
-    public ActionResult<CreateUserResponse> CreateUser([FromBody] CreateUserRequest request)
+    public async Task<ActionResult<CreateUserResponse>> CreateUser([FromBody] CreateUserRequest request)
     {
-        var result = createUserHandler.Handle(User.GetUserId(), request);
+        request.ActingUserId = User.GetUserId();
+
+        var result = await createUserHandler.Handle(request);
 
         if (!result.Success)
             return BadRequest(result.Error);

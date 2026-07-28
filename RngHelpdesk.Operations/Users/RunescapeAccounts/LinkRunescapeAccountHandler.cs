@@ -2,24 +2,25 @@
 using RngHelpdesk.Contracts.Common;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Users;
+using RngHelpdesk.Operations.Common;
 
 namespace RngHelpdesk.Operations.Users.RunescapeAccounts;
 
 public sealed class LinkRunescapeAccountHandler(
     IUserRepository userRepository,
     IEventDispatcher eventDispatcher,
-    IValidator<LinkRunescapeAccountRequest> validator)
+    IValidator<LinkRunescapeAccountRequest> validator) : ICommandHandler<LinkRunescapeAccountRequest>
 {
-    public CommandResult Handle(LinkRunescapeAccountRequest request)
+    public Task<CommandResult> Handle(LinkRunescapeAccountRequest request, CancellationToken cancellationToken = default)
     {
         var validation = validator.Validate(request);
 
         if (!validation.IsValid)
-            return CommandResult.Fail(string.Join(
+            return Task.FromResult(CommandResult.Fail(string.Join(
                 "; ",
-                validation.Errors.Select(e => e.ErrorMessage)));
+                validation.Errors.Select(e => e.ErrorMessage))));
 
-        return CommandHandler.Execute(() =>
+        var result = CommandHandler.Execute(() =>
         {
             var user = userRepository.GetById(request.UserId);
 
@@ -29,5 +30,7 @@ public sealed class LinkRunescapeAccountHandler(
 
             eventDispatcher.Dispatch(events);
         });
+
+        return Task.FromResult(result);
     }
 }

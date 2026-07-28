@@ -2,16 +2,17 @@
 using RngHelpdesk.Contracts.Users.Commands;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Users;
+using RngHelpdesk.Operations.Common;
 
 namespace RngHelpdesk.Operations.Users.RunescapeAccounts;
 
 public sealed class DelinkRunescapeAccountHandler(
     IUserRepository userRepository,
-    IEventDispatcher eventDispatcher)
+    IEventDispatcher eventDispatcher) : ICommandHandler<DelinkRunescapeAccountRequest>
 {
-    public CommandResult Handle(DelinkRunescapeAccountRequest request)
+    public Task<CommandResult> Handle(DelinkRunescapeAccountRequest request, CancellationToken cancellationToken = default)
     {
-        return CommandHandler.Execute(() =>
+        var result = CommandHandler.Execute(() =>
         {
             var user = userRepository.GetById(request.UserId);
 
@@ -21,5 +22,7 @@ public sealed class DelinkRunescapeAccountHandler(
 
             eventDispatcher.Dispatch(events);
         });
+
+        return Task.FromResult(result);
     }
 }
