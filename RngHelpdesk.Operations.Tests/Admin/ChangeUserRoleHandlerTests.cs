@@ -47,4 +47,19 @@ public class ChangeUserRoleHandlerTests
         Assert.True(_fixture.UserSummaryProjection.TryGetById(user.Id, out var summary));
         Assert.Equal(AppRole.Administrator, summary!.AppRole);
     }
+
+    [Fact]
+    public async Task Handle_UserRoleServiceThrows_ReturnsFailureInsteadOfPropagating()
+    {
+        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var handler = new ChangeUserRoleHandler(
+            new ThrowingUserRoleService(new InvalidOperationException("Concurrency conflict: Expected version 0, but current version is 1.")),
+            _fixture.UserSummaryProjection,
+            _fixture.EventDispatcher);
+
+        var result = await handler.Handle(new ChangeUserRoleCommand(TestUsers.DefaultActingUserId, user.Id, AppRole.Administrator));
+
+        Assert.Equal(ResultStatus.Failure, result.Status);
+        Assert.Equal("Concurrency conflict: Expected version 0, but current version is 1.", result.Error);
+    }
 }

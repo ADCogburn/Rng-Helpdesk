@@ -11,32 +11,47 @@ public sealed class UserLifecycleHistoryProjection :
     IUserLifecycleHistoryReadStore
 {
     private readonly Dictionary<ulong, List<UserLifecycleHistoryItem>> _history = new();
+    private readonly object _lock = new();
 
-    public bool IsEmpty => _history.Count == 0;
+    public bool IsEmpty
+    {
+        get { lock (_lock) { return _history.Count == 0; } }
+    }
 
     public IReadOnlyList<UserLifecycleHistoryItem> GetLifecycleHistoryForUserById(ulong userId)
-        => _history.TryGetValue(userId, out var list)
-            ? list
-            : Array.Empty<UserLifecycleHistoryItem>();
+    {
+        lock (_lock)
+        {
+            return _history.TryGetValue(userId, out var list)
+                ? list.ToList()
+                : Array.Empty<UserLifecycleHistoryItem>();
+        }
+    }
 
     #region Projections
 
     public void Project(UserDeactivatedEvent e)
     {
-        AddLifecycleHistoryItem(e.UserId, new UserLifecycleHistoryItem
+        lock (_lock)
         {
-            Action = "Deactivated",
-            OccurredAt = e.OccurredAt
-        });
+            AddLifecycleHistoryItem(e.UserId, new UserLifecycleHistoryItem
+            {
+                Action = "Deactivated",
+                OccurredAt = e.OccurredAt
+            });
+        }
     }
 
     public void Project(UserReactivatedEvent e)
     {
-        AddLifecycleHistoryItem(e.UserId, new UserLifecycleHistoryItem
+        lock (_lock)
         {
-            Action = "Reactivated",
-            OccurredAt = e.OccurredAt
-        });
+            AddLifecycleHistoryItem(e.UserId, new UserLifecycleHistoryItem
+            {
+                Action = "Reactivated",
+                OccurredAt = e.OccurredAt
+            });
+        }
     }
 
     private void AddLifecycleHistoryItem(ulong userId, UserLifecycleHistoryItem item)

@@ -23,8 +23,12 @@ public sealed class PointHistoryProjection :
 
     private readonly Dictionary<ulong, UserPointState> _store = new();
     private readonly RankResolver _rankResolver;
+    private readonly object _lock = new();
 
-    public bool IsEmpty => _store.Count == 0;
+    public bool IsEmpty
+    {
+        get { lock (_lock) { return _store.Count == 0; } }
+    }
 
     public PointHistoryProjection(RankResolver rankResolver)
     {
@@ -32,14 +36,24 @@ public sealed class PointHistoryProjection :
     }
 
     public IReadOnlyList<PointHistoryItem> GetPointHistoryForUser(ulong userId)
-        => _store.TryGetValue(userId, out var state)
-            ? state.History
-            : Array.Empty<PointHistoryItem>();
+    {
+        lock (_lock)
+        {
+            return _store.TryGetValue(userId, out var state)
+                ? state.History.ToList()
+                : Array.Empty<PointHistoryItem>();
+        }
+    }
 
     public int GetCountForUser(ulong userId)
-        => _store.TryGetValue(userId, out var state)
-            ? state.History.Count
-            : 0;
+    {
+        lock (_lock)
+        {
+            return _store.TryGetValue(userId, out var state)
+                ? state.History.Count
+                : 0;
+        }
+    }
 
     private Rank? GetDisplayedRank(UserPointState state)
     {
@@ -50,73 +64,79 @@ public sealed class PointHistoryProjection :
 
     public void Project(UserCreatedEvent e)
     {
-        if (_store.ContainsKey(e.UserId))
-            return;
-
-        var initialRole = AppRole.Member;
-        var initialRank = _rankResolver.Resolve(initialRole, 0);
-
-        _store[e.UserId] = new UserPointState
+        lock (_lock)
         {
-            TotalPoints = 0,
-            AppRole = initialRole,
-            History =
+            if (_store.ContainsKey(e.UserId))
+                return;
+
+            var initialRole = AppRole.Member;
+            var initialRank = _rankResolver.Resolve(initialRole, 0);
+
+            _store[e.UserId] = new UserPointState
             {
-                new PointHistoryItem
+                TotalPoints = 0,
+                AppRole = initialRole,
+                History =
                 {
-                    Delta = 0,
-                    Reason = "Account created",
-                    OccurredAt = e.OccurredAt,
-                    RankBefore = null,
-                    RankAfter = initialRank
+                    new PointHistoryItem
+                    {
+                        Delta = 0,
+                        Reason = "Account created",
+                        OccurredAt = e.OccurredAt,
+                        RankBefore = null,
+                        RankAfter = initialRank
+                    }
                 }
-            }
-        };
+            };
+        }
     }
 
     public void Project(UserAppRoleChangedEvent e)
     {
-        if (!_store.TryGetValue(e.UserId, out var state))
-            return;
-
-        var rankBefore = GetDisplayedRank(state);
-
-        state.AppRole = e.NewRole;
-
-        var rankAfter = GetDisplayedRank(state);
-
-        state.History.Add(new PointHistoryItem
+        lock (_lock)
         {
-            Delta = 0,
-            Reason = $"Authority role changed: {e.OldRole} → {e.NewRole}",
-            OccurredAt = e.OccurredAt,
-            RankBefore = rankBefore,
-            RankAfter = rankAfter
-        });
+            if (!_store.TryGetValue(e.UserId, out var state))
+                return;
+
+            var rankBefore = GetDisplayedRank(state);
+
+            state.AppRole = e.NewRole;
+
+            var rankAfter = GetDisplayedRank(state);
+
+            state.History.Add(new PointHistoryItem
+            {
+                Delta = 0,
+                Reason = $"Authority role changed: {e.OldRole} → {e.NewRole}",
+                OccurredAt = e.OccurredAt,
+                RankBefore = rankBefore,
+                RankAfter = rankAfter
+            });
+        }
     }
 
     public void Project(ClanPointsChangedEvent e)
     {
-        if (!_store.TryGetValue(e.UserId, out var state))
+        lock (_lock)
         {
-            throw new InvalidOperationException(
-                $"PointHistoryProjection received ClanPointsChangedEvent for user {e.UserId} before UserCreatedEvent.");
+            if (!_store.TryGetValue(e.UserId, out var state))
+                return;
+
+            var rankBefore = GetDisplayedRank(state);
+
+            state.TotalPoints += e.Delta;
+
+            var rankAfter = GetDisplayedRank(state);
+
+            state.History.Add(new PointHistoryItem
+            {
+                Delta = e.Delta,
+                Reason = e.Reason,
+                OccurredAt = e.OccurredAt,
+                RankBefore = rankBefore,
+                RankAfter = rankAfter
+            });
         }
-
-        var rankBefore = GetDisplayedRank(state);
-
-        state.TotalPoints += e.Delta;
-
-        var rankAfter = GetDisplayedRank(state);
-
-        state.History.Add(new PointHistoryItem
-        {
-            Delta = e.Delta,
-            Reason = e.Reason,
-            OccurredAt = e.OccurredAt,
-            RankBefore = rankBefore,
-            RankAfter = rankAfter
-        });
     }
 
     #endregion
