@@ -15,6 +15,7 @@
   </Folder>
   <Folder Name="/Infrastructure/">
     <Project Path="RngHelpdesk.Infrastructure/RngHelpdesk.Infrastructure.csproj" Id="d8314984-1cee-432d-968f-95249eb1bd7f" />
+    <Project Path="RngHelpdesk.Infrastructure.Tests/RngHelpdesk.Infrastructure.Tests.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".gitignore" />

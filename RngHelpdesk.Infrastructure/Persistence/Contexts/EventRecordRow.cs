@@ -5,7 +5,7 @@ internal sealed class EventRecordRow
     public long GlobalPosition { get; set; }
 
     public string StreamType { get; set; } = default!;
-    public int StreamId { get; set; }
+    public long StreamId { get; set; }
     public int StreamVersion { get; set; }
 
     public string EventType { get; set; } = default!;
