@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -25,27 +25,12 @@ namespace RngHelpdesk.Infrastructure.Migrations
                 name: "points");
 
             migrationBuilder.CreateTable(
-                name: "actor_user_links",
-                schema: "identity",
-                columns: table => new
-                {
-                    ActorId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ActorType = table.Column<string>(type: "text", nullable: false),
-                    UserId = table.Column<int>(type: "integer", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_actor_user_links", x => new { x.ActorId, x.ActorType });
-                });
-
-            migrationBuilder.CreateTable(
                 name: "auth_users",
                 schema: "identity",
                 columns: table => new
                 {
                     Username = table.Column<string>(type: "text", nullable: false),
-                    UserId = table.Column<int>(type: "integer", nullable: false),
-                    ActorId = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<long>(type: "bigint", nullable: false),
                     PasswordHash = table.Column<string>(type: "text", nullable: false),
                     MustChangePassword = table.Column<bool>(type: "boolean", nullable: false)
                 },
@@ -62,7 +47,7 @@ namespace RngHelpdesk.Infrastructure.Migrations
                     GlobalPosition = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     StreamType = table.Column<string>(type: "text", nullable: false),
-                    StreamId = table.Column<int>(type: "integer", nullable: false),
+                    StreamId = table.Column<long>(type: "bigint", nullable: false),
                     StreamVersion = table.Column<int>(type: "integer", nullable: false),
                     EventType = table.Column<string>(type: "text", nullable: false),
                     EventSchemaVer = table.Column<int>(type: "integer", nullable: false),
@@ -82,7 +67,7 @@ namespace RngHelpdesk.Infrastructure.Migrations
                 columns: table => new
                 {
                     StreamType = table.Column<string>(type: "text", nullable: false),
-                    StreamId = table.Column<int>(type: "integer", nullable: false),
+                    StreamId = table.Column<long>(type: "bigint", nullable: false),
                     CurrentVersion = table.Column<int>(type: "integer", nullable: false),
                     CreatedUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
@@ -134,7 +119,7 @@ namespace RngHelpdesk.Infrastructure.Migrations
                 columns: new[] { "StreamType", "StreamId", "StreamVersion" },
                 unique: true);
 
-            // Seed rank thresholds
+            // Seed rank thresholds (matches InMemoryRankThresholdProvider's canonical values)
             migrationBuilder.InsertData(
                 schema: "points",
                 table: "rank_thresholds",
@@ -142,29 +127,25 @@ namespace RngHelpdesk.Infrastructure.Migrations
                 values: new object[,]
                 {
                     { "Bronze", 0, 0 },
-                    { "Iron", 100, 1 },
-                    { "Steel", 500, 2 },
-                    { "Mithril", 1000, 3 },
-                    { "Adamant", 2500, 4 },
-                    { "Rune", 5000, 5 },
-                    { "Dragon", 10000, 6 },
-                    { "Sapphire", 20000, 7 },
-                    { "Emerald", 35000, 8 },
-                    { "Ruby", 50000, 9 },
-                    { "Diamond", 75000, 10 },
-                    { "Dragonstone", 100000, 11 },
-                    { "Onyx", 150000, 12 },
-                    { "Zenyte", 250000, 13 }
+                    { "Iron", 10, 1 },
+                    { "Steel", 50, 2 },
+                    { "Mithril", 100, 3 },
+                    { "Adamant", 175, 4 },
+                    { "Rune", 265, 5 },
+                    { "Dragon", 375, 6 },
+                    { "Sapphire", 550, 7 },
+                    { "Emerald", 750, 8 },
+                    { "Ruby", 1000, 9 },
+                    { "Diamond", 2000, 10 },
+                    { "Dragonstone", 3000, 11 },
+                    { "Onyx", 4000, 12 },
+                    { "Zenyte", 5000, 13 }
                 });
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "actor_user_links",
-                schema: "identity");
-
             migrationBuilder.DropTable(
                 name: "auth_users",
                 schema: "identity");

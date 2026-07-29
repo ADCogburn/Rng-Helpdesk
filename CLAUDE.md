@@ -28,6 +28,12 @@ controllers directly, rather than booting a full HTTP host via `WebApplicationFa
 `RngHelpdesk.Website` (Angular 17, under `RngHelpdesk.Website/`) is `npm install` + `npm start`
 if you need to poke at it, but see "Frontend status" — it's out of sync with the current API.
 
+## Branching model
+
+All feature work branches off `development`, not `master` — PRs target `development`. `master`
+is updated from `development` in periodic batches and reflects what's actually deployed to the
+production environment; don't target it directly for feature/fix PRs.
+
 ## Solution layout (dependency direction)
 
 Strict one-directional Clean/Onion layering — inner layers never reference outer ones:

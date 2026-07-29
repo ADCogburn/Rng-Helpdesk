@@ -11,7 +11,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace RngHelpdesk.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260110092452_InitAppSchema")]
+    [Migration("20260729040932_InitAppSchema")]
     partial class InitAppSchema
     {
         /// <inheritdoc />
@@ -24,29 +24,10 @@ namespace RngHelpdesk.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("RngHelpdesk.Infrastructure.Persistence.Contexts.ActorUserLinkRow", b =>
-                {
-                    b.Property<Guid>("ActorId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ActorType")
-                        .HasColumnType("text");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("ActorId", "ActorType");
-
-                    b.ToTable("actor_user_links", "identity");
-                });
-
             modelBuilder.Entity("RngHelpdesk.Infrastructure.Persistence.Contexts.AuthUserRow", b =>
                 {
                     b.Property<string>("Username")
                         .HasColumnType("text");
-
-                    b.Property<Guid>("ActorId")
-                        .HasColumnType("uuid");
 
                     b.Property<bool>("MustChangePassword")
                         .HasColumnType("boolean");
@@ -55,8 +36,8 @@ namespace RngHelpdesk.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
 
                     b.HasKey("Username");
 
@@ -92,8 +73,8 @@ namespace RngHelpdesk.Infrastructure.Migrations
                     b.Property<DateTime>("RecordedUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("StreamId")
-                        .HasColumnType("integer");
+                    b.Property<long>("StreamId")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("StreamType")
                         .IsRequired()
@@ -118,8 +99,8 @@ namespace RngHelpdesk.Infrastructure.Migrations
                     b.Property<string>("StreamType")
                         .HasColumnType("text");
 
-                    b.Property<int>("StreamId")
-                        .HasColumnType("integer");
+                    b.Property<long>("StreamId")
+                        .HasColumnType("bigint");
 
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("timestamp with time zone");

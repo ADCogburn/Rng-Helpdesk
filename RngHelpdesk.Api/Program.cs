@@ -1,8 +1,10 @@
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Npgsql;
 using RngHelpdesk.Api.Security;
 using RngHelpdesk.Api.Validators.Users;
 using RngHelpdesk.Contracts.Common.Ranks;
@@ -218,9 +220,12 @@ builder.Services.AddSingleton<IEventDispatcher>(sp =>
 var registry = EventStoreRegistration.CreateRegistry();
 builder.Services.AddSingleton(registry);
 
-//builder.Services.AddSingleton(NpgsqlDataSource.Create(builder.Configuration.GetConnectionString("RngHelpdeskDB")));
+var connectionString = builder.Configuration.GetConnectionString("RngHelpdeskDB")
+    ?? throw new InvalidOperationException("Missing required connection string 'RngHelpdeskDB'.");
 
-//builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("RngHelpdeskDB")));
+builder.Services.AddSingleton(NpgsqlDataSource.Create(connectionString));
+
+builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 
 // TEMP: Seed in-mem data for debugging
 //var userRepo = app.Services
