@@ -16,12 +16,17 @@ public sealed class MigrationFixture : IAsyncLifetime
     {
         await _postgres.StartAsync();
 
+        await using var context = CreateContext();
+        await context.Database.MigrateAsync();
+    }
+
+    public AppDbContext CreateContext()
+    {
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseNpgsql(ConnectionString)
             .Options;
 
-        await using var context = new AppDbContext(options);
-        await context.Database.MigrateAsync();
+        return new AppDbContext(options);
     }
 
     public async Task DisposeAsync() => await _postgres.DisposeAsync();
@@ -84,11 +89,7 @@ public sealed class MigrationTests : IClassFixture<MigrationFixture>
     [Fact]
     public async Task Migration_SeedsCanonicalRankThresholds()
     {
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql(_fixture.ConnectionString)
-            .Options;
-
-        await using var context = new AppDbContext(options);
+        await using var context = _fixture.CreateContext();
 
         var thresholds = await context.Set<RankThresholdRow>()
             .OrderBy(x => x.SortOrder)

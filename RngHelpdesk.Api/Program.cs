@@ -220,7 +220,8 @@ builder.Services.AddSingleton<IEventDispatcher>(sp =>
 var registry = EventStoreRegistration.CreateRegistry();
 builder.Services.AddSingleton(registry);
 
-var connectionString = builder.Configuration.GetConnectionString("RngHelpdeskDB")!;
+var connectionString = builder.Configuration.GetConnectionString("RngHelpdeskDB")
+    ?? throw new InvalidOperationException("Missing required connection string 'RngHelpdeskDB'.");
 
 builder.Services.AddSingleton(NpgsqlDataSource.Create(connectionString));
 
