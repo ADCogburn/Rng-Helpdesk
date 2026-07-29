@@ -121,7 +121,7 @@ builder.Services.AddValidatorsFromAssemblyContaining<LinkRunescapeAccountRequest
 builder.Services.AddScoped<ICommandHandler<ChangeUserRoleCommand>, ChangeUserRoleHandler>();
 builder.Services.AddScoped<IUserRoleService, UserRoleService>();
 
-builder.Services.AddSingleton<IEventStore, InMemoryEventStore>();
+builder.Services.AddSingleton<IEventStore, PostgresEventStore>();
 
 var rankThresholdProvider = new InMemoryRankThresholdProvider();
 builder.Services.AddSingleton<IRankThresholdProvider>(rankThresholdProvider);
