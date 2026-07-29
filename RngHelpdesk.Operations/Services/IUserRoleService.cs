@@ -9,5 +9,6 @@ public interface IUserRoleService
         ulong actingUserId,
         ulong userId,
         AppRole oldRole,
-        AppRole newRole);
+        AppRole newRole,
+        CancellationToken ct = default);
 }

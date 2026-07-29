@@ -24,7 +24,7 @@ public class GetUserByIdHandlerTests
     [Fact]
     public async Task Handle_UserExists_ReturnsMappedUser()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         var handler = CreateHandler();
 
         var result = await handler.Handle(new GetUserByIdQuery(user.Id));

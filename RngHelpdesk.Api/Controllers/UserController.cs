@@ -29,9 +29,9 @@ public sealed class UsersController(
     /// </summary>
     /// <returns></returns>
     [HttpGet]
-    public async Task<ActionResult<GetAllUsersResponse>> GetAllUsers()
+    public async Task<ActionResult<GetAllUsersResponse>> GetAllUsers(CancellationToken cancellationToken)
     {
-        var result = await getAllUsersHandler.Handle(new GetAllUsersQuery());
+        var result = await getAllUsersHandler.Handle(new GetAllUsersQuery(), cancellationToken);
         return Ok(result.Value);
     }
 
@@ -41,11 +41,11 @@ public sealed class UsersController(
     /// <param name="id"></param>
     /// <returns></returns>
     [HttpGet("{id:long}")]
-    public async Task<ActionResult<GetUserResponse>> GetUserById(ulong id)
+    public async Task<ActionResult<GetUserResponse>> GetUserById(ulong id, CancellationToken cancellationToken)
     {
         var query = new GetUserByIdQuery(id);
 
-        var result = await getUserByIdHandler.Handle(query);
+        var result = await getUserByIdHandler.Handle(query, cancellationToken);
 
         if (!result.Success)
             return NotFound(result.Error);
@@ -59,11 +59,11 @@ public sealed class UsersController(
     /// <param name="rsn"></param>
     /// <returns></returns>
     [HttpGet("by-rsn/{rsn}")]
-    public async Task<ActionResult<GetUserResponse>> GetUserByRsn(string rsn)
+    public async Task<ActionResult<GetUserResponse>> GetUserByRsn(string rsn, CancellationToken cancellationToken)
     {
         var query = new GetUserByRunescapeUsernameQuery(rsn);
 
-        var result = await getUserByRunescapeUsernameHandler.Handle(query);
+        var result = await getUserByRunescapeUsernameHandler.Handle(query, cancellationToken);
 
         if (!result.Success)
             return NotFound(result.Error);
@@ -77,11 +77,11 @@ public sealed class UsersController(
     /// <param name="previousRsn"></param>
     /// <returns></returns>
     [HttpGet("by-historical-rsn/{previousRsn}")]
-    public async Task<ActionResult<GetUsersResponse>> GetUsersByPreviousRsn(string previousRsn)
+    public async Task<ActionResult<GetUsersResponse>> GetUsersByPreviousRsn(string previousRsn, CancellationToken cancellationToken)
     {
         var query = new GetUsersByHistoricalRunescapeUsernameQuery(previousRsn);
 
-        var result = await getUsersHandler.Handle(query);
+        var result = await getUsersHandler.Handle(query, cancellationToken);
 
         if (!result.Success)
             return NotFound(result.Error);
@@ -95,14 +95,14 @@ public sealed class UsersController(
     /// <param name="id"></param>
     /// <returns></returns>
     [HttpGet("{id:long}/lifecycle")]
-    public async Task<ActionResult<GetUserLifecycleHistoryResponse>> GetUserLifecycle(ulong id)
+    public async Task<ActionResult<GetUserLifecycleHistoryResponse>> GetUserLifecycle(ulong id, CancellationToken cancellationToken)
     {
         var query = new GetUserLifecycleHistoryQuery()
         {
             UserId = id
         };
 
-        var result = await getUserLifecycleHistoryHandler.Handle(query);
+        var result = await getUserLifecycleHistoryHandler.Handle(query, cancellationToken);
 
         if (!result.Success)
             return NotFound(result.Error);
@@ -119,7 +119,7 @@ public sealed class UsersController(
     /// <param name="id"></param>
     /// <returns></returns>
     [HttpPost("{id:long}/points/add")]
-    public async Task<IActionResult> AddPoints(ulong id, [FromBody] AddPointsDto request)
+    public async Task<IActionResult> AddPoints(ulong id, [FromBody] AddPointsDto request, CancellationToken cancellationToken)
     {
         var command = new AddPointsToUserRequest
         {
@@ -129,7 +129,7 @@ public sealed class UsersController(
             Reason = request.Reason
         };
 
-        var result = await addPointsHandler.Handle(command);
+        var result = await addPointsHandler.Handle(command, cancellationToken);
 
         return result.Status switch
         {
@@ -145,7 +145,7 @@ public sealed class UsersController(
     /// <param name="id"></param>
     /// <returns></returns>
     [HttpPost("{id:long}/points/remove")]
-    public async Task<IActionResult> RemovePoints(ulong id, [FromBody] RemovePointsDto request)
+    public async Task<IActionResult> RemovePoints(ulong id, [FromBody] RemovePointsDto request, CancellationToken cancellationToken)
     {
         var command = new RemovePointsFromUserRequest
         {
@@ -155,7 +155,7 @@ public sealed class UsersController(
             Reason = request.Reason
         };
 
-        var result = await removePointsFromUserHandler.Handle(command);
+        var result = await removePointsFromUserHandler.Handle(command, cancellationToken);
 
 
         return result.Status switch
@@ -172,14 +172,14 @@ public sealed class UsersController(
     /// <param name="id"></param>
     /// <returns></returns>
     [HttpGet("{id:long}/point-history")]
-    public async Task<ActionResult<GetPointHistoryForUserResponse>> GetPointHistoryForUser(ulong id)
+    public async Task<ActionResult<GetPointHistoryForUserResponse>> GetPointHistoryForUser(ulong id, CancellationToken cancellationToken)
     {
         var query = new GetPointHistoryForUserQuery()
         {
             UserId = id
         };
 
-        var result = await getPointHistoryHandler.Handle(query);
+        var result = await getPointHistoryHandler.Handle(query, cancellationToken);
 
         if (!result.Success)
             return NotFound(result.Error);

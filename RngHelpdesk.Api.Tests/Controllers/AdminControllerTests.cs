@@ -29,7 +29,7 @@ public class AdminControllerTests
             DiscordAccount = new DiscordAccountDto { DiscordId = TestUsers.DefaultDiscordId, Username = TestUsers.DefaultDiscordUsername }
         };
 
-        var result = await controller.CreateUser(request);
+        var result = await controller.CreateUser(request, CancellationToken.None);
 
         var created = Assert.IsType<CreatedAtActionResult>(result.Result);
         Assert.Equal(nameof(UsersController.GetUserById), created.ActionName);
@@ -47,7 +47,7 @@ public class AdminControllerTests
             DiscordAccount = new DiscordAccountDto { DiscordId = TestUsers.DefaultDiscordId, Username = TestUsers.DefaultDiscordUsername }
         };
 
-        await controller.CreateUser(request);
+        await controller.CreateUser(request, CancellationToken.None);
 
         Assert.Equal(TestUsers.DefaultActingUserId, request.ActingUserId);
     }
@@ -58,7 +58,7 @@ public class AdminControllerTests
         var controller = CreateController();
         var request = new CreateUserRequest { DiscordAccount = null! };
 
-        var result = await controller.CreateUser(request);
+        var result = await controller.CreateUser(request, CancellationToken.None);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
         Assert.Equal("Discord account is required.", badRequest.Value);
@@ -67,13 +67,14 @@ public class AdminControllerTests
     [Fact]
     public async Task AdminUser_TargetUserExists_ReturnsNoContentAndPromotesToAdministrator()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         var controller = CreateController();
 
-        var result = await controller.AdminUser(user.Id);
+        var result = await controller.AdminUser(user.Id, CancellationToken.None);
 
         Assert.IsType<NoContentResult>(result);
-        Assert.True(_fixture.UserSummaryProjection.TryGetById(user.Id, out var summary));
+        var summary = await _fixture.UserSummaryProjection.GetByIdAsync(user.Id);
+        Assert.NotNull(summary);
         Assert.Equal(AppRole.Administrator, summary!.AppRole);
     }
 
@@ -82,7 +83,7 @@ public class AdminControllerTests
     {
         var controller = CreateController();
 
-        var result = await controller.AdminUser(999);
+        var result = await controller.AdminUser(999, CancellationToken.None);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
         Assert.Equal("User not found.", badRequest.Value);
@@ -91,14 +92,15 @@ public class AdminControllerTests
     [Fact]
     public async Task DeAdminUser_TargetUserExists_ReturnsNoContentAndDemotesToMember()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
-        await CreateController().AdminUser(user.Id);
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        await CreateController().AdminUser(user.Id, CancellationToken.None);
         var controller = CreateController();
 
-        var result = await controller.DeAdminUser(user.Id);
+        var result = await controller.DeAdminUser(user.Id, CancellationToken.None);
 
         Assert.IsType<NoContentResult>(result);
-        Assert.True(_fixture.UserSummaryProjection.TryGetById(user.Id, out var summary));
+        var summary = await _fixture.UserSummaryProjection.GetByIdAsync(user.Id);
+        Assert.NotNull(summary);
         Assert.Equal(AppRole.Member, summary!.AppRole);
     }
 
@@ -107,7 +109,7 @@ public class AdminControllerTests
     {
         var controller = CreateController();
 
-        var result = await controller.DeAdminUser(999);
+        var result = await controller.DeAdminUser(999, CancellationToken.None);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
         Assert.Equal("User not found.", badRequest.Value);

@@ -21,14 +21,16 @@ public sealed class AuthController(
 {
     [Authorize]
     [HttpGet("me")]
-    public ActionResult<GetUserResponse> GetCurrentUser()
+    public async Task<ActionResult<GetUserResponse>> GetCurrentUser(CancellationToken cancellationToken)
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
         if (!ulong.TryParse(userIdClaim, out var userId))
             return Unauthorized();
 
-        if (!userSummaryReadStore.TryGetById(userId, out var user) || user is null)
+        var user = await userSummaryReadStore.GetByIdAsync(userId, cancellationToken);
+
+        if (user is null)
             return BadRequest("User not found - contact an administrator.");
 
         return Ok(new GetUserResponse
@@ -45,16 +47,19 @@ public sealed class AuthController(
     }
 
     [HttpPost("login")]
-    public IActionResult Login([FromBody] LoginRequest request)
+    public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
-        var authenticatedUser = credentialStore.ValidateCredentials(
+        var authenticatedUser = await credentialStore.ValidateCredentialsAsync(
             request.Username,
-            request.Password);
+            request.Password,
+            cancellationToken);
 
         if (authenticatedUser is null)
             return Unauthorized();
 
-        if (!userSummaryReadStore.TryGetById(authenticatedUser.UserId, out var user) || user is null)
+        var user = await userSummaryReadStore.GetByIdAsync(authenticatedUser.UserId, cancellationToken);
+
+        if (user is null)
             return BadRequest("User not found - contact an administrator.");
 
         var claims = new[]

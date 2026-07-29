@@ -40,9 +40,9 @@ public class GetPointHistoryForUserHandlerTests
     [Fact]
     public async Task Handle_ValidRequest_ReturnsAccumulatedPointHistory()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         user.AddClanPoints(TestUsers.DefaultActingUserId, 50, "Boss kill");
-        var events = _fixture.UserRepository.Save(user);
+        var events = await _fixture.UserRepository.SaveAsync(user);
         _fixture.EventDispatcher.Dispatch(events);
 
         var handler = CreateHandler();

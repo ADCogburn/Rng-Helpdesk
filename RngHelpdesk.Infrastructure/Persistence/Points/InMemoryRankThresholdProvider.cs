@@ -4,9 +4,9 @@ namespace RngHelpdesk.Infrastructure.Persistence.Points;
 
 public sealed class InMemoryRankThresholdProvider : IRankThresholdProvider
 {
-    public IReadOnlyList<RankThreshold> GetThresholds()
+    public Task<IReadOnlyList<RankThreshold>> GetThresholdsAsync(CancellationToken ct = default)
     {
-        return
+        IReadOnlyList<RankThreshold> thresholds =
         [
             new(Rank.Bronze, 0),
             new(Rank.Iron, 10),
@@ -25,5 +25,7 @@ public sealed class InMemoryRankThresholdProvider : IRankThresholdProvider
 
             // Admins don't require a specific threshold and the ranks are overriden when an Admin rank exists.
         ];
+
+        return Task.FromResult(thresholds);
     }
 }

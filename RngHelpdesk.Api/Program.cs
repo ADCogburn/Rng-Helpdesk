@@ -121,9 +121,12 @@ builder.Services.AddScoped<IUserRoleService, UserRoleService>();
 
 builder.Services.AddSingleton<IEventStore, InMemoryEventStore>();
 
-builder.Services.AddSingleton<IRankThresholdProvider, InMemoryRankThresholdProvider>();
+var rankThresholdProvider = new InMemoryRankThresholdProvider();
+builder.Services.AddSingleton<IRankThresholdProvider>(rankThresholdProvider);
 //builder.Services.AddSingleton<IRankThresholdProvider, CachingRankThresholdProvider>();
-builder.Services.AddSingleton<RankResolver>();
+
+var rankThresholds = await rankThresholdProvider.GetThresholdsAsync();
+builder.Services.AddSingleton(new RankResolver(rankThresholds));
 
 builder.Services.AddScoped<IQueryHandler<GetAllUsersQuery, GetAllUsersResponse>, GetAllUsersHandler>();
 builder.Services.AddScoped<IQueryHandler<GetUserByIdQuery, GetUserResponse>, GetUserByIdHandler>();
@@ -302,10 +305,10 @@ if (app.Environment.IsDevelopment())
             "admin"),
         runescapeAccounts: []);
 
-    var events = userRepo.Save(user);
+    var events = await userRepo.SaveAsync(user);
     dispatcher.Dispatch(events);
 
-    credentialStore.SeedCredentials(
+    await credentialStore.SeedCredentialsAsync(
         userId: adminId,
         username: "admin",
         password: "password");

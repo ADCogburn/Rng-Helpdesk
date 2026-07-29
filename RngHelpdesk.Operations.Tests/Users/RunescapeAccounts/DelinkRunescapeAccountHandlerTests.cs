@@ -26,7 +26,7 @@ public class DelinkRunescapeAccountHandlerTests
     [Fact]
     public async Task Handle_UsernameNotLinked_ReturnsFailure()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         var handler = CreateHandler();
 
         var result = await handler.Handle(new DelinkRunescapeAccountRequest(TestUsers.DefaultActingUserId, user.Id, "Zezima"));
@@ -38,7 +38,7 @@ public class DelinkRunescapeAccountHandlerTests
     [Fact]
     public async Task Handle_ValidRequest_RemovesAccountAndRecordsHistory()
     {
-        var user = _fixture.CreateAndDispatchUser(
+        var user = await _fixture.CreateAndDispatchUserAsync(
             TestUsers.DefaultActingUserId,
             TestUsers.ValidDiscordAccount(),
             [new RunescapeAccount("Zezima")]);
@@ -47,8 +47,9 @@ public class DelinkRunescapeAccountHandlerTests
         var result = await handler.Handle(new DelinkRunescapeAccountRequest(TestUsers.DefaultActingUserId, user.Id, "Zezima"));
 
         Assert.Equal(ResultStatus.Success, result.Status);
-        Assert.True(_fixture.UserSummaryProjection.TryGetById(user.Id, out var summary));
+        var summary = await _fixture.UserSummaryProjection.GetByIdAsync(user.Id);
+        Assert.NotNull(summary);
         Assert.Empty(summary!.RunescapeAccounts);
-        Assert.Contains(_fixture.RunescapeAccountHistoryProjection.GetPreviousRunescapeAccounts(user.Id), a => a.Username == "Zezima");
+        Assert.Contains(await _fixture.RunescapeAccountHistoryProjection.GetPreviousRunescapeAccountsAsync(user.Id), a => a.Username == "Zezima");
     }
 }

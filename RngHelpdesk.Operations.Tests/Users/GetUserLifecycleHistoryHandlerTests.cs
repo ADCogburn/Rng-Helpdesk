@@ -26,7 +26,7 @@ public class GetUserLifecycleHistoryHandlerTests
     [Fact]
     public async Task Handle_UserNeverDeactivated_ReturnsEmptyHistory()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         var handler = CreateHandler();
 
         var result = await handler.Handle(new GetUserLifecycleHistoryQuery { UserId = user.Id });
@@ -40,7 +40,7 @@ public class GetUserLifecycleHistoryHandlerTests
     {
         // DeactivateUserHandler/ReactivateUserHandler are dead-code shells, so the only way to
         // populate this projection is to feed it the event directly, bypassing the (nonexistent) live handler.
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         _fixture.UserLifecycleHistoryProjection.Project(UserDeactivatedEvent.Create(TestUsers.DefaultActingUserId, user.Id));
         var handler = CreateHandler();
 

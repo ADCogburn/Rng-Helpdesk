@@ -2,20 +2,24 @@ namespace RngHelpdesk.Infrastructure.Security;
 
 public interface ICredentialStore
 {
-    (string Username, string TemporaryPassword) CreateTemporaryCredentials(
+    Task<(string Username, string TemporaryPassword)> CreateTemporaryCredentialsAsync(
         ulong userId,
-        string preferredUsername);
+        string preferredUsername,
+        CancellationToken ct = default);
 
-    void SeedCredentials(
+    Task SeedCredentialsAsync(
         ulong userId,
         string username,
-        string password);
+        string password,
+        CancellationToken ct = default);
 
-    AuthenticatedUser? ValidateCredentials(
+    Task<AuthenticatedUser?> ValidateCredentialsAsync(
         string username,
-        string password);
+        string password,
+        CancellationToken ct = default);
 
-    void ChangePassword(
+    Task ChangePasswordAsync(
         ulong userId,
-        string newPassword);
+        string newPassword,
+        CancellationToken ct = default);
 }

@@ -26,7 +26,7 @@ public class RemovePointsFromUserHandlerTests
     [Fact]
     public async Task Handle_DeductionWouldGoBelowZero_ReturnsFailure()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         var handler = CreateHandler();
         var request = new RemovePointsFromUserRequest { ActingUserId = TestUsers.DefaultActingUserId, UserId = user.Id, Points = 10, Reason = "Rule violation" };
 
@@ -39,9 +39,9 @@ public class RemovePointsFromUserHandlerTests
     [Fact]
     public async Task Handle_ValidRequest_UpdatesRunningTotalOnReadStores()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         user.AddClanPoints(TestUsers.DefaultActingUserId, 50, "Boss kill");
-        var events = _fixture.UserRepository.Save(user);
+        var events = await _fixture.UserRepository.SaveAsync(user);
         _fixture.EventDispatcher.Dispatch(events);
 
         var handler = CreateHandler();
@@ -50,7 +50,8 @@ public class RemovePointsFromUserHandlerTests
         var result = await handler.Handle(request);
 
         Assert.Equal(ResultStatus.Success, result.Status);
-        Assert.True(_fixture.UserSummaryProjection.TryGetById(user.Id, out var summary));
+        var summary = await _fixture.UserSummaryProjection.GetByIdAsync(user.Id);
+        Assert.NotNull(summary);
         Assert.Equal(30, summary!.ClanPoints);
     }
 }

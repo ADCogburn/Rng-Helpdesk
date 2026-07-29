@@ -24,27 +24,27 @@ public sealed class RunescapeAccountHistoryProjection :
         get { lock (_lock) { return _history.Count == 0; } }
     }
 
-    public IReadOnlyList<RunescapeAccountView> GetPreviousRunescapeAccounts(ulong userId)
+    public Task<IReadOnlyList<RunescapeAccountView>> GetPreviousRunescapeAccountsAsync(ulong userId, CancellationToken ct = default)
     {
         lock (_lock)
         {
-            return _previousUsernames.TryGetValue(userId, out var accounts)
+            return Task.FromResult<IReadOnlyList<RunescapeAccountView>>(_previousUsernames.TryGetValue(userId, out var accounts)
                 ? accounts.Select(a => new RunescapeAccountView(a)).ToList()
-                : [];
+                : []);
         }
     }
 
-    public IReadOnlyList<RunescapeAccountHistoryItem> GetHistory(ulong userId)
+    public Task<IReadOnlyList<RunescapeAccountHistoryItem>> GetHistoryAsync(ulong userId, CancellationToken ct = default)
     {
         lock (_lock)
         {
-            return _history.TryGetValue(userId, out var list)
+            return Task.FromResult<IReadOnlyList<RunescapeAccountHistoryItem>>(_history.TryGetValue(userId, out var list)
                 ? list.ToList()
-                : Array.Empty<RunescapeAccountHistoryItem>();
+                : Array.Empty<RunescapeAccountHistoryItem>());
         }
     }
 
-    public bool TryGetUserIdsByHistoricalRunescapeUsername(string username, out IReadOnlyCollection<ulong> userIds)
+    public Task<IReadOnlyCollection<ulong>?> GetUserIdsByHistoricalRunescapeUsernameAsync(string username, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(username))
             throw new ArgumentException("Username must be provided.", nameof(username));
@@ -52,13 +52,9 @@ public sealed class RunescapeAccountHistoryProjection :
         lock (_lock)
         {
             if (!_historicalUsernameIndex.TryGetValue(username, out var foundUserIds))
-            {
-                userIds = Array.Empty<ulong>();
-                return false;
-            }
+                return Task.FromResult<IReadOnlyCollection<ulong>?>(null);
 
-            userIds = foundUserIds.ToList();
-            return true;
+            return Task.FromResult<IReadOnlyCollection<ulong>?>(foundUserIds.ToList());
         }
     }
 

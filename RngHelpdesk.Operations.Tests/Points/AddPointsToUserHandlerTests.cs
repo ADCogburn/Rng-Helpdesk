@@ -28,7 +28,7 @@ public class AddPointsToUserHandlerTests
     [Fact]
     public async Task Handle_PointsIsNotPositive_ReturnsFailure()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         var handler = CreateHandler();
         var request = new AddPointsToUserRequest { ActingUserId = TestUsers.DefaultActingUserId, UserId = user.Id, Points = 0, Reason = "Boss kill" };
 
@@ -41,15 +41,16 @@ public class AddPointsToUserHandlerTests
     [Fact]
     public async Task Handle_ValidRequest_UpdatesRunningTotalOnReadStores()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         var handler = CreateHandler();
         var request = new AddPointsToUserRequest { ActingUserId = TestUsers.DefaultActingUserId, UserId = user.Id, Points = 50, Reason = "Boss kill" };
 
         var result = await handler.Handle(request);
 
         Assert.Equal(ResultStatus.Success, result.Status);
-        Assert.True(_fixture.UserSummaryProjection.TryGetById(user.Id, out var summary));
+        var summary = await _fixture.UserSummaryProjection.GetByIdAsync(user.Id);
+        Assert.NotNull(summary);
         Assert.Equal(50, summary!.ClanPoints);
-        Assert.Equal(2, _fixture.PointHistoryProjection.GetCountForUser(user.Id));
+        Assert.Equal(2, await _fixture.PointHistoryProjection.GetCountForUserAsync(user.Id));
     }
 }

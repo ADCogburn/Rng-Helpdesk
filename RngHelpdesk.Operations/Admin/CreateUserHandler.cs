@@ -12,20 +12,19 @@ public sealed class CreateUserHandler(
     IEventDispatcher eventDispatcher,
     ICredentialStore credentialStore) : ICommandHandler<CreateUserRequest, CreateUserResponse>
 {
-    public Task<CommandResult<CreateUserResponse>> Handle(CreateUserRequest request, CancellationToken cancellationToken = default)
+    public async Task<CommandResult<CreateUserResponse>> Handle(CreateUserRequest request, CancellationToken cancellationToken = default)
     {
         if (request.DiscordAccount == null)
-            return Task.FromResult(CommandResult<CreateUserResponse>.Fail("Discord account is required."));
+            return CommandResult<CreateUserResponse>.Fail("Discord account is required.");
 
         if (request.DiscordAccount.DiscordId == 0 || string.IsNullOrWhiteSpace(request.DiscordAccount.Username))
-            return Task.FromResult(CommandResult<CreateUserResponse>.Fail("Discord account, its snowflake Id, and its username are required."));
+            return CommandResult<CreateUserResponse>.Fail("Discord account, its snowflake Id, and its username are required.");
 
-        if (userLookupReadStore.ExistsWithDiscordId(request.DiscordAccount.DiscordId)
-            || userLookupReadStore.ExistsWithDiscordUsername(request.DiscordAccount.Username))
-            return Task.FromResult(CommandResult<CreateUserResponse>.Fail("User with this Discord ID or username already exists."));
+        if (await userLookupReadStore.ExistsWithDiscordIdAsync(request.DiscordAccount.DiscordId, cancellationToken)
+            || await userLookupReadStore.ExistsWithDiscordUsernameAsync(request.DiscordAccount.Username, cancellationToken))
+            return CommandResult<CreateUserResponse>.Fail("User with this Discord ID or username already exists.");
 
-
-        var result = CommandHandler.Execute(() =>
+        return await CommandHandler.ExecuteAsync(async () =>
         {
             var discordAccount = new DiscordAccount(
                 request.DiscordAccount.DiscordId,
@@ -42,7 +41,7 @@ public sealed class CreateUserHandler(
                 discordAccount,
                 runescapeAccounts);
 
-            var events = userRepository.Save(user);
+            var events = await userRepository.SaveAsync(user, cancellationToken);
 
             eventDispatcher.Dispatch(events);
 
@@ -51,9 +50,10 @@ public sealed class CreateUserHandler(
                 : discordAccount.Username;
 
             var (username, password) =
-                credentialStore.CreateTemporaryCredentials(
+                await credentialStore.CreateTemporaryCredentialsAsync(
                     user.Id,
-                    preferredUsername);
+                    preferredUsername,
+                    cancellationToken);
 
             return new CreateUserResponse
             {
@@ -62,7 +62,5 @@ public sealed class CreateUserHandler(
                 TemporaryPassword = password
             };
         });
-
-        return Task.FromResult(result);
     }
 }

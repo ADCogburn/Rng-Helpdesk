@@ -6,9 +6,9 @@ public sealed class RankResolver
 {
     private readonly IReadOnlyList<RankThreshold> _thresholds;
 
-    public RankResolver(IRankThresholdProvider provider)
+    public RankResolver(IReadOnlyList<RankThreshold> thresholds)
     {
-        _thresholds = provider.GetThresholds()
+        _thresholds = thresholds
             .OrderByDescending(t => t.PointsRequired)
             .ToList();
     }

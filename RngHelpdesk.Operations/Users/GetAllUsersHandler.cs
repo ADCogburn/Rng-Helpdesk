@@ -7,16 +7,18 @@ namespace RngHelpdesk.Operations.Users;
 
 public sealed class GetAllUsersHandler(IUserSummaryReadStore userSummaryReadStore) : IQueryHandler<GetAllUsersQuery, GetAllUsersResponse>
 {
-    public Task<QueryResult<GetAllUsersResponse>> Handle(GetAllUsersQuery query, CancellationToken cancellationToken = default)
+    public async Task<QueryResult<GetAllUsersResponse>> Handle(GetAllUsersQuery query, CancellationToken cancellationToken = default)
     {
-        var users = userSummaryReadStore.GetAll()
+        var allUsers = await userSummaryReadStore.GetAllAsync(cancellationToken);
+
+        var users = allUsers
             .Select(GetUserResponseMapper.MapToResponse)
             .ToList();
 
-        return Task.FromResult(QueryResult<GetAllUsersResponse>.Ok(new GetAllUsersResponse
+        return QueryResult<GetAllUsersResponse>.Ok(new GetAllUsersResponse
         {
             TotalCount = users.Count,
             Users = users
-        }));
+        });
     }
 }

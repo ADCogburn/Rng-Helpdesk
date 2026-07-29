@@ -42,9 +42,9 @@ public class GetUsersHandlerTests
     [Fact]
     public async Task Handle_MatchingUserIdNoLongerResolves_IsSilentlySkipped()
     {
-        var user = _fixture.CreateAndDispatchUser(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
         user.AddRunescapeAccount(TestUsers.DefaultActingUserId, "Zezima");
-        var events = _fixture.UserRepository.Save(user);
+        var events = await _fixture.UserRepository.SaveAsync(user);
         _fixture.EventDispatcher.Dispatch(events);
 
         // Simulate a summary-projection/history-projection desync: a second userId that historically

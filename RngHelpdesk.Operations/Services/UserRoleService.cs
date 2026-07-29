@@ -13,9 +13,10 @@ public sealed class UserRoleService(IEventStore eventStore) : IUserRoleService
         ulong actingUserId,
         ulong userId,
         AppRole oldRole,
-        AppRole newRole)
+        AppRole newRole,
+        CancellationToken ct = default)
     {
-        var streamHistory = await _eventStore.LoadStreamAsync("User", userId);
+        var streamHistory = await _eventStore.LoadStreamAsync("User", userId, ct);
 
         var expectedVersion = streamHistory.Count == 0
             ? 0
@@ -32,7 +33,8 @@ public sealed class UserRoleService(IEventStore eventStore) : IUserRoleService
             streamId: userId,
             expectedVersion: expectedVersion,
             events: [ev],
-            metadata: new EventStoreMetadata(null, null));
+            metadata: new EventStoreMetadata(null, null),
+            ct: ct);
 
         return [ev];
     }
