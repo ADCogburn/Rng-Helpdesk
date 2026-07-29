@@ -27,7 +27,7 @@ internal sealed class ApiTestFixture
     public InMemUserRepository UserRepository { get; } = new();
     public InMemoryEventStore EventStore { get; } = new();
     public InMemoryCredentialStore CredentialStore { get; } = new();
-    public RankResolver RankResolver { get; } = new(new InMemoryRankThresholdProvider());
+    public RankResolver RankResolver { get; } = new(new InMemoryRankThresholdProvider().GetThresholdsAsync().GetAwaiter().GetResult());
 
     public UserSummaryProjection UserSummaryProjection { get; }
     public PointHistoryProjection PointHistoryProjection { get; }

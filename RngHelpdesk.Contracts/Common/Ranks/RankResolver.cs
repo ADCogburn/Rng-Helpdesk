@@ -6,14 +6,9 @@ public sealed class RankResolver
 {
     private readonly IReadOnlyList<RankThreshold> _thresholds;
 
-    public RankResolver(IRankThresholdProvider provider)
+    public RankResolver(IReadOnlyList<RankThreshold> thresholds)
     {
-        // Constructor injection is synchronous, and RankResolver itself is out of this ticket's
-        // scope (only IRankThresholdProvider is), so this is the one deliberate sync/async
-        // boundary crossing: a one-time, startup-only block against a provider with no real I/O.
-        _thresholds = provider.GetThresholdsAsync()
-            .GetAwaiter()
-            .GetResult()
+        _thresholds = thresholds
             .OrderByDescending(t => t.PointsRequired)
             .ToList();
     }
