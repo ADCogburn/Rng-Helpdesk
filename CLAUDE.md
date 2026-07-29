@@ -8,18 +8,22 @@ RngHelpdesk is a backend for tracking a Runescape clan's Discord members, their 
 Runescape accounts, and a clan-points/rank system. It's a .NET 10 solution using event
 sourcing + CQRS, plus a Discord bot microservice for resolving Discord usernames. There is
 currently no working frontend (see "Frontend status" below) — the only thing that actually
-runs today is `RngHelpdesk.Api`, tested via Swagger.
+runs today is `RngHelpdesk.Api`, tested via Swagger and covered by the test projects below.
 
 ## Commands
 
 ```powershell
-dotnet build RngHelpdesk.slnx              # build everything
-dotnet run --project RngHelpdesk.Api        # run the API (Swagger UI at /swagger in Development)
-dotnet run --project RngHelpdesk.DiscordBot # run the Discord bot (needs Discord:BotToken config)
+dotnet build RngHelpdesk.slnx                # build everything
+dotnet test RngHelpdesk.slnx                 # run all tests
+dotnet run --project RngHelpdesk.Api         # run the API (Swagger UI at /swagger in Development)
+dotnet run --project RngHelpdesk.DiscordBot  # run the Discord bot (needs Discord:BotToken config)
 ```
 
-There are **no test projects** in this solution — don't assume `dotnet test` finds anything,
-and don't invent a test project structure unprompted.
+Three test projects exist and are wired into `RngHelpdesk.slnx`: `RngHelpdesk.Domain.Tests`
+(unit tests against the `User` aggregate's behavior methods), `RngHelpdesk.Operations.Tests`
+(command/query handler tests via a shared `OperationsTestFixture`), and `RngHelpdesk.Api.Tests` (controller
+tests that manually wire the same in-memory collaborators as `Program.cs` and construct
+controllers directly, rather than booting a full HTTP host via `WebApplicationFactory`).
 
 `RngHelpdesk.Website` (Angular 17, under `RngHelpdesk.Website/`) is `npm install` + `npm start`
 if you need to poke at it, but see "Frontend status" — it's out of sync with the current API.
@@ -46,8 +50,10 @@ Domain  ←  Contracts  ←  Infrastructure  ←  Operations  ←  Api
   `Discord.Rest.DiscordRestClient`. The main Api has a `DiscordBot:BaseUrl` config key and
   commented-out `HttpClient`/resolver wiring intended to call this over HTTP, but that
   integration isn't currently connected.
+- **RngHelpdesk.Domain.Tests**, **RngHelpdesk.Operations.Tests**, **RngHelpdesk.Api.Tests** —
+  test projects paired with the layer they exercise. See "Commands" above.
 - **RngHelpdesk.Handlers** — dead/vestigial. No `.csproj`, not in `RngHelpdesk.slnx`, only
-  stale `obj/` build cache left over. Ignore it.
+  stale `bin`/`obj` build cache left over. Ignore it.
 
 ## Event sourcing / CQRS pattern
 
@@ -58,24 +64,29 @@ Domain  ←  Contracts  ←  Infrastructure  ←  Operations  ←  Api
   uncommitted. `User.Rehydrate(events)` replays a full event stream via `LoadFromHistory` —
   **there is no snapshotting**, every load replays from the start of the stream.
 - Domain events live in `Domain/Users/Events/*` and `Domain/Points/ClanPointsChangedEvent.cs`.
-  Each has a `[JsonConstructor]` ctor (for deserializing stored events) and a static `Create(...)`
-  factory (for domain use, stamping `OccurredAt`).
+  Each has a static `Create(...)` factory (for domain use, stamping `OccurredAt`); most also have
+  a `[JsonConstructor]` ctor for deserializing stored events, but `RunescapeAccountRenamedEvent`
+  and `RunescapeAccountDelinkedEvent` currently omit the `[JsonConstructor]` attribute on their
+  sole constructor — inconsistent with the rest, not intentional.
 - Not everything goes through the aggregate: role changes (`IUserRoleService.ChangeRoleAsync`,
   used by `ChangeUserRoleHandler`) append an `IApplicationEvent`
   (`UserAppRoleChangedEvent`, `Infrastructure/Security/`) directly to the event store, bypassing
   `User` entirely. `IApplicationEvent` vs `IDomainEvent` is the distinction between
   cross-cutting/administrative events and events that mutate the aggregate's own invariants.
-- **Handlers** (`RngHelpdesk.Operations/**/*Handler.cs`) follow one of two shapes:
-  - *Command handlers*: `repository.GetById(...)` → aggregate behavior method →
-    `repository.Save(user)` (returns the new events) → `eventDispatcher.Dispatch(events)`, all
-    wrapped in `CommandHandler.Execute(...)` (Contracts/Common) which turns exceptions into a
-    `CommandResult`/`CommandResult<T>` (`Success`/`Failure`/`NotFound`).
+- **Handlers** (`RngHelpdesk.Operations/**/*Handler.cs`) follow one of two shapes, both fully
+  async:
+  - *Command handlers*: `repository.GetByIdAsync(...)` → aggregate behavior method →
+    `repository.SaveAsync(user)` (returns the new events) → `eventDispatcher.Dispatch(events)`
+    (dispatch itself is still synchronous), all wrapped in `CommandHandler.ExecuteAsync(...)`
+    (Contracts/Common) which turns exceptions into a `CommandResult`/`CommandResult<T>`
+    (`Success`/`Failure`/`NotFound`).
   - *Query handlers*: read directly from a projection's read-store interface (e.g.
-    `IUserSummaryReadStore`), map to a Contracts `View`/`Response` record, return
-    `QueryResult<T>`.
+    `IUserSummaryReadStore.GetByIdAsync(...)`), map to a Contracts `View`/`Response` record,
+    return `QueryResult<T>`.
   - `LinkRunescapeAccountHandler` is the only handler doing inline FluentValidation before
     executing.
-- **Projections** (`RngHelpdesk.Infrastructure/{Users,Points}/*Projection.cs`) are singleton,
+- **Projections** (`RngHelpdesk.Infrastructure/{Users,Points}/*Projection.cs`, plus
+  `Infrastructure/Users/RunescapeAccount/RunescapeAccountHistoryProjection.cs`) are singleton,
   dictionary-backed read models. Each implements `IProjectionState` (`IsEmpty`, for detecting a
   restarted/lost in-memory projection) plus `IProjectionHandler<TEvent>` for each event type it
   cares about. `InMemEventDispatcher` (`Infrastructure/Common/`) uses reflection to route each
@@ -83,9 +94,11 @@ Domain  ←  Contracts  ←  Infrastructure  ←  Operations  ←  Api
   dispatcher is wired up in `Api/Program.cs` with the exact same singleton instances the
   read-store interfaces resolve to (comment there calls this out explicitly — don't break that
   singleton-sharing when adding a new projection).
-- Ranks: `RankResolver` (`Contracts/Common/Ranks/`) takes an `IRankThresholdProvider` and
-  resolves a user's `Rank` from either an admin-tier `AppRole` override or their total clan
-  points against sorted thresholds.
+- Ranks: `RankResolver` (`Contracts/Common/Ranks/`) takes the resolved `IReadOnlyList<RankThreshold>`
+  directly (not the provider itself) and resolves a user's `Rank` from either an admin-tier
+  `AppRole` override or their total clan points against sorted thresholds. `IRankThresholdProvider`
+  is what supplies those thresholds — it's resolved upstream in `Program.cs` and the result passed
+  into `RankResolver`'s constructor.
 
 ## Runtime reality: everything is in-memory today
 
@@ -110,8 +123,11 @@ task — read it before rewriting it.
 
 ## API layer conventions
 
-- Controllers (`RngHelpdesk.Api/Controllers/`) translate `CommandResult`/`QueryResult` status via
-  a `switch` on `ResultStatus` into `Ok`/`NotFound`/`BadRequest`/`NoContent`.
+- Controllers (`RngHelpdesk.Api/Controllers/`) translate `CommandResult`/`QueryResult` status into
+  `Ok`/`NotFound`/`BadRequest`/`NoContent`. Not perfectly consistent: some actions do this via a
+  `switch` on `ResultStatus` (e.g. `RunescapeAccountsController`, some of `UsersController`);
+  others use an `if (!result.Success)` check instead (e.g. `AdminController`, other `UsersController`
+  query actions). Match the existing style in the controller you're editing.
 - Auth policies (`Security/AuthPolicies.cs`): `AdminPlus` (Administrator/SuperAdministrator/Owner
   roles), `OwnerOnly`, `DiscordBotOnly` (`client_type` claim). Most controllers apply `AdminPlus`
   at the class level.
@@ -128,7 +144,10 @@ task — read it before rewriting it.
 
 - Commands: mix of `*Request` (mutable classes or records) and `*Command` (records) suffixes.
 - Queries: `*Query` + a paired `*Response`.
-- Read-model DTOs returned to callers: `*View` / `*Item`, mostly `sealed record`.
+- Read-model DTOs returned to callers: `*View` / `*Item`. `*View` types are `sealed record`
+  (`RunescapeAccountView`, `DiscordAccountView`); `*Item` types are `sealed class`
+  (`PointHistoryItem`, `UserLifecycleHistoryItem`, `RunescapeAccountHistoryItem`) — the suffix
+  tracks the record/class split, it isn't mixed within a suffix.
 - A few files omit their namespace declaration (sit in the global namespace) inconsistently with
   sibling files in the same folder — this is pre-existing inconsistency, not intentional.
 
