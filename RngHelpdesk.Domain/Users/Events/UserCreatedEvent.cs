@@ -26,14 +26,14 @@ public sealed class UserCreatedEvent : IDomainEvent
         ulong actingUserId,
         DateTimeOffset occurredAt,
         DiscordAccount discordAccount,
-        IEnumerable<RunescapeAccount> runescapeAccounts)
+        IReadOnlyList<RunescapeAccount> runescapeAccounts)
     {
         ActingUserId = actingUserId;
         OccurredAt = occurredAt;
 
         UserId = discordAccount.DiscordId;
         DiscordAccount = discordAccount;
-        RunescapeAccounts = runescapeAccounts.ToList();
+        RunescapeAccounts = runescapeAccounts;
     }
 
     /// <summary>
@@ -48,6 +48,6 @@ public sealed class UserCreatedEvent : IDomainEvent
             actingUserId: actingUserId,
             occurredAt: DateTimeOffset.UtcNow,
             discordAccount: discordAccount,
-            runescapeAccounts: runescapeAccounts);
+            runescapeAccounts: runescapeAccounts.ToList());
     }
 }

@@ -150,7 +150,7 @@ builder.Services.AddScoped<IQueryHandler<GetPointHistoryForUserQuery, GetPointHi
 
 // -- Repositories --
 
-builder.Services.AddSingleton<IUserRepository, InMemUserRepository>();
+builder.Services.AddSingleton<IUserRepository, PostgresUserRepository>();
 builder.Services.AddSingleton<ICredentialStore, InMemoryCredentialStore>();
 
 //builder.Services.AddHttpClient<RngHelpdesk.Infrastructure.Discord.HttpDiscordUsernameResolver>(client =>
@@ -289,7 +289,7 @@ if (app.Environment.IsDevelopment())
 
     using var scope = app.Services.CreateScope();
 
-    var userRepo = (InMemUserRepository)scope.ServiceProvider
+    var userRepo = scope.ServiceProvider
         .GetRequiredService<IUserRepository>();
 
     var credentialStore = (InMemoryCredentialStore)scope.ServiceProvider
@@ -303,28 +303,33 @@ if (app.Environment.IsDevelopment())
 
     const ulong adminId = 123456789012345678UL;
 
-    var user = User.Create(
-        actingUserId: adminId,
-        discordAccount: new DiscordAccount(
-            adminId,
-            "admin"),
-        runescapeAccounts: []);
+    // The event store (Postgres) persists across restarts, unlike the in-mem credential
+    // store below, so only seed the aggregate/role once rather than on every startup.
+    if (!await userRepo.ExistsAsync(adminId))
+    {
+        var user = User.Create(
+            actingUserId: adminId,
+            discordAccount: new DiscordAccount(
+                adminId,
+                "admin"),
+            runescapeAccounts: []);
 
-    var events = await userRepo.SaveAsync(user);
-    dispatcher.Dispatch(events);
+        var events = await userRepo.SaveAsync(user);
+        dispatcher.Dispatch(events);
+
+        var roleEvents = await roleService.ChangeRoleAsync(
+            actingUserId: adminId,
+            userId: adminId,
+            oldRole: AppRole.Member,
+            newRole: AppRole.Owner);
+
+        dispatcher.Dispatch(roleEvents);
+    }
 
     await credentialStore.SeedCredentialsAsync(
         userId: adminId,
         username: "admin",
         password: "password");
-
-    var roleEvents = await roleService.ChangeRoleAsync(
-        actingUserId: adminId,
-        userId: adminId,
-        oldRole: AppRole.Member,
-        newRole: AppRole.Owner);
-
-    dispatcher.Dispatch(roleEvents);
 }
 
 app.UseHttpsRedirection();
