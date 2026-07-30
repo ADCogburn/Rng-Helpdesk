@@ -155,7 +155,14 @@ actually wired up vs. aspirational. As of now:
   threshold must stay strictly between its neighbors') in the handler, using the order
   `IRankThresholdProvider.GetThresholdsAsync` returns thresholds in (ascending `SortOrder`, which
   matches ascending `PointsRequired` for every seeded row).
-- **Still in-memory, lost on restart**: `InMemoryCredentialStore` and all four projection read
+  `PostgresCredentialStore` (`identity.auth_users`), wired live in #47, is also scoped,
+  matching `AppDbContext`'s lifetime like the two providers above. It's the only Postgres-backed
+  `ICredentialStore` implementation that has ever existed. One known gap from #47: the
+  `IsDevelopment()` seeding block in `Program.cs` still casts `ICredentialStore` to the
+  now-removed-from-DI `InMemoryCredentialStore` concrete type, so `dotnet run --project
+  RngHelpdesk.Api` in `Development` throws `InvalidCastException` at startup until #49 rewrites
+  that block to seed through the interface (see the last bullet below).
+- **Still in-memory, lost on restart**: all four projection read
   models (`UserSummaryProjection`,
   `UserLifecycleHistoryProjection`, `RunescapeAccountHistoryProjection`, `PointHistoryProjection`)
   — plain in-process `Dictionary`s. This is intentional long-term architecture for the
@@ -172,8 +179,10 @@ actually wired up vs. aspirational. As of now:
 - One EF Core migration exists (`Infrastructure/Migrations/20260729040932_InitAppSchema.cs`,
   schemas: `eventstore`, `projections`, `identity`, `points`).
 - In `Development`, `Program.cs` seeds a hardcoded admin user/credentials in-process at startup
-  (see the block right after `app.Environment.IsDevelopment()`) — only once now, since the event
-  store persists across restarts (see the comment in that block).
+  (see the block right after `app.Environment.IsDevelopment()`) — the user/role half is guarded
+  by `ExistsAsync` and safe against Postgres persisting across restarts, but the credentials half
+  still unconditionally casts `ICredentialStore` to `InMemoryCredentialStore` and currently
+  throws now that `PostgresCredentialStore` is registered instead (see above; #49 fixes this).
 
 When asked to "wire up Postgres" further or "make projections durable," the commented-out
 checkpoint-store/`ProjectionRunner` code (#56) is the intended design to uncomment/finish, not a

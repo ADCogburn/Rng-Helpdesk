@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-
 namespace RngHelpdesk.Infrastructure.Security;
 
 public sealed class InMemoryCredentialStore : ICredentialStore
@@ -13,7 +11,7 @@ public sealed class InMemoryCredentialStore : ICredentialStore
         CancellationToken ct = default)
     {
         var username = GenerateUniqueUsername(preferredUsername);
-        var password = GenerateTemporaryPassword();
+        var password = CredentialGenerator.GenerateTemporaryPassword();
 
         _credentials[userId] = new CredentialRecord(
             UserId: userId,
@@ -80,17 +78,9 @@ public sealed class InMemoryCredentialStore : ICredentialStore
         return Task.CompletedTask;
     }
 
-    private static string GenerateTemporaryPassword() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(12));
-
     private string GenerateUniqueUsername(string preferredUsername)
     {
-        if (string.IsNullOrWhiteSpace(preferredUsername))
-            preferredUsername = $"user{Random.Shared.Next(1000, 9999)}";
-
-        preferredUsername = preferredUsername
-            .Trim()
-            .Replace(" ", "")
-            .ToLowerInvariant();
+        preferredUsername = CredentialGenerator.NormalizeUsername(preferredUsername);
 
         if (!_usernameIndex.ContainsKey(preferredUsername))
             return preferredUsername;
