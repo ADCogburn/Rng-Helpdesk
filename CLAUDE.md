@@ -106,26 +106,41 @@ Domain  ←  Contracts  ←  Infrastructure  ←  Operations  ←  Api
   is what supplies those thresholds — it's resolved upstream in `Program.cs` and the result passed
   into `RankResolver`'s constructor.
 
-## Runtime reality: everything is in-memory today
+## Runtime reality: durable event log, ephemeral read side
 
 `RngHelpdesk.Api/Program.cs` is the DI composition root and is the source of truth for what's
 actually wired up vs. aspirational. As of now:
 
-- Active: `InMemoryEventStore`, `InMemUserRepository`, `InMemoryCredentialStore`,
-  `InMemoryRankThresholdProvider`, `InMemEventDispatcher`. All state is lost on restart.
-- **Commented out** (present in Infrastructure but not registered): `PostgresEventStore`,
-  `PostgresUserRepository`, `PostgresRankThresholdProvider`/`CachingRankThresholdProvider`,
-  `AppDbContext` registration, `PostgresProjectionCheckpointStore`, `ProjectionRunner` (which
-  would replay the event store into projections from a checkpoint on startup).
-- One EF Core migration exists (`Infrastructure/Migrations/20260110092452_InitAppSchema.cs`,
-  schemas: `eventstore`, `projections`, `identity`, `points`) but nothing currently applies or
-  reads it at runtime.
+- **Durable (Postgres-backed) and live**: `PostgresEventStore` (the event log itself) and
+  `PostgresUserRepository` (aggregate persistence/rehydration) — wired live in #44/#45.
+  `AppDbContext` is also registered (`AddDbContext` in `Program.cs`), but nothing currently calls
+  `Database.Migrate()` at runtime and nothing queries through it outside of
+  `RngHelpdesk.Infrastructure.Tests` — Postgres-backed classes talk to Postgres directly via
+  `NpgsqlDataSource`/raw SQL, not EF Core.
+- **Still in-memory, lost on restart**: `InMemoryCredentialStore`, `InMemoryRankThresholdProvider`
+  (`PostgresRankThresholdProvider`/`CachingRankThresholdProvider` exist in Infrastructure but are
+  commented out/unregistered), and all four projection read models (`UserSummaryProjection`,
+  `UserLifecycleHistoryProjection`, `RunescapeAccountHistoryProjection`, `PointHistoryProjection`)
+  — plain in-process `Dictionary`s. This is intentional long-term architecture for the
+  projections, not a stopgap: there's no Postgres-backed replacement planned for the dictionaries
+  themselves, only for the checkpoint that tracks each one's replay position (next point).
+  `InMemEventDispatcher` is *also* permanent, despite the naming (tracked in #55) — dispatch is an
+  in-process method call, there's nothing to persist, unlike its `InMem*` siblings above.
+- **Not wired up**: `PostgresProjectionCheckpointStore` and `ProjectionRunner` are both registered
+  only in commented-out code in `Program.cs`, and the startup call to `runner.RunAsync()` is
+  likewise commented out. Net effect: the event log now survives a restart but the four
+  projections don't get rebuilt from it — after a restart, a projection's dictionary is empty and
+  silently stays empty (its `Project()` methods no-op on unknown IDs, no error raised) until this
+  wiring is finished. Tracked in #56.
+- One EF Core migration exists (`Infrastructure/Migrations/20260729040932_InitAppSchema.cs`,
+  schemas: `eventstore`, `projections`, `identity`, `points`).
 - In `Development`, `Program.cs` seeds a hardcoded admin user/credentials in-process at startup
-  (see the block right after `app.Environment.IsDevelopment()`).
+  (see the block right after `app.Environment.IsDevelopment()`) — only once now, since the event
+  store persists across restarts (see the comment in that block).
 
-When asked to "wire up Postgres" or "make projections durable," the commented-out
-Postgres/EF/`ProjectionRunner` code is the intended design to uncomment/finish, not a from-scratch
-task — read it before rewriting it.
+When asked to "wire up Postgres" further or "make projections durable," the commented-out
+checkpoint-store/`ProjectionRunner` code (#56) is the intended design to uncomment/finish, not a
+from-scratch task — read it before rewriting it.
 
 ## API layer conventions
 
@@ -175,6 +190,17 @@ functional:
 If asked to build or fix "the frontend," clarify which of these three the user means before
 assuming — none of them is an obvious default, and building on top of any of them may mean
 finishing scaffolding first.
+
+## Maintaining this file
+
+Future sessions trust this file as source of truth — e.g. "Runtime reality" above explicitly
+tells agents to read it before rewriting `Program.cs` wiring, rather than re-deriving what's live
+from scratch. A stale claim here doesn't just go unnoticed, it actively misleads whoever reads it
+next (this happened: the "Runtime reality" section still described `PostgresEventStore` and
+`PostgresUserRepository` as commented-out well after #44/#45 wired them live). If a PR changes
+something this file describes — wires up a class documented here as commented-out, renames or
+removes something referenced here, changes a convention documented here — update the relevant
+section in the same PR instead of leaving it for a future session to rediscover the drift.
 
 ## Agent skills
 
