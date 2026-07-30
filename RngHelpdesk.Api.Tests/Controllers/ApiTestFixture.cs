@@ -29,6 +29,13 @@ internal sealed class ApiTestFixture
     public InMemoryCredentialStore CredentialStore { get; } = new();
     public RankResolver RankResolver { get; } = new(new InMemoryRankThresholdProvider().GetThresholdsAsync().GetAwaiter().GetResult());
 
+    /// <summary>
+    /// Separate instance from the one used to build <see cref="RankResolver"/> above, mirroring
+    /// Program.cs's split between the frozen startup snapshot and the scoped provider used per
+    /// request -- edits made through this instance don't retroactively affect RankResolver.
+    /// </summary>
+    public InMemoryRankThresholdProvider RankThresholdProvider { get; } = new();
+
     public UserSummaryProjection UserSummaryProjection { get; }
     public PointHistoryProjection PointHistoryProjection { get; }
     public UserLifecycleHistoryProjection UserLifecycleHistoryProjection { get; } = new();
@@ -75,6 +82,14 @@ internal sealed class ApiTestFixture
 
     public ChangeUserRoleHandler CreateChangeUserRoleHandler()
         => new(UserRoleService, UserSummaryProjection, EventDispatcher);
+
+    // -- Ranks --
+
+    public GetRankThresholdsHandler CreateGetRankThresholdsHandler()
+        => new(RankThresholdProvider);
+
+    public UpdateRankThresholdHandler CreateUpdateRankThresholdHandler()
+        => new(RankThresholdProvider, RankThresholdProvider);
 
     // -- Users --
 
