@@ -61,8 +61,18 @@ public sealed class ProjectionRunner
 
                 foreach (var (instance, method, _) in handlers)
                 {
-                    // Calls projection.Project((TEvent)domainEvent)
-                    method.Invoke(instance, new object[] { domainEvent });
+                    try
+                    {
+                        // Calls projection.Project((TEvent)domainEvent)
+                        method.Invoke(instance, new object[] { domainEvent });
+                    }
+                    catch (Exception)
+                    {
+                        // Isolate one broken projection handler from the rest of replay -- an
+                        // unhandled throw here would otherwise propagate out of RunAsync and abort
+                        // the outer foreach, so every projection queued after this one in
+                        // _projectionInstances would silently never get replayed at all.
+                    }
                 }
 
                 await _checkpoints.SavePositionAsync(projectionName, stored.GlobalPosition);

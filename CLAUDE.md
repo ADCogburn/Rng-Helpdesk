@@ -162,20 +162,29 @@ actually wired up vs. aspirational. As of now:
   now-removed-from-DI `InMemoryCredentialStore` concrete type, so `dotnet run --project
   RngHelpdesk.Api` in `Development` throws `InvalidCastException` at startup until #49 rewrites
   that block to seed through the interface (see the last bullet below).
+  `PostgresProjectionCheckpointStore` (`projections.projection_checkpoints`, `IProjectionCheckpointStore`),
+  wired live in #48, is scoped for the same `AppDbContext`-lifetime reason as the providers above,
+  even though its own dependency (`NpgsqlDataSource`) is a singleton — nothing currently requires
+  it to be scoped, that's just the lifetime it shipped with. `ProjectionRunner` (also registered
+  scoped) is resolved from a fresh DI scope once in `Program.cs`, right after `builder.Build()` and
+  before the `IsDevelopment()` seeding block, and `await runner.RunAsync()` replays the full event
+  store into the four in-memory projections (from each projection's last checkpoint, or from 0 if
+  `IProjectionState.IsEmpty` is true) before the app starts accepting requests. Each projection's
+  `Project(TEvent)` invocation is individually try/caught during replay (#48) — a throwing handler
+  in one projection no longer aborts replay for the others queued after it in `ProjectionRunner`'s
+  constructor list, though the checkpoint still advances past the event that caused the throw
+  (no dead-letter/retry queue exists), so a poison event permanently skips that one projection.
 - **Still in-memory, lost on restart**: all four projection read
   models (`UserSummaryProjection`,
   `UserLifecycleHistoryProjection`, `RunescapeAccountHistoryProjection`, `PointHistoryProjection`)
   — plain in-process `Dictionary`s. This is intentional long-term architecture for the
   projections, not a stopgap: there's no Postgres-backed replacement planned for the dictionaries
-  themselves, only for the checkpoint that tracks each one's replay position (next point).
-  `InMemEventDispatcher` is *also* permanent, despite the naming (tracked in #55) — dispatch is an
-  in-process method call, there's nothing to persist, unlike its `InMem*` siblings above.
-- **Not wired up**: `PostgresProjectionCheckpointStore` and `ProjectionRunner` are both registered
-  only in commented-out code in `Program.cs`, and the startup call to `runner.RunAsync()` is
-  likewise commented out. Net effect: the event log now survives a restart but the four
-  projections don't get rebuilt from it — after a restart, a projection's dictionary is empty and
-  silently stays empty (its `Project()` methods no-op on unknown IDs, no error raised) until this
-  wiring is finished. Tracked in #56.
+  themselves, only for the checkpoint that tracks each one's replay position (next point), which is
+  now durable (see above). `InMemEventDispatcher` is *also* permanent, despite the naming (tracked
+  in #55) — dispatch is an in-process method call, there's nothing to persist, unlike its `InMem*`
+  siblings above. Note `InMemEventDispatcher` and `ProjectionRunner` are two separate paths into the
+  same projection instances: the dispatcher handles events raised during the current process's live
+  request handling, `ProjectionRunner` handles catch-up replay from the event store at startup.
 - One EF Core migration exists (`Infrastructure/Migrations/20260729040932_InitAppSchema.cs`,
   schemas: `eventstore`, `projections`, `identity`, `points`).
 - In `Development`, `Program.cs` seeds a hardcoded admin user/credentials in-process at startup
@@ -183,10 +192,6 @@ actually wired up vs. aspirational. As of now:
   by `ExistsAsync` and safe against Postgres persisting across restarts, but the credentials half
   still unconditionally casts `ICredentialStore` to `InMemoryCredentialStore` and currently
   throws now that `PostgresCredentialStore` is registered instead (see above; #49 fixes this).
-
-When asked to "wire up Postgres" further or "make projections durable," the commented-out
-checkpoint-store/`ProjectionRunner` code (#56) is the intended design to uncomment/finish, not a
-from-scratch task — read it before rewriting it.
 
 ## API layer conventions
 
