@@ -26,7 +26,22 @@ tests that manually wire the same in-memory collaborators as `Program.cs` and co
 controllers directly, rather than booting a full HTTP host via `WebApplicationFactory`), and
 `RngHelpdesk.Infrastructure.Tests` (integration tests against a real Postgres instance spun up
 per test class via `Testcontainers.PostgreSql` — `MigrationFixture` in `MigrationTests.cs` is the
-shared `IClassFixture` other Postgres-backed tests key off; requires Docker to run).
+shared `IClassFixture` other Postgres-backed tests key off; requires Docker, or a Docker-API-compatible
+engine, to run).
+
+`RngHelpdesk.Infrastructure.Tests` doesn't require Docker Desktop specifically — Podman works too
+(confirmed on Windows with Podman Desktop/`podman machine`). Testcontainers talks to whatever
+`DOCKER_HOST` points at, and Podman's Windows named pipe is Docker-API-compatible:
+
+```powershell
+podman machine start                                   # if not already running
+$env:DOCKER_HOST = "npipe://./pipe/podman-machine-default"
+dotnet test RngHelpdesk.Infrastructure.Tests
+```
+
+Note the pipe URI is `npipe://./pipe/...` (two slashes after the scheme), not the four-slash
+`npipe:////./pipe/...` form some Docker Desktop examples use — Docker.DotNet (which Testcontainers
+uses under the hood) rejects the four-slash form with "The endpoint is not a npipe URI."
 
 `RngHelpdesk.Website` (Angular 17, under `RngHelpdesk.Website/`) is `npm install` + `npm start`
 if you need to poke at it, but see "Frontend status" — it's out of sync with the current API.
