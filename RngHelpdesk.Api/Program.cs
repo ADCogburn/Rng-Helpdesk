@@ -182,7 +182,13 @@ builder.Services.AddScoped<ICommandHandler<UpdateRankThresholdCommand>, UpdateRa
 // -- Repositories --
 
 builder.Services.AddSingleton<IUserRepository, PostgresUserRepository>();
-builder.Services.AddSingleton<ICredentialStore, InMemoryCredentialStore>();
+
+// Scoped, matching AppDbContext's own (scoped) lifetime -- same reasoning as
+// IRankThresholdProvider above. Note: the dev-admin seeding block below still casts this to
+// InMemoryCredentialStore and will throw now that it's Postgres-backed; that cast is fixed by
+// issue #49, which also makes this seeding idempotent against a store that persists across
+// restarts.
+builder.Services.AddScoped<ICredentialStore, PostgresCredentialStore>();
 
 //builder.Services.AddHttpClient<RngHelpdesk.Infrastructure.Discord.HttpDiscordUsernameResolver>(client =>
 //{
