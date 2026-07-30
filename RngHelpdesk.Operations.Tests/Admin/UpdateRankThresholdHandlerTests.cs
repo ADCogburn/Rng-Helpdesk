@@ -1,4 +1,4 @@
-using RngHelpdesk.Contracts.Common;
+﻿using RngHelpdesk.Contracts.Common;
 using RngHelpdesk.Contracts.Common.Ranks;
 using RngHelpdesk.Contracts.Common.Ranks.Commands;
 using RngHelpdesk.Operations.Admin;
@@ -18,7 +18,7 @@ public class UpdateRankThresholdHandlerTests
         var handler = CreateHandler();
 
         // Steel sits between Iron (10) and Mithril (100).
-        var result = await handler.Handle(new UpdateRankThresholdCommand(TestUsers.DefaultActingUserId, Rank.Steel, 60));
+        var result = await handler.Handle(new UpdateRankThresholdCommand(Rank.Steel, 60));
 
         Assert.Equal(ResultStatus.Success, result.Status);
 
@@ -31,7 +31,7 @@ public class UpdateRankThresholdHandlerTests
     {
         var handler = CreateHandler();
 
-        var result = await handler.Handle(new UpdateRankThresholdCommand(TestUsers.DefaultActingUserId, Rank.Administrator, 100));
+        var result = await handler.Handle(new UpdateRankThresholdCommand(Rank.Administrator, 100));
 
         Assert.Equal(ResultStatus.Failure, result.Status);
         Assert.Contains("has no configurable point threshold", result.Error);
@@ -43,7 +43,7 @@ public class UpdateRankThresholdHandlerTests
         var handler = CreateHandler();
 
         // Steel's previous neighbor, Iron, requires 10 points.
-        var result = await handler.Handle(new UpdateRankThresholdCommand(TestUsers.DefaultActingUserId, Rank.Steel, 10));
+        var result = await handler.Handle(new UpdateRankThresholdCommand(Rank.Steel, 10));
 
         Assert.Equal(ResultStatus.Failure, result.Status);
         Assert.Contains("must be greater than Iron's threshold", result.Error);
@@ -55,7 +55,7 @@ public class UpdateRankThresholdHandlerTests
         var handler = CreateHandler();
 
         // Steel's next neighbor, Mithril, requires 100 points.
-        var result = await handler.Handle(new UpdateRankThresholdCommand(TestUsers.DefaultActingUserId, Rank.Steel, 100));
+        var result = await handler.Handle(new UpdateRankThresholdCommand(Rank.Steel, 100));
 
         Assert.Equal(ResultStatus.Failure, result.Status);
         Assert.Contains("must be less than Mithril's threshold", result.Error);
@@ -67,7 +67,7 @@ public class UpdateRankThresholdHandlerTests
         var handler = CreateHandler();
 
         // Bronze has no previous neighbor; any value below Iron's (10) is valid, including 0.
-        var result = await handler.Handle(new UpdateRankThresholdCommand(TestUsers.DefaultActingUserId, Rank.Bronze, 0));
+        var result = await handler.Handle(new UpdateRankThresholdCommand(Rank.Bronze, 0));
 
         Assert.Equal(ResultStatus.Success, result.Status);
     }
@@ -78,8 +78,9 @@ public class UpdateRankThresholdHandlerTests
         var handler = CreateHandler();
 
         // Zenyte has no next neighbor among configurable ranks.
-        var result = await handler.Handle(new UpdateRankThresholdCommand(TestUsers.DefaultActingUserId, Rank.Zenyte, 6000));
+        var result = await handler.Handle(new UpdateRankThresholdCommand(Rank.Zenyte, 6000));
 
         Assert.Equal(ResultStatus.Success, result.Status);
     }
 }
+

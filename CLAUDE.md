@@ -59,8 +59,9 @@ Domain  ←  Contracts  ←  Infrastructure  ←  Operations  ←  Api
   `Discord.Rest.DiscordRestClient`. The main Api has a `DiscordBot:BaseUrl` config key and
   commented-out `HttpClient`/resolver wiring intended to call this over HTTP, but that
   integration isn't currently connected.
-- **RngHelpdesk.Domain.Tests**, **RngHelpdesk.Operations.Tests**, **RngHelpdesk.Api.Tests** —
-  test projects paired with the layer they exercise. See "Commands" above.
+- **RngHelpdesk.Domain.Tests**, **RngHelpdesk.Operations.Tests**, **RngHelpdesk.Api.Tests**,
+  **RngHelpdesk.Infrastructure.Tests** — test projects paired with the layer they exercise. See
+  "Commands" above.
 - **RngHelpdesk.Handlers** — dead/vestigial. No `.csproj`, not in `RngHelpdesk.slnx`, only
   stale `bin`/`obj` build cache left over. Ignore it.
 

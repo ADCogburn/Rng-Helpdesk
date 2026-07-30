@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RngHelpdesk.Api.DTOs;
-using RngHelpdesk.Api.Helpers;
 using RngHelpdesk.Api.Security;
 using RngHelpdesk.Contracts.Common.Ranks;
 using RngHelpdesk.Contracts.Common.Ranks.Commands;
@@ -39,7 +38,6 @@ public sealed class RankThresholdsController(
     {
         var command = new UpdateRankThresholdCommand
         (
-            ActingUserId: User.GetUserId(),
             Rank: rank,
             PointsRequired: request.PointsRequired
         );

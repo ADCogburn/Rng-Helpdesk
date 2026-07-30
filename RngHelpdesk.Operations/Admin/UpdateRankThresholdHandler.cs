@@ -14,6 +14,12 @@ public sealed class UpdateRankThresholdHandler(
         // GetThresholdsAsync returns thresholds in ascending point order (the Postgres provider
         // orders by SortOrder, which matches ascending PointsRequired; the in-memory test double
         // is hardcoded in the same order) -- the monotonicity check below relies on that order.
+        //
+        // Known gap: the read-check-write below isn't transactional, so two concurrent updates to
+        // adjacent ranks could each validate against a stale read and jointly still land on a
+        // non-monotonic result. Not addressed here -- this is a low-traffic admin config table,
+        // not a hot path, and no other non-event-sourced write path in this codebase has
+        // concurrency control either.
         var thresholds = await rankThresholdProvider.GetThresholdsAsync(cancellationToken);
         var ordered = thresholds.ToList();
 
