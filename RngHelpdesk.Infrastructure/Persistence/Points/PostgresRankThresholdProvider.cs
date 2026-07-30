@@ -1,26 +1,26 @@
-//using RngHelpdesk.Contracts.Common.Ranks;
-//using RngHelpdesk.Infrastructure.Persistence.Contexts;
-//using RngHelpdesk.Contracts.Common.Ranks;
+using Microsoft.EntityFrameworkCore;
+using RngHelpdesk.Contracts.Common.Ranks;
+using RngHelpdesk.Infrastructure.Persistence.Contexts;
 
-//namespace RngHelpdesk.Infrastructure.Persistence.Points;
+namespace RngHelpdesk.Infrastructure.Persistence.Points;
 
-//public sealed class PostgresRankThresholdProvider : IRankThresholdProvider
-//{
-//    private readonly AppDbContext _db;
+public sealed class PostgresRankThresholdProvider : IRankThresholdProvider
+{
+    private readonly AppDbContext _db;
 
-//    public PostgresRankThresholdProvider(AppDbContext db)
-//    {
-//        _db = db;
-//    }
+    public PostgresRankThresholdProvider(AppDbContext db)
+    {
+        _db = db;
+    }
 
-//    public IReadOnlyList<RankThreshold> GetThresholds()
-//    {
-//        return _db.Set<RankThresholdRow>()
-//            .OrderBy(x => x.SortOrder)
-//            .Select(x => new RankThreshold(
-//                Enum.Parse<Rank>(x.Rank),
-//                x.PointsRequired))
-//            .ToList();
-//    }
-//}
+    public async Task<IReadOnlyList<RankThreshold>> GetThresholdsAsync(CancellationToken ct = default)
+    {
+        var rows = await _db.Set<RankThresholdRow>()
+            .OrderBy(x => x.SortOrder)
+            .ToListAsync(ct);
 
+        return rows
+            .Select(x => new RankThreshold(Enum.Parse<Rank>(x.Rank), x.PointsRequired))
+            .ToList();
+    }
+}

@@ -121,13 +121,33 @@ builder.Services.AddValidatorsFromAssemblyContaining<LinkRunescapeAccountRequest
 builder.Services.AddScoped<ICommandHandler<ChangeUserRoleCommand>, ChangeUserRoleHandler>();
 builder.Services.AddScoped<IUserRoleService, UserRoleService>();
 
+var connectionString = builder.Configuration.GetConnectionString("RngHelpdeskDB")
+    ?? throw new InvalidOperationException("Missing required connection string 'RngHelpdeskDB'.");
+
+void ConfigureAppDbContext(DbContextOptionsBuilder options) => options.UseNpgsql(connectionString);
+
+builder.Services.AddSingleton(NpgsqlDataSource.Create(connectionString));
+builder.Services.AddDbContext<AppDbContext>(ConfigureAppDbContext);
+
 builder.Services.AddSingleton<IEventStore, PostgresEventStore>();
 
-var rankThresholdProvider = new InMemoryRankThresholdProvider();
-builder.Services.AddSingleton<IRankThresholdProvider>(rankThresholdProvider);
-//builder.Services.AddSingleton<IRankThresholdProvider, CachingRankThresholdProvider>();
+// Scoped, matching AppDbContext's own (scoped) lifetime -- no captive-dependency mismatch to
+// bridge with a caching wrapper the way the old commented-out CachingRankThresholdProvider did.
+builder.Services.AddScoped<IRankThresholdProvider, PostgresRankThresholdProvider>();
 
-var rankThresholds = await rankThresholdProvider.GetThresholdsAsync();
+// RankResolver is a singleton built once at startup from a point-in-time snapshot of
+// thresholds (not re-resolved per request), so it needs its own short-lived AppDbContext here,
+// ahead of the DI container existing to hand out scoped ones.
+var thresholdOptionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
+ConfigureAppDbContext(thresholdOptionsBuilder);
+var thresholdDbContextOptions = thresholdOptionsBuilder.Options;
+
+IReadOnlyList<RankThreshold> rankThresholds;
+await using (var thresholdDbContext = new AppDbContext(thresholdDbContextOptions))
+{
+    rankThresholds = await new PostgresRankThresholdProvider(thresholdDbContext).GetThresholdsAsync();
+}
+
 builder.Services.AddSingleton(new RankResolver(rankThresholds));
 
 builder.Services.AddScoped<IQueryHandler<GetAllUsersQuery, GetAllUsersResponse>, GetAllUsersHandler>();
@@ -219,13 +239,6 @@ builder.Services.AddSingleton<IEventDispatcher>(sp =>
 // Register the mapped Domain Events -> String names for permanent linkage, even if the classes change over time.
 var registry = EventStoreRegistration.CreateRegistry();
 builder.Services.AddSingleton(registry);
-
-var connectionString = builder.Configuration.GetConnectionString("RngHelpdeskDB")
-    ?? throw new InvalidOperationException("Missing required connection string 'RngHelpdeskDB'.");
-
-builder.Services.AddSingleton(NpgsqlDataSource.Create(connectionString));
-
-builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
 
 // TEMP: Seed in-mem data for debugging
 //var userRepo = app.Services

@@ -112,14 +112,21 @@ Domain  ←  Contracts  ←  Infrastructure  ←  Operations  ←  Api
 actually wired up vs. aspirational. As of now:
 
 - **Durable (Postgres-backed) and live**: `PostgresEventStore` (the event log itself) and
-  `PostgresUserRepository` (aggregate persistence/rehydration) — wired live in #44/#45.
-  `AppDbContext` is also registered (`AddDbContext` in `Program.cs`), but nothing currently calls
-  `Database.Migrate()` at runtime and nothing queries through it outside of
-  `RngHelpdesk.Infrastructure.Tests` — Postgres-backed classes talk to Postgres directly via
-  `NpgsqlDataSource`/raw SQL, not EF Core.
-- **Still in-memory, lost on restart**: `InMemoryCredentialStore`, `InMemoryRankThresholdProvider`
-  (`PostgresRankThresholdProvider`/`CachingRankThresholdProvider` exist in Infrastructure but are
-  commented out/unregistered), and all four projection read models (`UserSummaryProjection`,
+  `PostgresUserRepository` (aggregate persistence/rehydration) — wired live in #44/#45 — plus
+  `PostgresRankThresholdProvider` (`points.rank_thresholds`), wired live in #46. `AppDbContext` is
+  registered (`AddDbContext` in `Program.cs`), but nothing currently calls `Database.Migrate()` at
+  runtime. `PostgresRankThresholdProvider` is the one Postgres-backed class that actually queries
+  through `AppDbContext`/EF Core rather than `NpgsqlDataSource`/raw SQL (`PostgresEventStore` and
+  `PostgresUserRepository` still talk to Postgres directly). `IRankThresholdProvider` is registered
+  scoped, matching `AppDbContext`'s own scoped lifetime; the old commented-out
+  `CachingRankThresholdProvider` (a singleton-vs-scoped bridge with a manual cache) was dropped as
+  part of #46 rather than revived — with `IRankThresholdProvider` itself registered scoped, there's
+  no lifetime mismatch left to bridge. `RankResolver` still only reads a point-in-time snapshot of
+  thresholds fetched once at startup (via a short-lived `AppDbContext` built ahead of the DI
+  container in `Program.cs`), not the live provider, so a threshold row edited in the database
+  after boot won't take effect until the next restart.
+- **Still in-memory, lost on restart**: `InMemoryCredentialStore` and all four projection read
+  models (`UserSummaryProjection`,
   `UserLifecycleHistoryProjection`, `RunescapeAccountHistoryProjection`, `PointHistoryProjection`)
   — plain in-process `Dictionary`s. This is intentional long-term architecture for the
   projections, not a stopgap: there's no Postgres-backed replacement planned for the dictionaries
