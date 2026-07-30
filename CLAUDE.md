@@ -19,11 +19,29 @@ dotnet run --project RngHelpdesk.Api         # run the API (Swagger UI at /swagg
 dotnet run --project RngHelpdesk.DiscordBot  # run the Discord bot (needs Discord:BotToken config)
 ```
 
-Three test projects exist and are wired into `RngHelpdesk.slnx`: `RngHelpdesk.Domain.Tests`
+Four test projects exist and are wired into `RngHelpdesk.slnx`: `RngHelpdesk.Domain.Tests`
 (unit tests against the `User` aggregate's behavior methods), `RngHelpdesk.Operations.Tests`
-(command/query handler tests via a shared `OperationsTestFixture`), and `RngHelpdesk.Api.Tests` (controller
+(command/query handler tests via a shared `OperationsTestFixture`), `RngHelpdesk.Api.Tests` (controller
 tests that manually wire the same in-memory collaborators as `Program.cs` and construct
-controllers directly, rather than booting a full HTTP host via `WebApplicationFactory`).
+controllers directly, rather than booting a full HTTP host via `WebApplicationFactory`), and
+`RngHelpdesk.Infrastructure.Tests` (integration tests against a real Postgres instance spun up
+per test class via `Testcontainers.PostgreSql` — `MigrationFixture` in `MigrationTests.cs` is the
+shared `IClassFixture` other Postgres-backed tests key off; requires Docker, or a Docker-API-compatible
+engine, to run).
+
+`RngHelpdesk.Infrastructure.Tests` doesn't require Docker Desktop specifically — Podman works too
+(confirmed on Windows with Podman Desktop/`podman machine`). Testcontainers talks to whatever
+`DOCKER_HOST` points at, and Podman's Windows named pipe is Docker-API-compatible:
+
+```powershell
+podman machine start                                   # if not already running
+$env:DOCKER_HOST = "npipe://./pipe/podman-machine-default"
+dotnet test RngHelpdesk.Infrastructure.Tests
+```
+
+Note the pipe URI is `npipe://./pipe/...` (two slashes after the scheme), not the four-slash
+`npipe:////./pipe/...` form some Docker Desktop examples use — Docker.DotNet (which Testcontainers
+uses under the hood) rejects the four-slash form with "The endpoint is not a npipe URI."
 
 `RngHelpdesk.Website` (Angular 17, under `RngHelpdesk.Website/`) is `npm install` + `npm start`
 if you need to poke at it, but see "Frontend status" — it's out of sync with the current API.
@@ -56,8 +74,9 @@ Domain  ←  Contracts  ←  Infrastructure  ←  Operations  ←  Api
   `Discord.Rest.DiscordRestClient`. The main Api has a `DiscordBot:BaseUrl` config key and
   commented-out `HttpClient`/resolver wiring intended to call this over HTTP, but that
   integration isn't currently connected.
-- **RngHelpdesk.Domain.Tests**, **RngHelpdesk.Operations.Tests**, **RngHelpdesk.Api.Tests** —
-  test projects paired with the layer they exercise. See "Commands" above.
+- **RngHelpdesk.Domain.Tests**, **RngHelpdesk.Operations.Tests**, **RngHelpdesk.Api.Tests**,
+  **RngHelpdesk.Infrastructure.Tests** — test projects paired with the layer they exercise. See
+  "Commands" above.
 - **RngHelpdesk.Handlers** — dead/vestigial. No `.csproj`, not in `RngHelpdesk.slnx`, only
   stale `bin`/`obj` build cache left over. Ignore it.
 
@@ -113,18 +132,29 @@ actually wired up vs. aspirational. As of now:
 
 - **Durable (Postgres-backed) and live**: `PostgresEventStore` (the event log itself) and
   `PostgresUserRepository` (aggregate persistence/rehydration) — wired live in #44/#45 — plus
-  `PostgresRankThresholdProvider` (`points.rank_thresholds`), wired live in #46. `AppDbContext` is
-  registered (`AddDbContext` in `Program.cs`), but nothing currently calls `Database.Migrate()` at
-  runtime. `PostgresRankThresholdProvider` is the one Postgres-backed class that actually queries
-  through `AppDbContext`/EF Core rather than `NpgsqlDataSource`/raw SQL (`PostgresEventStore` and
-  `PostgresUserRepository` still talk to Postgres directly). `IRankThresholdProvider` is registered
+  `PostgresRankThresholdProvider` (`points.rank_thresholds`), wired live in #46, and its write-side
+  counterpart `PostgresRankThresholdRepository` (`IRankThresholdRepository`, also scoped), wired
+  live in #17 behind `RankThresholdsController` (`GET`/`PUT` under `AuthPolicies.AdminPlus`) — the
+  only verbs are "read all" and "update `PointsRequired` for an existing `Rank`", since `Rank` is a
+  fixed enum with one threshold row per point-based rank; there's no create/delete. `AppDbContext`
+  is registered (`AddDbContext` in `Program.cs`), but nothing currently calls `Database.Migrate()`
+  at runtime. `PostgresRankThresholdProvider`/`PostgresRankThresholdRepository` are the only
+  Postgres-backed classes that actually query through `AppDbContext`/EF Core rather than
+  `NpgsqlDataSource`/raw SQL (`PostgresEventStore` and `PostgresUserRepository` still talk to
+  Postgres directly). `IRankThresholdProvider` and `IRankThresholdRepository` are both registered
   scoped, matching `AppDbContext`'s own scoped lifetime; the old commented-out
   `CachingRankThresholdProvider` (a singleton-vs-scoped bridge with a manual cache) was dropped as
   part of #46 rather than revived — with `IRankThresholdProvider` itself registered scoped, there's
   no lifetime mismatch left to bridge. `RankResolver` still only reads a point-in-time snapshot of
   thresholds fetched once at startup (via a short-lived `AppDbContext` built ahead of the DI
-  container in `Program.cs`), not the live provider, so a threshold row edited in the database
-  after boot won't take effect until the next restart.
+  container in `Program.cs`), not the live provider, so a threshold row edited via
+  `RankThresholdsController` (or directly in the database) won't affect rank resolution until the
+  next restart — #17 deliberately left this gap in place rather than fixing it, since the issue's
+  scope was the write path itself, not cache invalidation.
+  `UpdateRankThresholdHandler` (`Operations/Admin/`) enforces monotonic ordering (a rank's
+  threshold must stay strictly between its neighbors') in the handler, using the order
+  `IRankThresholdProvider.GetThresholdsAsync` returns thresholds in (ascending `SortOrder`, which
+  matches ascending `PointsRequired` for every seeded row).
 - **Still in-memory, lost on restart**: `InMemoryCredentialStore` and all four projection read
   models (`UserSummaryProjection`,
   `UserLifecycleHistoryProjection`, `RunescapeAccountHistoryProjection`, `PointHistoryProjection`)

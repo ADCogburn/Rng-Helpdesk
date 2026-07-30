@@ -8,6 +8,8 @@ using Npgsql;
 using RngHelpdesk.Api.Security;
 using RngHelpdesk.Api.Validators.Users;
 using RngHelpdesk.Contracts.Common.Ranks;
+using RngHelpdesk.Contracts.Common.Ranks.Commands;
+using RngHelpdesk.Contracts.Common.Ranks.Queries;
 using RngHelpdesk.Contracts.Points.Commands;
 using RngHelpdesk.Contracts.Points.Queries;
 using RngHelpdesk.Contracts.Security;
@@ -135,6 +137,12 @@ builder.Services.AddSingleton<IEventStore, PostgresEventStore>();
 // bridge with a caching wrapper the way the old commented-out CachingRankThresholdProvider did.
 builder.Services.AddScoped<IRankThresholdProvider, PostgresRankThresholdProvider>();
 
+// Write side for rank thresholds (issue #17), kept separate from the read-only provider above --
+// same scoped/AppDbContext lifetime. Note this does NOT refresh the RankResolver singleton below,
+// which is built once from a startup snapshot; an admin edit here won't affect rank resolution
+// until the next restart (see CLAUDE.md's Runtime reality section).
+builder.Services.AddScoped<IRankThresholdRepository, PostgresRankThresholdRepository>();
+
 // RankResolver is a singleton built once at startup from a point-in-time snapshot of
 // thresholds (not re-resolved per request), so it needs its own short-lived AppDbContext here,
 // ahead of the DI container existing to hand out scoped ones.
@@ -167,6 +175,9 @@ builder.Services.AddScoped<ICommandHandler<RenameRunescapeAccountRequest>, Renam
 builder.Services.AddScoped<ICommandHandler<AddPointsToUserRequest>, AddPointsToUserHandler>();
 builder.Services.AddScoped<ICommandHandler<RemovePointsFromUserRequest>, RemovePointsFromUserHandler>();
 builder.Services.AddScoped<IQueryHandler<GetPointHistoryForUserQuery, GetPointHistoryForUserResponse>, GetPointHistoryForUserHandler>();
+
+builder.Services.AddScoped<IQueryHandler<GetRankThresholdsQuery, GetRankThresholdsResponse>, GetRankThresholdsHandler>();
+builder.Services.AddScoped<ICommandHandler<UpdateRankThresholdCommand>, UpdateRankThresholdHandler>();
 
 // -- Repositories --
 
