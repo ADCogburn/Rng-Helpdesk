@@ -19,6 +19,7 @@ using RngHelpdesk.Domain.Users;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Persistence.EventStore;
 using RngHelpdesk.Infrastructure.Persistence.Points;
+using RngHelpdesk.Infrastructure.Persistence.Projections;
 using RngHelpdesk.Infrastructure.Points;
 using RngHelpdesk.Infrastructure.Security;
 using RngHelpdesk.Infrastructure.Users;
@@ -219,39 +220,28 @@ builder.Services.AddSingleton<IRunescapeAccountHistoryReadStore>(sp =>
     sp.GetRequiredService<RunescapeAccountHistoryProjection>());
 
 // -- In-memory event dispatcher --
-// Important: dispatcher receives the same singleton projection instances
-// that the read-store interfaces resolve to.
+// Important: dispatcher and ProjectionRunner both receive the exact same singleton
+// projection instances that the read-store interfaces resolve to.
+
+static object[] GetProjectionInstances(IServiceProvider sp) => new object[]
+{
+    sp.GetRequiredService<PointHistoryProjection>(),
+    sp.GetRequiredService<UserSummaryProjection>(),
+    sp.GetRequiredService<UserLifecycleHistoryProjection>(),
+    sp.GetRequiredService<RunescapeAccountHistoryProjection>()
+};
 
 builder.Services.AddSingleton<IEventDispatcher>(sp =>
-{
-    var handlers = new object[]
-    {
-        sp.GetRequiredService<PointHistoryProjection>(),
-        sp.GetRequiredService<UserSummaryProjection>(),
-        sp.GetRequiredService<UserLifecycleHistoryProjection>(),
-        sp.GetRequiredService<RunescapeAccountHistoryProjection>()
-    };
+    new InMemEventDispatcher(GetProjectionInstances(sp)));
 
-    return new InMemEventDispatcher(handlers);
-});
+builder.Services.AddScoped<IProjectionCheckpointStore, PostgresProjectionCheckpointStore>();
 
-// This is only needed when restarting the app and pulling the checkpoints/rebuilding projections from a DB.
-//builder.Services.AddScoped<IProjectionCheckpointStore, PostgresProjectionCheckpointStore>();
-
-//builder.Services.AddScoped<ProjectionRunner>(sp =>
-//{
-//    return new ProjectionRunner(
-//        sp.GetRequiredService<IEventStore>(),
-//        sp.GetRequiredService<EventTypeRegistry>(),
-//        sp.GetRequiredService<IProjectionCheckpointStore>(),
-//        new object[]
-//        {
-//            sp.GetRequiredService<PointHistoryProjection>(),
-//            sp.GetRequiredService<UserSummaryProjection>(),
-//            sp.GetRequiredService<UserLifecycleHistoryProjection>(),
-//            sp.GetRequiredService<RunescapeAccountHistoryProjection>()
-//        });
-//});
+builder.Services.AddScoped<ProjectionRunner>(sp =>
+    new ProjectionRunner(
+        sp.GetRequiredService<IEventStore>(),
+        sp.GetRequiredService<EventTypeRegistry>(),
+        sp.GetRequiredService<IProjectionCheckpointStore>(),
+        GetProjectionInstances(sp)));
 
 // Register the mapped Domain Events -> String names for permanent linkage, even if the classes change over time.
 var registry = EventStoreRegistration.CreateRegistry();
@@ -304,13 +294,16 @@ builder.Services.AddSingleton(registry);
 
 // --- END TEMP ---
 
-//using (var scope = app.Services.CreateScope())
-//{
-//    var runner = scope.ServiceProvider.GetRequiredService<ProjectionRunner>();
-//    await runner.RunAsync();
-//}
-
 var app = builder.Build();
+
+// Rebuild the in-memory projections from Postgres event history before serving any requests --
+// each projection replays from its own last checkpoint (or from 0 if its dictionary came up
+// empty, e.g. after a restart).
+using (var scope = app.Services.CreateScope())
+{
+    var runner = scope.ServiceProvider.GetRequiredService<ProjectionRunner>();
+    await runner.RunAsync();
+}
 
 if (app.Environment.IsDevelopment())
 {
