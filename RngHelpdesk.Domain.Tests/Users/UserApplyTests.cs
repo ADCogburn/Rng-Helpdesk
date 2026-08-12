@@ -16,6 +16,6 @@ public class UserApplyTests
     {
         var events = new IDomainEvent[] { new UnrecognizedDomainEvent() };
 
-        Assert.Throws<DomainException>(() => User.Rehydrate(events));
+        Assert.Throws<DomainException>(() => User.Rehydrate(events, streamVersion: 1));
     }
 }

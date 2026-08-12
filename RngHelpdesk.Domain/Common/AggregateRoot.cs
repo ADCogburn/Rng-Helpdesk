@@ -18,22 +18,22 @@ public abstract class AggregateRoot
     }
 
     /// <summary>
-    /// Replays a stream that may contain IApplicationEvents interleaved with this aggregate's own
-    /// IDomainEvents (e.g. a role-change event appended directly to the "User" stream, bypassing
-    /// the aggregate). Only IDomainEvents are applied to state, but Version still advances for
-    /// every event in the stream -- it has to match the event store's real StreamVersion counter,
-    /// which counts every append regardless of event kind, or the next SaveAsync's optimistic
+    /// Replays this aggregate's own domain events. streamVersion is the event store's real
+    /// StreamVersion for the underlying stream, which the caller must supply explicitly rather than
+    /// have it inferred from domainEvents.Count() -- the stream may also carry IApplicationEvents
+    /// that bypass the aggregate entirely (e.g. a role-change event appended directly to the "User"
+    /// stream), so its true length can exceed the number of domain events being replayed here.
+    /// Version has to match that real stream position, or the next SaveAsync's optimistic
     /// concurrency check would reject a legitimate write as a false conflict.
     /// </summary>
-    public void LoadFromHistory(IEnumerable<IEvent> events)
+    public void LoadFromHistory(IEnumerable<IDomainEvent> domainEvents, int streamVersion)
     {
-        foreach (var e in events)
+        foreach (var domainEvent in domainEvents)
         {
-            if (e is IDomainEvent domainEvent)
-                Apply(domainEvent);
-
-            Version++;
+            Apply(domainEvent);
         }
+
+        Version = streamVersion;
     }
 
     protected abstract void Apply(IDomainEvent domainEvent);

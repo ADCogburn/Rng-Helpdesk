@@ -51,16 +51,17 @@ public sealed class User : AggregateRoot
     }
 
     /// <summary>
-    /// Recreates the aggregate User from the events in the EventStore. events may include
-    /// IApplicationEvents that share this user's stream (e.g. a role change) -- see
-    /// AggregateRoot.LoadFromHistory for how those are counted without being applied.
+    /// Recreates the aggregate User from its own domain events. streamVersion is the event store's
+    /// real StreamVersion for the underlying stream -- see AggregateRoot.LoadFromHistory for why
+    /// that can't just be inferred by counting events here.
     /// </summary>
     /// <param name="events"></param>
+    /// <param name="streamVersion"></param>
     /// <returns></returns>
-    public static User Rehydrate(IEnumerable<IEvent> events)
+    public static User Rehydrate(IEnumerable<IDomainEvent> events, int streamVersion)
     {
         var user = new User();
-        user.LoadFromHistory(events);
+        user.LoadFromHistory(events, streamVersion);
         return user;
     }
 

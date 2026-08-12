@@ -36,10 +36,18 @@ public sealed class PostgresUserRepository : IUserRepository
             throw new AggregateNotFoundException(nameof(User), userId);
 
         // The "User" stream also carries IApplicationEvents appended directly by services like
-        // UserRoleService (e.g. UserAppRoleChangedEvent) that bypass the aggregate entirely. They're
-        // still passed to Rehydrate -- AggregateRoot.LoadFromHistory only Applies IDomainEvents, but
-        // advances Version for every event, matching the event store's real StreamVersion counter.
-        return User.Rehydrate(stored.Select(Deserialize));
+        // UserRoleService (e.g. UserAppRoleChangedEvent) that bypass the aggregate entirely -- User
+        // only ever rehydrates from its own domain events, but the stream version passed in still
+        // has to reflect every row physically in the stream (StreamVersion), not just the domain
+        // ones, or the next SaveAsync's optimistic concurrency check would reject a legitimate
+        // write as a false conflict.
+        var domainEvents = stored
+            .Where(e => typeof(IDomainEvent).IsAssignableFrom(_registry.GetType(e.EventType)))
+            .Select(e => (IDomainEvent)Deserialize(e));
+
+        var streamVersion = stored.Max(e => e.StreamVersion);
+
+        return User.Rehydrate(domainEvents, streamVersion);
     }
 
     public async Task<IReadOnlyCollection<IDomainEvent>> SaveAsync(User user, CancellationToken ct = default)

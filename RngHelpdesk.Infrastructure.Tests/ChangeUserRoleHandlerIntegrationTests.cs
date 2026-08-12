@@ -19,8 +19,10 @@ namespace RngHelpdesk.Infrastructure.Tests;
 /// User's behavior methods. This exists specifically as a regression test: it was written to
 /// exercise UserRoleService against real Postgres and caught a live bug where a role-changed
 /// user's "User" stream mixed an IApplicationEvent in with the aggregate's own domain events, and
-/// PostgresUserRepository.GetByIdAsync crashed trying to deserialize it as an IDomainEvent --
-/// see ADR 0006 for the fix (StoredEventDeserializer/AggregateRoot now work in terms of IEvent).
+/// PostgresUserRepository.GetByIdAsync crashed trying to deserialize it as an IDomainEvent, and a
+/// naive fix broke optimistic concurrency instead -- see ADR 0006 for the final shape
+/// (StoredEventDeserializer returns IEvent; User.Rehydrate stays IDomainEvent-only but takes an
+/// explicit streamVersion from the repository instead of deriving it from event count).
 /// RngHelpdesk.Operations.Tests' fixture never caught this because it wires IUserRoleService to
 /// InMemoryEventStore but IUserRepository to a separate, independent InMemUserRepository -- the two
 /// never share a stream in-memory the way the Postgres-backed singletons do in Program.cs.
