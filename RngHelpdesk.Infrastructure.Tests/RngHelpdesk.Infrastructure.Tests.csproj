@@ -21,6 +21,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RngHelpdesk.Infrastructure\RngHelpdesk.Infrastructure.csproj" />
+    <!-- Test-only: Operations handlers are exercised here against real Postgres-backed
+         Infrastructure classes (see ADR 0004). Production Infrastructure code never
+         references Operations; this is strictly a test-project dependency. -->
+    <ProjectReference Include="..\RngHelpdesk.Operations\RngHelpdesk.Operations.csproj" />
   </ItemGroup>
 
 </Project>
