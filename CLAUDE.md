@@ -19,6 +19,28 @@ dotnet run --project RngHelpdesk.Api         # run the API (Swagger UI at /swagg
 dotnet run --project RngHelpdesk.DiscordBot  # run the Discord bot (needs Discord:BotToken config)
 ```
 
+`RngHelpdesk.Api` needs a reachable Postgres to start — this applies in `Development` too, not
+just Staging/Production (per ADR-0003). The real `ConnectionStrings:RngHelpdeskDB` value lives in
+`dotnet user-secrets`, not `appsettings.Development.json` (moved out since that file previously
+committed a real Postgres password in plaintext) — but `appsettings.json` (the base, committed
+file) still has a stale placeholder fallback (`Host=localhost;Database=rnghelpdesk;
+Username=postgres;Password=;`), so a missing user-secret does *not* fail fast with a clean "missing
+connection string" error. Instead, `PostgresRankThresholdProvider.GetThresholdsAsync`, called
+eagerly at startup before `builder.Build()` (`Program.cs`), throws whatever Npgsql/Postgres error
+that stale fallback produces on your machine — e.g. a SASL/password error if something happens to
+be listening on `localhost:5432`, or a connection-refused otherwise. One-time local setup:
+
+```powershell
+podman compose up -d                         # or `docker compose up -d` -- starts local Postgres from the root docker-compose.yml
+dotnet user-secrets set ConnectionStrings:RngHelpdeskDB `
+  "Host=localhost;Database=rnghelpdesk_dev;Username=rnghelpdesk_app;Password=rnghelpdesk_dev_password" `
+  --project RngHelpdesk.Api
+```
+
+That Postgres instance is persistent local dev state (a named volume, `rnghelpdesk-postgres-data`)
+— distinct from the ephemeral, per-test-run Postgres container `RngHelpdesk.Infrastructure.Tests`
+spins up via Testcontainers, described below. Don't conflate the two.
+
 Four test projects exist and are wired into `RngHelpdesk.slnx`: `RngHelpdesk.Domain.Tests`
 (unit tests against the `User` aggregate's behavior methods), `RngHelpdesk.Operations.Tests`
 (command/query handler tests via a shared `OperationsTestFixture`), `RngHelpdesk.Api.Tests` (controller
