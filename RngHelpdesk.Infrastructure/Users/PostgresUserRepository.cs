@@ -35,6 +35,10 @@ public sealed class PostgresUserRepository : IUserRepository
         if (stored.Count == 0)
             throw new AggregateNotFoundException(nameof(User), userId);
 
+        // The "User" stream also carries IApplicationEvents appended directly by services like
+        // UserRoleService (e.g. UserAppRoleChangedEvent) that bypass the aggregate entirely. They're
+        // still passed to Rehydrate -- AggregateRoot.LoadFromHistory only Applies IDomainEvents, but
+        // advances Version for every event, matching the event store's real StreamVersion counter.
         return User.Rehydrate(stored.Select(Deserialize));
     }
 
@@ -72,6 +76,6 @@ public sealed class PostgresUserRepository : IUserRepository
             .Any(e => e.DiscordAccount.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
     }
 
-    private IDomainEvent Deserialize(StoredEvent stored) =>
+    private IEvent Deserialize(StoredEvent stored) =>
         StoredEventDeserializer.Deserialize(stored, _registry.GetType(stored.EventType));
 }

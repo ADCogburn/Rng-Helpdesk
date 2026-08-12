@@ -51,11 +51,13 @@ public sealed class User : AggregateRoot
     }
 
     /// <summary>
-    /// Recreates the aggregate User from the events in the EventStore.
+    /// Recreates the aggregate User from the events in the EventStore. events may include
+    /// IApplicationEvents that share this user's stream (e.g. a role change) -- see
+    /// AggregateRoot.LoadFromHistory for how those are counted without being applied.
     /// </summary>
     /// <param name="events"></param>
     /// <returns></returns>
-    public static User Rehydrate(IEnumerable<IDomainEvent> events)
+    public static User Rehydrate(IEnumerable<IEvent> events)
     {
         var user = new User();
         user.LoadFromHistory(events);

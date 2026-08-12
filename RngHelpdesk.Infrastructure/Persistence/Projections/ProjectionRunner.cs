@@ -57,14 +57,14 @@ public sealed class ProjectionRunner
                 if (!TryGetHandlersFor(projectionName, clrType, out var handlers))
                     continue;
 
-                var domainEvent = StoredEventDeserializer.Deserialize(stored, clrType);
+                var deserializedEvent = StoredEventDeserializer.Deserialize(stored, clrType);
 
                 foreach (var (instance, method, _) in handlers)
                 {
                     try
                     {
-                        // Calls projection.Project((TEvent)domainEvent)
-                        method.Invoke(instance, new object[] { domainEvent });
+                        // Calls projection.Project((TEvent)deserializedEvent)
+                        method.Invoke(instance, new object[] { deserializedEvent });
                     }
                     catch (Exception)
                     {
