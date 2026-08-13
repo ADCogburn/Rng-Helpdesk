@@ -1,0 +1,37 @@
+meta {
+  name: Create User
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/admin/create
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "discordAccount": {
+      "discordId": 222222222,
+      "username": "ExampleDiscordUser"
+    },
+    "runescapeAccounts": []
+  }
+}
+
+docs {
+  Returns temporary login credentials for the new user (see
+  ICredentialStore.CreateTemporaryCredentialsAsync) -- copy them from the
+  response if you want to log in as this user separately.
+
+  The new user's id equals discordId (UserCreatedEvent sets UserId =
+  discordAccount.DiscordId), which is why Promote/Demote User default their
+  target to 222222222 -- run this request first and those two work as-is.
+
+  Real Discord snowflakes exceed 2^53 and can lose precision if entered
+  through a UI that round-trips the body via JS numbers (e.g. Bruno's visual
+  JSON editor). Edit this body in raw/code mode instead of the tree view to
+  keep the literal digits intact -- the Api has no JsonNumberHandling
+  configured, so a quoted string here would fail to deserialize.
+}
