@@ -1,0 +1,16 @@
+meta {
+  name: Get Users By Previous RSN
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/users/by-historical-rsn/ExampleRsn
+  body: none
+  auth: inherit
+}
+
+docs {
+  Replace ExampleRsn with a username that was previously linked and then
+  renamed or delinked -- see the Rename/Delink Runescape Account requests.
+}

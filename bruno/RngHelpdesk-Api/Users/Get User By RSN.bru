@@ -1,0 +1,16 @@
+meta {
+  name: Get User By RSN
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/users/by-rsn/ExampleRsn
+  body: none
+  auth: inherit
+}
+
+docs {
+  Replace ExampleRsn with a currently-linked Runescape username -- link one
+  first via the Link Runescape Account request under RunescapeAccounts.
+}

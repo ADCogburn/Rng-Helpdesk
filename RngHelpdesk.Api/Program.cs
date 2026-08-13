@@ -315,7 +315,7 @@ if (app.Environment.IsDevelopment())
     var userRepo = scope.ServiceProvider
         .GetRequiredService<IUserRepository>();
 
-    var credentialStore = (InMemoryCredentialStore)scope.ServiceProvider
+    var credentialStore = scope.ServiceProvider
         .GetRequiredService<ICredentialStore>();
 
     var dispatcher = scope.ServiceProvider

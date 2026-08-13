@@ -35,11 +35,54 @@ podman compose up -d                         # or `docker compose up -d` -- star
 dotnet user-secrets set ConnectionStrings:RngHelpdeskDB `
   "Host=localhost;Database=rnghelpdesk_dev;Username=rnghelpdesk_app;Password=rnghelpdesk_dev_password" `
   --project RngHelpdesk.Api
+dotnet ef database update --project RngHelpdesk.Infrastructure --startup-project RngHelpdesk.Api `
+  --connection "Host=localhost;Database=rnghelpdesk_dev;Username=rnghelpdesk_app;Password=rnghelpdesk_dev_password"
 ```
+
+That last command applies `InitAppSchema` to `rnghelpdesk_dev`. It's a one-time step — nothing in
+`Program.cs` calls `Database.Migrate()` at runtime (see "Runtime reality" below), so a freshly
+created database stays schema-less until you run this yourself, and every table read at startup
+(e.g. `PostgresRankThresholdProvider.GetThresholdsAsync`, called before `builder.Build()`) throws
+`42P01: relation "..." does not exist` if you skip it. The `--connection` override is required:
+`AppDbContextFactory` (`Infrastructure/Persistence/Contexts/`, the `IDesignTimeDbContextFactory`
+the `dotnet ef` CLI uses) is hardcoded to a passwordless `rnghelpdesk_design` placeholder database
+for scaffolding new migrations without needing real credentials on hand — it was never meant to be
+the target for `database update` against your actual dev data.
 
 That Postgres instance is persistent local dev state (a named volume, `rnghelpdesk-postgres-data`)
 — distinct from the ephemeral, per-test-run Postgres container `RngHelpdesk.Infrastructure.Tests`
 spins up via Testcontainers, described below. Don't conflate the two.
+
+If the app fails to reach Postgres on `localhost:5432` in a way that looks like it's hitting the
+wrong server entirely (auth failures against a password you're sure is right, or a database/schema
+that shouldn't be missing), check for a second, unrelated Postgres already bound to port 5432 on
+the host — e.g. a native Windows PostgreSQL service (`Get-Service *postgres*`) installed outside
+this repo. On Windows the native process wins that port for host-originated connections even
+though `podman ps` still shows the container's own `0.0.0.0:5432->5432/tcp` mapping, so
+`dotnet run` silently talks to the wrong Postgres instance. Also, after a `podman machine stop`/
+`start` cycle, port-forwarding for already-published containers doesn't come back on its own —
+`podman start <container>` (not just the machine) after the machine's back up.
+
+**VS Code debugging**: `.vscode/launch.json` + `.vscode/tasks.json` (checked in) give an
+"RngHelpdesk.Api" debug config that builds and launches via the `http` profile in
+`RngHelpdesk.Api/Properties/launchsettings.json` (note: lowercase filename on disk, unlike the
+usual `launchSettings.json` casing — `launch.json` points at it explicitly via
+`launchSettingsFilePath` rather than relying on the C# extension's default-casing lookup). That
+profile binds fixed ports — `http://localhost:5080` and `https://localhost:5081` — so a debug
+session's URL doesn't change between runs. `UseHttpsRedirection()` is unconditional in
+`Program.cs`, so hitting the https port avoids an extra redirect hop; the first time, trust the
+local dev cert with `dotnet dev-certs https --trust`. Press F5 with the "RngHelpdesk.Api"
+configuration selected.
+
+**Manual testing with Bruno**: a checked-in collection lives at `bruno/RngHelpdesk-Api/`, one
+request per endpoint, organized into folders matching the controllers. Open the collection in
+Bruno, select the `Local` environment (`baseUrl` already points at `https://localhost:5081`), and
+run `Auth/Login` first — it logs in as the `Development`-seeded `admin`/`password` account and a
+post-response script stashes the JWT into the `token` environment variable, which every other
+request sends via a collection-level bearer-auth setting. `Admin/Promote User` and `Admin/Demote
+User` deliberately default their target id away from the seeded admin's own id (see that folder's
+request docs) — demoting yourself locks the seeded account out of every `AdminPlus` endpoint with
+no way back short of editing Postgres directly.
 
 Four test projects exist and are wired into `RngHelpdesk.slnx`: `RngHelpdesk.Domain.Tests`
 (unit tests against the `User` aggregate's behavior methods), `RngHelpdesk.Operations.Tests`
@@ -179,11 +222,13 @@ actually wired up vs. aspirational. As of now:
   matches ascending `PointsRequired` for every seeded row).
   `PostgresCredentialStore` (`identity.auth_users`), wired live in #47, is also scoped,
   matching `AppDbContext`'s lifetime like the two providers above. It's the only Postgres-backed
-  `ICredentialStore` implementation that has ever existed. One known gap from #47: the
-  `IsDevelopment()` seeding block in `Program.cs` still casts `ICredentialStore` to the
-  now-removed-from-DI `InMemoryCredentialStore` concrete type, so `dotnet run --project
-  RngHelpdesk.Api` in `Development` throws `InvalidCastException` at startup until #49 rewrites
-  that block to seed through the interface (see the last bullet below).
+  `ICredentialStore` implementation that has ever existed. The `IsDevelopment()` seeding block in
+  `Program.cs` used to cast `ICredentialStore` to the now-removed-from-DI `InMemoryCredentialStore`
+  concrete type (throwing `InvalidCastException` at startup) — fixed in #70 by seeding through the
+  interface instead, since `SeedCredentialsAsync` was already declared there and
+  `PostgresCredentialStore`'s implementation was already an idempotent upsert keyed on `UserId`.
+  #49 remains open for its broader scope (an end-to-end proof that state, including projections,
+  survives a real restart) — #70 only closed the startup-crash gap.
   `PostgresProjectionCheckpointStore` (`projections.projection_checkpoints`, `IProjectionCheckpointStore`),
   wired live in #48, is scoped for the same `AppDbContext`-lifetime reason as the providers above,
   even though its own dependency (`NpgsqlDataSource`) is a singleton — nothing currently requires
@@ -211,9 +256,10 @@ actually wired up vs. aspirational. As of now:
   schemas: `eventstore`, `projections`, `identity`, `points`).
 - In `Development`, `Program.cs` seeds a hardcoded admin user/credentials in-process at startup
   (see the block right after `app.Environment.IsDevelopment()`) — the user/role half is guarded
-  by `ExistsAsync` and safe against Postgres persisting across restarts, but the credentials half
-  still unconditionally casts `ICredentialStore` to `InMemoryCredentialStore` and currently
-  throws now that `PostgresCredentialStore` is registered instead (see above; #49 fixes this).
+  by `ExistsAsync` and safe against Postgres persisting across restarts, and the credentials half
+  (`admin`/`password`) now seeds through `ICredentialStore` directly, safe to re-run on every
+  startup since `SeedCredentialsAsync` upserts by `UserId` rather than inserting blindly (see
+  above).
 
 ## API layer conventions
 

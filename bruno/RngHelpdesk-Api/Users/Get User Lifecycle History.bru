@@ -1,0 +1,11 @@
+meta {
+  name: Get User Lifecycle History
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/users/{{adminUserId}}/lifecycle
+  body: none
+  auth: inherit
+}
