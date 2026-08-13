@@ -17,7 +17,9 @@ public sealed class InMemUserRepository : IUserRepository
         if (!_events.TryGetValue(userId, out var events))
             throw new AggregateNotFoundException(nameof(User), userId);
 
-        return Task.FromResult(User.Rehydrate(events));
+        // This in-memory store only ever holds IDomainEvents (see SaveAsync below), so the stream
+        // version and the domain event count are always the same here.
+        return Task.FromResult(User.Rehydrate(events, streamVersion: events.Count));
     }
 
     public Task<IReadOnlyCollection<IDomainEvent>> SaveAsync(User user, CancellationToken ct = default)

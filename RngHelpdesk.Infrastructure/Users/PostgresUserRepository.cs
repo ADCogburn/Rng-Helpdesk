@@ -35,7 +35,19 @@ public sealed class PostgresUserRepository : IUserRepository
         if (stored.Count == 0)
             throw new AggregateNotFoundException(nameof(User), userId);
 
-        return User.Rehydrate(stored.Select(Deserialize));
+        // The "User" stream also carries IApplicationEvents appended directly by services like
+        // UserRoleService (e.g. UserAppRoleChangedEvent) that bypass the aggregate entirely -- User
+        // only ever rehydrates from its own domain events, but the stream version passed in still
+        // has to reflect every row physically in the stream (StreamVersion), not just the domain
+        // ones, or the next SaveAsync's optimistic concurrency check would reject a legitimate
+        // write as a false conflict.
+        var domainEvents = stored
+            .Where(e => typeof(IDomainEvent).IsAssignableFrom(_registry.GetType(e.EventType)))
+            .Select(e => (IDomainEvent)Deserialize(e));
+
+        var streamVersion = stored.Max(e => e.StreamVersion);
+
+        return User.Rehydrate(domainEvents, streamVersion);
     }
 
     public async Task<IReadOnlyCollection<IDomainEvent>> SaveAsync(User user, CancellationToken ct = default)
@@ -72,6 +84,6 @@ public sealed class PostgresUserRepository : IUserRepository
             .Any(e => e.DiscordAccount.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
     }
 
-    private IDomainEvent Deserialize(StoredEvent stored) =>
+    private IEvent Deserialize(StoredEvent stored) =>
         StoredEventDeserializer.Deserialize(stored, _registry.GetType(stored.EventType));
 }

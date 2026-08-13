@@ -51,14 +51,17 @@ public sealed class User : AggregateRoot
     }
 
     /// <summary>
-    /// Recreates the aggregate User from the events in the EventStore.
+    /// Recreates the aggregate User from its own domain events. streamVersion is the event store's
+    /// real StreamVersion for the underlying stream -- see AggregateRoot.LoadFromHistory for why
+    /// that can't just be inferred by counting events here.
     /// </summary>
     /// <param name="events"></param>
+    /// <param name="streamVersion"></param>
     /// <returns></returns>
-    public static User Rehydrate(IEnumerable<IDomainEvent> events)
+    public static User Rehydrate(IEnumerable<IDomainEvent> events, int streamVersion)
     {
         var user = new User();
-        user.LoadFromHistory(events);
+        user.LoadFromHistory(events, streamVersion);
         return user;
     }
 

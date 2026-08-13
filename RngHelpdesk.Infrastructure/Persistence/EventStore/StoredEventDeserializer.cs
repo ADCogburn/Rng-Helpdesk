@@ -10,13 +10,13 @@ public static class StoredEventDeserializer
         PropertyNameCaseInsensitive = true
     };
 
-    public static IDomainEvent Deserialize(StoredEvent stored, Type clrType)
+    public static IEvent Deserialize(StoredEvent stored, Type clrType)
     {
         var obj = JsonSerializer.Deserialize(stored.PayloadJson, clrType, Options);
 
-        if (obj is not IDomainEvent domainEvent)
-            throw new InvalidOperationException($"Deserialized event was not IDomainEvent. EventType={stored.EventType}");
+        if (obj is not IEvent @event)
+            throw new InvalidOperationException($"Deserialized event was not IEvent. EventType={stored.EventType}");
 
-        return domainEvent;
+        return @event;
     }
 }
