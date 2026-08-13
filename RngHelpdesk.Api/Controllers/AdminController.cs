@@ -13,7 +13,9 @@ namespace RngHelpdesk.Api.Controllers;
 [Route("[controller]")]
 public sealed class AdminController(
                         ICommandHandler<ChangeUserRoleCommand> changeUserRoleHandler,
-                        ICommandHandler<CreateUserRequest, CreateUserResponse> createUserHandler) : ControllerBase
+                        ICommandHandler<CreateUserRequest, CreateUserResponse> createUserHandler,
+                        ICommandHandler<DeactivateUserRequest> deactivateUserHandler,
+                        ICommandHandler<ReactivateUserRequest> reactivateUserHandler) : ControllerBase
 {
     /// <summary>
     /// Creates a new user and generates temporary login credentials.
@@ -77,5 +79,35 @@ public sealed class AdminController(
         return NoContent();
     }
 
-    // TODO Activate and Deactive a user.
+    /// <summary>
+    /// Deactivates a clan member.
+    /// </summary>
+    [HttpPost("{id:long}/deactivate")]
+    public async Task<IActionResult> DeactivateUser(ulong id, CancellationToken cancellationToken)
+    {
+        var request = new DeactivateUserRequest(User.GetUserId(), id);
+
+        var result = await deactivateUserHandler.Handle(request, cancellationToken);
+
+        if (!result.Success)
+            return BadRequest(result.Error);
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Reactivates a previously deactivated clan member.
+    /// </summary>
+    [HttpPost("{id:long}/reactivate")]
+    public async Task<IActionResult> ReactivateUser(ulong id, CancellationToken cancellationToken)
+    {
+        var request = new ReactivateUserRequest(User.GetUserId(), id);
+
+        var result = await reactivateUserHandler.Handle(request, cancellationToken);
+
+        if (!result.Success)
+            return BadRequest(result.Error);
+
+        return NoContent();
+    }
 }

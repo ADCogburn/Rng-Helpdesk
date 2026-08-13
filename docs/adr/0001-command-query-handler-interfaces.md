@@ -15,4 +15,4 @@ Operations handlers were plain concrete classes with no abstraction behind them,
 ## Consequences
 
 - Every live Operations handler and its Api controller call site changes signature (adds `CancellationToken`, wraps currently-sync bodies in `Task.FromResult`).
-- `DeactivateUserHandler` and `ReactivateUserHandler` remain empty/unimplemented and are excluded from this change until a separate issue fills them in.
+- `DeactivateUserHandler` and `ReactivateUserHandler` were implemented against `ICommandHandler<TRequest>` in #76, resolving the carve-out above.

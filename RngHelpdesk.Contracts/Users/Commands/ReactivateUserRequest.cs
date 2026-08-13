@@ -1,6 +1,5 @@
-﻿namespace RngHelpdesk.Contracts.Users.Commands;
+namespace RngHelpdesk.Contracts.Users.Commands;
 
-public sealed class ReactivateUserRequest
-{
-    public int UserId { get; init; }
-}
+public sealed record ReactivateUserRequest(
+    ulong ActingUserId,
+    ulong UserId);

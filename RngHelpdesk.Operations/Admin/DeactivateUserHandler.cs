@@ -1,31 +1,26 @@
-﻿namespace RngHelpdesk.Operations.Admin;
+using RngHelpdesk.Contracts.Common;
+using RngHelpdesk.Contracts.Users.Commands;
+using RngHelpdesk.Infrastructure.Common;
+using RngHelpdesk.Infrastructure.Users;
+using RngHelpdesk.Operations.Common;
 
-public sealed class DeactivateUserHandler
+namespace RngHelpdesk.Operations.Admin;
+
+public sealed class DeactivateUserHandler(
+    IUserRepository userRepository,
+    IEventDispatcher eventDispatcher) : ICommandHandler<DeactivateUserRequest>
 {
-    //private readonly IUserRepository _userRepository;
-    //private readonly IEventDispatcher _eventDispatcher;
+    public async Task<CommandResult> Handle(DeactivateUserRequest request, CancellationToken cancellationToken = default)
+    {
+        return await CommandHandler.ExecuteAsync(async () =>
+        {
+            var user = await userRepository.GetByIdAsync(request.UserId, cancellationToken);
 
-    //public DeactivateUserHandler(
-    //    IUserRepository userRepository,
-    //    IEventDispatcher eventDispatcher)
-    //{
-    //    _userRepository = userRepository;
-    //    _eventDispatcher = eventDispatcher;
-    //}
+            user.Deactivate(request.ActingUserId);
 
-    //public CommandResult Handle(
-    //    IRequestContext context,
-    //    DeactivateUserRequest request)
-    //{
-    //    AuthorizationRules.RequireAdminRole(context);
+            var events = await userRepository.SaveAsync(user, cancellationToken);
 
-    //    var user = _userRepository.GetById(request.UserId);
-
-    //    user.Deactivate();
-
-    //    var events = _userRepository.Save(user);
-    //    _eventDispatcher.Dispatch(events);
-
-    //    return CommandResult.Ok();
-    //}
+            eventDispatcher.Dispatch(events);
+        });
+    }
 }
