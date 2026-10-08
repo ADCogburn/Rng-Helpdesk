@@ -13,6 +13,7 @@ using RngHelpdesk.Contracts.Common.Ranks.Commands;
 using RngHelpdesk.Contracts.Common.Ranks.Queries;
 using RngHelpdesk.Contracts.Points.Commands;
 using RngHelpdesk.Contracts.Points.Queries;
+using RngHelpdesk.Contracts.Public;
 using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Commands;
 using RngHelpdesk.Contracts.Users.Queries;
@@ -28,6 +29,7 @@ using RngHelpdesk.Infrastructure.Users.RunescapeAccount;
 using RngHelpdesk.Operations.Admin;
 using RngHelpdesk.Operations.Common;
 using RngHelpdesk.Operations.Points;
+using RngHelpdesk.Operations.Public;
 using RngHelpdesk.Operations.Services;
 using RngHelpdesk.Operations.Users;
 using RngHelpdesk.Operations.Users.RunescapeAccounts;
@@ -184,6 +186,10 @@ builder.Services.AddScoped<IQueryHandler<GetPointHistoryForUserQuery, GetPointHi
 
 builder.Services.AddScoped<IQueryHandler<GetRankThresholdsQuery, GetRankThresholdsResponse>, GetRankThresholdsHandler>();
 builder.Services.AddScoped<ICommandHandler<UpdateRankThresholdCommand>, UpdateRankThresholdHandler>();
+
+builder.Services.AddScoped<IQueryHandler<GetPublicOverviewQuery, GetPublicOverviewResponse>, GetPublicOverviewHandler>();
+builder.Services.AddScoped<IQueryHandler<GetPublicRanksQuery, GetPublicRanksResponse>, GetPublicRanksHandler>();
+builder.Services.AddScoped<IQueryHandler<GetPublicLeaderboardQuery, GetPublicLeaderboardResponse>, GetPublicLeaderboardHandler>();
 
 // -- Repositories --
 
