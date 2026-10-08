@@ -143,6 +143,34 @@ Library: **Discord.Net** (already referenced, 3.17.0 — bump to the latest 3.x 
 slash commands don't need message content or members). JSON on the bot side:
 `JsonSerializerDefaults.Web` + `JsonStringEnumConverter` + the ulong converter.
 
+**Formatting contract** (fixed so K2 and the module tasks can run in parallel; all `public static`,
+namespace `RngHelpdesk.DiscordBot.Formatting`, DTOs from `Api/Models/Models.cs`):
+
+```csharp
+// RankStyle.cs
+Color  RankStyle.ColorFor(Rank rank);
+string RankStyle.EmojiFor(Rank rank);                       // a unicode emoji per rank, crown for role-based
+bool   RankStyle.IsPointBased(Rank rank);                   // Bronze..Zenyte
+RankProgress RankStyle.Progress(long clanPoints, IReadOnlyList<RankThresholdDto> thresholds);
+string RankStyle.ProgressBar(double fraction, int width = 12);   // e.g. "▰▰▰▰▱▱▱▱▱▱▱▱"
+public sealed record RankProgress(Rank? Next, long PointsToNext, double Fraction); // Next null = max rank
+
+// Embeds.cs -- every method returns Discord.Embed
+Embeds.Overview(PublicOverviewResponse overview);
+Embeds.Ladder(IReadOnlyList<RankThresholdDto> thresholds, string title = "Rank ladder");  // /ranks and /thresholds view
+Embeds.Leaderboard(PublicLeaderboardResponse board);
+Embeds.Profile(UserResponse user, IReadOnlyList<RankThresholdDto>? thresholds, string title); // /profile, /member info, /points add|remove result
+Embeds.PointHistory(PointHistoryResponse history, string title, int max = 10);
+Embeds.Lifecycle(UserLifecycleResponse lifecycle, string title);
+Embeds.RunescapeAccounts(RunescapeAccountsResponse current, RunescapeAccountsResponse previous, string title);
+Embeds.RunescapeAccountHistory(RunescapeAccountHistoryResponse history, string title);
+Embeds.MemberCreated(CreateUserResponse created, string discordMention);  // temp password in a spoiler + "shown once" warning
+Embeds.UsersList(IReadOnlyList<UserResponse> users, string title);       // /member find historical fallback
+```
+
+Dates render as Discord timestamps (`<t:unix:D>` / `<t:unix:R>`). Embed limits respected (field value
+≤ 1024 chars, ≤ 25 fields, description ≤ 4096) — truncate with "…and N more".
+
 Testing: modules are thin glue and aren't unit tested. `RngApiClient`/`ApiTokenService` are tested
 with a fake `HttpMessageHandler` (token acquisition + caching + 401 retry, ids round-trip as strings,
 error-status → `ApiException`); `Formatting` and `ErrorReplies` are tested as pure functions.
