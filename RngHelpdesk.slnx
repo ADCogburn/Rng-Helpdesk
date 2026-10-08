@@ -5,6 +5,7 @@
   </Folder>
   <Folder Name="/Applications/">
     <Project Path="RngHelpdesk.DiscordBot/RngHelpdesk.DiscordBot.csproj" Id="f8100c0f-fddc-47b0-a9fb-541d5ccd7735" />
+    <Project Path="RngHelpdesk.DiscordBot.Tests/RngHelpdesk.DiscordBot.Tests.csproj" />
   </Folder>
   <Folder Name="/Core/">
     <Project Path="RngHelpdesk.Contracts/RngHelpdesk.Contracts.csproj" />
