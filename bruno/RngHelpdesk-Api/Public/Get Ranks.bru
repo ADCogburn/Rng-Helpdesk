@@ -1,0 +1,16 @@
+meta {
+  name: Get Ranks
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/public/ranks
+  body: none
+  auth: none
+}
+
+docs {
+  Anonymous point-based rank ladder, ascending by points required. No token
+  needed -- auth is set to none.
+}

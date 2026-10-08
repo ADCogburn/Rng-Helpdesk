@@ -51,14 +51,17 @@ public sealed class User : AggregateRoot
     }
 
     /// <summary>
-    /// Recreates the aggregate User from the events in the EventStore.
+    /// Recreates the aggregate User from its own domain events. streamVersion is the event store's
+    /// real StreamVersion for the underlying stream -- see AggregateRoot.LoadFromHistory for why
+    /// that can't just be inferred by counting events here.
     /// </summary>
     /// <param name="events"></param>
+    /// <param name="streamVersion"></param>
     /// <returns></returns>
-    public static User Rehydrate(IEnumerable<IDomainEvent> events)
+    public static User Rehydrate(IEnumerable<IDomainEvent> events, int streamVersion)
     {
         var user = new User();
-        user.LoadFromHistory(events);
+        user.LoadFromHistory(events, streamVersion);
         return user;
     }
 
@@ -138,7 +141,7 @@ public sealed class User : AggregateRoot
         if (string.IsNullOrWhiteSpace(reason))
             throw new DomainException("Reason for adding points must be provided.");
 
-        if (_currentClanPoints + points > int.MaxValue)
+        if (points > int.MaxValue - _currentClanPoints)
             throw new DomainException("Cannot add clan points above maximum limit.");
 
         RaiseDomainEvent(ClanPointsChangedEvent.Create(actingUserId: actingUserId, userId: Id, delta: points, reason: reason));

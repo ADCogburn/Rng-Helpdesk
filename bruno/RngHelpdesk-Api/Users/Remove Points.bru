@@ -1,0 +1,18 @@
+meta {
+  name: Remove Points
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/users/{{adminUserId}}/points/remove
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "points": 10,
+    "reason": "Manual Bruno test"
+  }
+}

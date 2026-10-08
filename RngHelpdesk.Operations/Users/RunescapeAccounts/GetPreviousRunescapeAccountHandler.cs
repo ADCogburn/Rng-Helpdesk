@@ -1,14 +1,15 @@
 ﻿using RngHelpdesk.Contracts.Common;
 using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Infrastructure.Users.RunescapeAccount;
+using RngHelpdesk.Operations.Common;
 
 namespace RngHelpdesk.Operations.Users.RunescapeAccounts;
 
-public sealed class GetPreviousRunescapeAccountsHandler(IRunescapeAccountHistoryReadStore runescapeAccountHistoryReadStore)
+public sealed class GetPreviousRunescapeAccountsHandler(IRunescapeAccountHistoryReadStore runescapeAccountHistoryReadStore) : IQueryHandler<GetPreviousRunescapeAccountsQuery, GetRunescapeAccountsResponse>
 {
-    public QueryResult<GetRunescapeAccountsResponse> Handle(ulong userId)
+    public async Task<QueryResult<GetRunescapeAccountsResponse>> Handle(GetPreviousRunescapeAccountsQuery query, CancellationToken cancellationToken = default)
     {
-        var accounts = runescapeAccountHistoryReadStore.GetPreviousRunescapeAccounts(userId);
+        var accounts = await runescapeAccountHistoryReadStore.GetPreviousRunescapeAccountsAsync(query.UserId, cancellationToken);
 
         return QueryResult<GetRunescapeAccountsResponse>.Ok(new GetRunescapeAccountsResponse(
             Accounts: accounts

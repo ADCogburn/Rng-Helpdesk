@@ -1,0 +1,11 @@
+meta {
+  name: Get Runescape Account History
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/users/{{adminUserId}}/runescape-accounts/history
+  body: none
+  auth: inherit
+}

@@ -7,7 +7,8 @@ public sealed class LinkRunescapeAccountRequestValidator : AbstractValidator<Lin
     public LinkRunescapeAccountRequestValidator()
     {
         RuleFor(x => x.Username)
-            .NotEmpty()
+            .Cascade(CascadeMode.Stop)
+            .NotEmpty().WithMessage("Invalid RuneScape username.")
             .Matches("^(?! )[A-Za-z0-9 -]{1,12}(?<! )$") // RuneScape username rules - alphanumeric & no space at end or beginning
             .WithMessage("Invalid RuneScape username.");
     }

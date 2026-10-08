@@ -1,6 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using RngHelpdesk.Contracts.Common.Ranks;
 using RngHelpdesk.Infrastructure.Persistence.Contexts;
-using RngHelpdesk.Contracts.Common.Ranks;
 
 namespace RngHelpdesk.Infrastructure.Persistence.Points;
 
@@ -13,14 +13,14 @@ public sealed class PostgresRankThresholdProvider : IRankThresholdProvider
         _db = db;
     }
 
-    public IReadOnlyList<RankThreshold> GetThresholds()
+    public async Task<IReadOnlyList<RankThreshold>> GetThresholdsAsync(CancellationToken ct = default)
     {
-        return _db.Set<RankThresholdRow>()
+        var rows = await _db.Set<RankThresholdRow>()
             .OrderBy(x => x.SortOrder)
-            .Select(x => new RankThreshold(
-                Enum.Parse<Rank>(x.Rank),
-                x.PointsRequired))
+            .ToListAsync(ct);
+
+        return rows
+            .Select(x => new RankThreshold(Enum.Parse<Rank>(x.Rank), x.PointsRequired))
             .ToList();
     }
 }
-

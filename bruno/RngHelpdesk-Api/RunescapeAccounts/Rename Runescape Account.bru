@@ -1,0 +1,18 @@
+meta {
+  name: Rename Runescape Account
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/users/{{adminUserId}}/runescape-accounts/rename
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "oldUsername": "ExampleRsn",
+    "newUsername": "ExampleRsn2"
+  }
+}

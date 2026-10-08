@@ -1,0 +1,11 @@
+meta {
+  name: Get Point History
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/users/{{adminUserId}}/point-history
+  body: none
+  auth: inherit
+}

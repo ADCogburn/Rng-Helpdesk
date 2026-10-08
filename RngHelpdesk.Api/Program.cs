@@ -1,22 +1,35 @@
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Npgsql;
 using RngHelpdesk.Api.Security;
+using RngHelpdesk.Api.Serialization;
 using RngHelpdesk.Api.Validators.Users;
 using RngHelpdesk.Contracts.Common.Ranks;
+using RngHelpdesk.Contracts.Common.Ranks.Commands;
+using RngHelpdesk.Contracts.Common.Ranks.Queries;
+using RngHelpdesk.Contracts.Points.Commands;
+using RngHelpdesk.Contracts.Points.Queries;
+using RngHelpdesk.Contracts.Public;
 using RngHelpdesk.Contracts.Security;
+using RngHelpdesk.Contracts.Users.Commands;
+using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Domain.Users;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Persistence.EventStore;
 using RngHelpdesk.Infrastructure.Persistence.Points;
+using RngHelpdesk.Infrastructure.Persistence.Projections;
 using RngHelpdesk.Infrastructure.Points;
 using RngHelpdesk.Infrastructure.Security;
 using RngHelpdesk.Infrastructure.Users;
 using RngHelpdesk.Infrastructure.Users.RunescapeAccount;
 using RngHelpdesk.Operations.Admin;
+using RngHelpdesk.Operations.Common;
 using RngHelpdesk.Operations.Points;
+using RngHelpdesk.Operations.Public;
 using RngHelpdesk.Operations.Services;
 using RngHelpdesk.Operations.Users;
 using RngHelpdesk.Operations.Users.RunescapeAccounts;
@@ -32,6 +45,8 @@ builder.Services.AddControllers()
     {
         o.JsonSerializerOptions.Converters.Add(
             new JsonStringEnumConverter());
+        o.JsonSerializerOptions.Converters.Add(
+            new UInt64StringJsonConverter());
     });
 
 builder.Services.AddEndpointsApiExplorer();
@@ -77,12 +92,15 @@ builder.Services
         };
     });
 
+// Empty Cors:AllowedOrigins means no origin is allowed (never AllowAnyOrigin).
+var allowedCorsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("DevCors", policy =>
     {
         policy
-            .WithOrigins("http://localhost:55751")
+            .WithOrigins(allowedCorsOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -111,36 +129,81 @@ builder.Services.AddValidatorsFromAssemblyContaining<LinkRunescapeAccountRequest
 
 // -- Operations Level Handlers --
 
-builder.Services.AddScoped<ChangeUserRoleHandler>();
+builder.Services.AddScoped<ICommandHandler<ChangeUserRoleCommand>, ChangeUserRoleHandler>();
 builder.Services.AddScoped<IUserRoleService, UserRoleService>();
+builder.Services.AddScoped<ICommandHandler<DeactivateUserRequest>, DeactivateUserHandler>();
+builder.Services.AddScoped<ICommandHandler<ReactivateUserRequest>, ReactivateUserHandler>();
 
-builder.Services.AddSingleton<IEventStore, InMemoryEventStore>();
+var connectionString = builder.Configuration.GetConnectionString("RngHelpdeskDB")
+    ?? throw new InvalidOperationException("Missing required connection string 'RngHelpdeskDB'.");
 
-builder.Services.AddSingleton<IRankThresholdProvider, InMemoryRankThresholdProvider>();
-//builder.Services.AddSingleton<IRankThresholdProvider, CachingRankThresholdProvider>();
-builder.Services.AddSingleton<RankResolver>();
+void ConfigureAppDbContext(DbContextOptionsBuilder options) => options.UseNpgsql(connectionString);
 
-builder.Services.AddScoped<GetAllUsersHandler>();
-builder.Services.AddScoped<GetUserHandler>();
-builder.Services.AddScoped<GetUsersHandler>();
-builder.Services.AddScoped<GetUserLifecycleHistoryHandler>();
-builder.Services.AddScoped<CreateUserHandler>();
+builder.Services.AddSingleton(NpgsqlDataSource.Create(connectionString));
+builder.Services.AddDbContext<AppDbContext>(ConfigureAppDbContext);
 
-builder.Services.AddScoped<GetRunescapeAccountHandler>();
-builder.Services.AddScoped<GetPreviousRunescapeAccountsHandler>();
-builder.Services.AddScoped<GetRunescapeAccountHistoryHandler>();
-builder.Services.AddScoped<LinkRunescapeAccountHandler>();
-builder.Services.AddScoped<DelinkRunescapeAccountHandler>();
-builder.Services.AddScoped<RenameRunescapeAccountHandler>();
+builder.Services.AddSingleton<IEventStore, PostgresEventStore>();
 
-builder.Services.AddScoped<AddPointsToUserHandler>();
-builder.Services.AddScoped<RemovePointsFromUserHandler>();
-builder.Services.AddScoped<GetPointHistoryForUserHandler>();
+// Scoped, matching AppDbContext's own (scoped) lifetime -- no captive-dependency mismatch to
+// bridge with a caching wrapper the way the old commented-out CachingRankThresholdProvider did.
+builder.Services.AddScoped<IRankThresholdProvider, PostgresRankThresholdProvider>();
+
+// Write side for rank thresholds (issue #17), kept separate from the read-only provider above --
+// same scoped/AppDbContext lifetime. Note this does NOT refresh the RankResolver singleton below,
+// which is built once from a startup snapshot; an admin edit here won't affect rank resolution
+// until the next restart (see CLAUDE.md's Runtime reality section).
+builder.Services.AddScoped<IRankThresholdRepository, PostgresRankThresholdRepository>();
+
+// RankResolver is a singleton built once at startup from a point-in-time snapshot of
+// thresholds (not re-resolved per request), so it needs its own short-lived AppDbContext here,
+// ahead of the DI container existing to hand out scoped ones.
+var thresholdOptionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
+ConfigureAppDbContext(thresholdOptionsBuilder);
+var thresholdDbContextOptions = thresholdOptionsBuilder.Options;
+
+IReadOnlyList<RankThreshold> rankThresholds;
+await using (var thresholdDbContext = new AppDbContext(thresholdDbContextOptions))
+{
+    rankThresholds = await new PostgresRankThresholdProvider(thresholdDbContext).GetThresholdsAsync();
+}
+
+builder.Services.AddSingleton(new RankResolver(rankThresholds));
+
+builder.Services.AddScoped<IQueryHandler<GetAllUsersQuery, GetAllUsersResponse>, GetAllUsersHandler>();
+builder.Services.AddScoped<IQueryHandler<GetUserByIdQuery, GetUserResponse>, GetUserByIdHandler>();
+builder.Services.AddScoped<IQueryHandler<GetUserByRunescapeUsernameQuery, GetUserResponse>, GetUserByRunescapeUsernameHandler>();
+builder.Services.AddScoped<IQueryHandler<GetUsersByHistoricalRunescapeUsernameQuery, GetUsersResponse>, GetUsersHandler>();
+builder.Services.AddScoped<IQueryHandler<GetUserLifecycleHistoryQuery, GetUserLifecycleHistoryResponse>, GetUserLifecycleHistoryHandler>();
+builder.Services.AddScoped<ICommandHandler<CreateUserRequest, CreateUserResponse>, CreateUserHandler>();
+
+builder.Services.AddScoped<IQueryHandler<GetRunescapeAccountsQuery, GetRunescapeAccountsResponse>, GetRunescapeAccountHandler>();
+builder.Services.AddScoped<IQueryHandler<GetPreviousRunescapeAccountsQuery, GetRunescapeAccountsResponse>, GetPreviousRunescapeAccountsHandler>();
+builder.Services.AddScoped<IQueryHandler<GetRunescapeAccountHistoryQuery, GetRunescapeAccountHistoryResponse>, GetRunescapeAccountHistoryHandler>();
+builder.Services.AddScoped<ICommandHandler<LinkRunescapeAccountRequest>, LinkRunescapeAccountHandler>();
+builder.Services.AddScoped<ICommandHandler<DelinkRunescapeAccountRequest>, DelinkRunescapeAccountHandler>();
+builder.Services.AddScoped<ICommandHandler<RenameRunescapeAccountRequest>, RenameRunescapeAccountHandler>();
+
+builder.Services.AddScoped<ICommandHandler<AddPointsToUserRequest>, AddPointsToUserHandler>();
+builder.Services.AddScoped<ICommandHandler<RemovePointsFromUserRequest>, RemovePointsFromUserHandler>();
+builder.Services.AddScoped<IQueryHandler<GetPointHistoryForUserQuery, GetPointHistoryForUserResponse>, GetPointHistoryForUserHandler>();
+
+builder.Services.AddScoped<IQueryHandler<GetRankThresholdsQuery, GetRankThresholdsResponse>, GetRankThresholdsHandler>();
+builder.Services.AddScoped<ICommandHandler<UpdateRankThresholdCommand>, UpdateRankThresholdHandler>();
+
+builder.Services.AddScoped<IQueryHandler<GetPublicOverviewQuery, GetPublicOverviewResponse>, GetPublicOverviewHandler>();
+builder.Services.AddScoped<IQueryHandler<GetPublicRanksQuery, GetPublicRanksResponse>, GetPublicRanksHandler>();
+builder.Services.AddScoped<IQueryHandler<GetPublicLeaderboardQuery, GetPublicLeaderboardResponse>, GetPublicLeaderboardHandler>();
 
 // -- Repositories --
 
-builder.Services.AddSingleton<IUserRepository, InMemUserRepository>();
-builder.Services.AddSingleton<ICredentialStore, InMemoryCredentialStore>();
+builder.Services.AddSingleton<IUserRepository, PostgresUserRepository>();
+
+// Scoped, matching AppDbContext's own (scoped) lifetime -- same reasoning as
+// IRankThresholdProvider above. Note: the dev-admin seeding block below still casts this to
+// InMemoryCredentialStore and will throw now that it's Postgres-backed; that cast is fixed by
+// issue #49, which also makes this seeding idempotent against a store that persists across
+// restarts.
+builder.Services.AddScoped<ICredentialStore, PostgresCredentialStore>();
 
 //builder.Services.AddHttpClient<RngHelpdesk.Infrastructure.Discord.HttpDiscordUsernameResolver>(client =>
 //{
@@ -171,47 +234,32 @@ builder.Services.AddSingleton<IRunescapeAccountHistoryReadStore>(sp =>
     sp.GetRequiredService<RunescapeAccountHistoryProjection>());
 
 // -- In-memory event dispatcher --
-// Important: dispatcher receives the same singleton projection instances
-// that the read-store interfaces resolve to.
+// Important: dispatcher and ProjectionRunner both receive the exact same singleton
+// projection instances that the read-store interfaces resolve to.
+
+static object[] GetProjectionInstances(IServiceProvider sp) => new object[]
+{
+    sp.GetRequiredService<PointHistoryProjection>(),
+    sp.GetRequiredService<UserSummaryProjection>(),
+    sp.GetRequiredService<UserLifecycleHistoryProjection>(),
+    sp.GetRequiredService<RunescapeAccountHistoryProjection>()
+};
 
 builder.Services.AddSingleton<IEventDispatcher>(sp =>
-{
-    var handlers = new object[]
-    {
-        sp.GetRequiredService<PointHistoryProjection>(),
-        sp.GetRequiredService<UserSummaryProjection>(),
-        sp.GetRequiredService<UserLifecycleHistoryProjection>(),
-        sp.GetRequiredService<RunescapeAccountHistoryProjection>()
-    };
+    new InMemEventDispatcher(GetProjectionInstances(sp)));
 
-    return new InMemEventDispatcher(handlers);
-});
+builder.Services.AddScoped<IProjectionCheckpointStore, PostgresProjectionCheckpointStore>();
 
-// This is only needed when restarting the app and pulling the checkpoints/rebuilding projections from a DB.
-//builder.Services.AddScoped<IProjectionCheckpointStore, PostgresProjectionCheckpointStore>();
-
-//builder.Services.AddScoped<ProjectionRunner>(sp =>
-//{
-//    return new ProjectionRunner(
-//        sp.GetRequiredService<IEventStore>(),
-//        sp.GetRequiredService<EventTypeRegistry>(),
-//        sp.GetRequiredService<IProjectionCheckpointStore>(),
-//        new object[]
-//        {
-//            sp.GetRequiredService<PointHistoryProjection>(),
-//            sp.GetRequiredService<UserSummaryProjection>(),
-//            sp.GetRequiredService<UserLifecycleHistoryProjection>(),
-//            sp.GetRequiredService<RunescapeAccountHistoryProjection>()
-//        });
-//});
+builder.Services.AddScoped<ProjectionRunner>(sp =>
+    new ProjectionRunner(
+        sp.GetRequiredService<IEventStore>(),
+        sp.GetRequiredService<EventTypeRegistry>(),
+        sp.GetRequiredService<IProjectionCheckpointStore>(),
+        GetProjectionInstances(sp)));
 
 // Register the mapped Domain Events -> String names for permanent linkage, even if the classes change over time.
 var registry = EventStoreRegistration.CreateRegistry();
 builder.Services.AddSingleton(registry);
-
-//builder.Services.AddSingleton(NpgsqlDataSource.Create(builder.Configuration.GetConnectionString("RngHelpdeskDB")));
-
-//builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("RngHelpdeskDB")));
 
 // TEMP: Seed in-mem data for debugging
 //var userRepo = app.Services
@@ -260,13 +308,16 @@ builder.Services.AddSingleton(registry);
 
 // --- END TEMP ---
 
-//using (var scope = app.Services.CreateScope())
-//{
-//    var runner = scope.ServiceProvider.GetRequiredService<ProjectionRunner>();
-//    await runner.RunAsync();
-//}
-
 var app = builder.Build();
+
+// Rebuild the in-memory projections from Postgres event history before serving any requests --
+// each projection replays from its own last checkpoint (or from 0 if its dictionary came up
+// empty, e.g. after a restart).
+using (var scope = app.Services.CreateScope())
+{
+    var runner = scope.ServiceProvider.GetRequiredService<ProjectionRunner>();
+    await runner.RunAsync();
+}
 
 if (app.Environment.IsDevelopment())
 {
@@ -275,10 +326,10 @@ if (app.Environment.IsDevelopment())
 
     using var scope = app.Services.CreateScope();
 
-    var userRepo = (InMemUserRepository)scope.ServiceProvider
+    var userRepo = scope.ServiceProvider
         .GetRequiredService<IUserRepository>();
 
-    var credentialStore = (InMemoryCredentialStore)scope.ServiceProvider
+    var credentialStore = scope.ServiceProvider
         .GetRequiredService<ICredentialStore>();
 
     var dispatcher = scope.ServiceProvider
@@ -289,28 +340,33 @@ if (app.Environment.IsDevelopment())
 
     const ulong adminId = 123456789012345678UL;
 
-    var user = User.Create(
-        actingUserId: adminId,
-        discordAccount: new DiscordAccount(
-            adminId,
-            "admin"),
-        runescapeAccounts: []);
+    // The event store (Postgres) persists across restarts, unlike the in-mem credential
+    // store below, so only seed the aggregate/role once rather than on every startup.
+    if (!await userRepo.ExistsAsync(adminId))
+    {
+        var user = User.Create(
+            actingUserId: adminId,
+            discordAccount: new DiscordAccount(
+                adminId,
+                "admin"),
+            runescapeAccounts: []);
 
-    var events = userRepo.Save(user);
-    dispatcher.Dispatch(events);
+        var events = await userRepo.SaveAsync(user);
+        dispatcher.Dispatch(events);
 
-    credentialStore.SeedCredentials(
+        var roleEvents = await roleService.ChangeRoleAsync(
+            actingUserId: adminId,
+            userId: adminId,
+            oldRole: AppRole.Member,
+            newRole: AppRole.Owner);
+
+        dispatcher.Dispatch(roleEvents);
+    }
+
+    await credentialStore.SeedCredentialsAsync(
         userId: adminId,
         username: "admin",
         password: "password");
-
-    var roleEvents = await roleService.ChangeRoleAsync(
-        actingUserId: adminId,
-        userId: adminId,
-        oldRole: AppRole.Member,
-        newRole: AppRole.Owner);
-
-    dispatcher.Dispatch(roleEvents);
 }
 
 app.UseHttpsRedirection();

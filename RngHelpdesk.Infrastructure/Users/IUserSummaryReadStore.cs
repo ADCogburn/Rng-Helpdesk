@@ -5,7 +5,7 @@
 /// </summary>
 public interface IUserSummaryReadStore
 {
-    bool TryGetById(ulong userId, out UserSummaryReadModel? user);
-    bool TryGetByRunescapeUsername(string rsn, out UserSummaryReadModel? user);
-    IReadOnlyCollection<UserSummaryReadModel> GetAll();
+    Task<UserSummaryReadModel?> GetByIdAsync(ulong userId, CancellationToken ct = default);
+    Task<UserSummaryReadModel?> GetByRunescapeUsernameAsync(string rsn, CancellationToken ct = default);
+    Task<IReadOnlyCollection<UserSummaryReadModel>> GetAllAsync(CancellationToken ct = default);
 }

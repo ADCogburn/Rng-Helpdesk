@@ -1,0 +1,36 @@
+meta {
+  name: Create User
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/admin/create
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "discordAccount": {
+      "discordId": "222222222",
+      "username": "ExampleDiscordUser"
+    },
+    "runescapeAccounts": []
+  }
+}
+
+docs {
+  Returns temporary login credentials for the new user (see
+  ICredentialStore.CreateTemporaryCredentialsAsync) -- copy them from the
+  response if you want to log in as this user separately.
+
+  The new user's id equals discordId (UserCreatedEvent sets UserId =
+  discordAccount.DiscordId), which is why Promote/Demote User default their
+  target to 222222222 -- run this request first and those two work as-is.
+
+  Real Discord snowflakes exceed 2^53, so ulong ids are sent and returned as
+  JSON strings API-wide (UInt64StringJsonConverter). Keep discordId quoted --
+  a bare number is still accepted for backwards compat, but loses precision if
+  anything round-trips it through a JS number.
+}

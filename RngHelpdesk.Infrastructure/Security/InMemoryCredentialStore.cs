@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-
 namespace RngHelpdesk.Infrastructure.Security;
 
 public sealed class InMemoryCredentialStore : ICredentialStore
@@ -7,12 +5,13 @@ public sealed class InMemoryCredentialStore : ICredentialStore
     private readonly Dictionary<string, ulong> _usernameIndex = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<ulong, CredentialRecord> _credentials = new();
 
-    public (string Username, string TemporaryPassword) CreateTemporaryCredentials(
+    public Task<(string Username, string TemporaryPassword)> CreateTemporaryCredentialsAsync(
         ulong userId,
-        string preferredUsername)
+        string preferredUsername,
+        CancellationToken ct = default)
     {
         var username = GenerateUniqueUsername(preferredUsername);
-        var password = GenerateTemporaryPassword();
+        var password = CredentialGenerator.GenerateTemporaryPassword();
 
         _credentials[userId] = new CredentialRecord(
             UserId: userId,
@@ -22,13 +21,14 @@ public sealed class InMemoryCredentialStore : ICredentialStore
 
         _usernameIndex[username] = userId;
 
-        return (username, password);
+        return Task.FromResult((username, password));
     }
 
-    public void SeedCredentials(
+    public Task SeedCredentialsAsync(
         ulong userId,
         string username,
-        string password)
+        string password,
+        CancellationToken ct = default)
     {
         _credentials[userId] = new CredentialRecord(
             UserId: userId,
@@ -37,30 +37,34 @@ public sealed class InMemoryCredentialStore : ICredentialStore
             MustChangePassword: false);
 
         _usernameIndex[username] = userId;
+
+        return Task.CompletedTask;
     }
 
-    public AuthenticatedUser? ValidateCredentials(
+    public Task<AuthenticatedUser?> ValidateCredentialsAsync(
         string username,
-        string password)
+        string password,
+        CancellationToken ct = default)
     {
         if (!_usernameIndex.TryGetValue(username, out var userId))
-            return null;
+            return Task.FromResult<AuthenticatedUser?>(null);
 
         if (!_credentials.TryGetValue(userId, out var user))
-            return null;
+            return Task.FromResult<AuthenticatedUser?>(null);
 
         if (!BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
-            return null;
+            return Task.FromResult<AuthenticatedUser?>(null);
 
-        return new AuthenticatedUser(
+        return Task.FromResult<AuthenticatedUser?>(new AuthenticatedUser(
             UserId: user.UserId,
             Username: user.Username,
-            MustChangePassword: user.MustChangePassword);
+            MustChangePassword: user.MustChangePassword));
     }
 
-    public void ChangePassword(
+    public Task ChangePasswordAsync(
         ulong userId,
-        string newPassword)
+        string newPassword,
+        CancellationToken ct = default)
     {
         if (!_credentials.TryGetValue(userId, out var user))
             throw new InvalidOperationException("User not found.");
@@ -70,19 +74,13 @@ public sealed class InMemoryCredentialStore : ICredentialStore
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword),
             MustChangePassword = false
         };
-    }
 
-    private static string GenerateTemporaryPassword() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(12));
+        return Task.CompletedTask;
+    }
 
     private string GenerateUniqueUsername(string preferredUsername)
     {
-        if (string.IsNullOrWhiteSpace(preferredUsername))
-            preferredUsername = $"user{Random.Shared.Next(1000, 9999)}";
-
-        preferredUsername = preferredUsername
-            .Trim()
-            .Replace(" ", "")
-            .ToLowerInvariant();
+        preferredUsername = CredentialGenerator.NormalizeUsername(preferredUsername);
 
         if (!_usernameIndex.ContainsKey(preferredUsername))
             return preferredUsername;

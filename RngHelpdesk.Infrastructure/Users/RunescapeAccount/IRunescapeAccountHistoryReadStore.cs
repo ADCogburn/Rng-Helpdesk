@@ -4,7 +4,7 @@ namespace RngHelpdesk.Infrastructure.Users.RunescapeAccount;
 
 public interface IRunescapeAccountHistoryReadStore
 {
-    IReadOnlyList<RunescapeAccountHistoryItem> GetHistory(ulong userId);
-    IReadOnlyList<RunescapeAccountView> GetPreviousRunescapeAccounts(ulong userId);
-    bool TryGetUserIdsByHistoricalRunescapeUsername(string username, out IReadOnlyCollection<ulong> userIds); // in case more than 1 user has had an RSN before
+    Task<IReadOnlyList<RunescapeAccountHistoryItem>> GetHistoryAsync(ulong userId, CancellationToken ct = default);
+    Task<IReadOnlyList<RunescapeAccountView>> GetPreviousRunescapeAccountsAsync(ulong userId, CancellationToken ct = default);
+    Task<IReadOnlyCollection<ulong>?> GetUserIdsByHistoricalRunescapeUsernameAsync(string username, CancellationToken ct = default); // in case more than 1 user has had an RSN before
 }

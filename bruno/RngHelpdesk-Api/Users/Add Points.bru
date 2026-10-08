@@ -1,0 +1,18 @@
+meta {
+  name: Add Points
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/users/{{adminUserId}}/points/add
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "points": 10,
+    "reason": "Manual Bruno test"
+  }
+}

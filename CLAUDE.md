@@ -1,0 +1,371 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this is
+
+RngHelpdesk is a backend for tracking a Runescape clan's Discord members, their linked
+Runescape accounts, and a clan-points/rank system. It's a .NET 10 solution using event
+sourcing + CQRS, plus a Discord bot microservice for resolving Discord usernames. The
+backend that actually runs is `RngHelpdesk.Api` (tested via Swagger/Bruno and the test projects
+below); `web/` is a React frontend (landing page, login, member and admin UI — see "Frontend
+status") that talks to it.
+
+## Commands
+
+```powershell
+dotnet build RngHelpdesk.slnx                # build everything
+dotnet test RngHelpdesk.slnx                 # run all tests
+dotnet run --project RngHelpdesk.Api         # run the API (Swagger UI at /swagger in Development)
+dotnet run --project RngHelpdesk.DiscordBot  # run the Discord bot (needs Discord:BotToken config)
+```
+
+`RngHelpdesk.Api` needs a reachable Postgres to start — this applies in `Development` too, not
+just Staging/Production (per ADR-0003). The real `ConnectionStrings:RngHelpdeskDB` value lives in
+`dotnet user-secrets`, not `appsettings.Development.json` (moved out since that file previously
+committed a real Postgres password in plaintext) — but `appsettings.json` (the base, committed
+file) still has a stale placeholder fallback (`Host=localhost;Database=rnghelpdesk;
+Username=postgres;Password=;`), so a missing user-secret does *not* fail fast with a clean "missing
+connection string" error. Instead, `PostgresRankThresholdProvider.GetThresholdsAsync`, called
+eagerly at startup before `builder.Build()` (`Program.cs`), throws whatever Npgsql/Postgres error
+that stale fallback produces on your machine — e.g. a SASL/password error if something happens to
+be listening on `localhost:5432`, or a connection-refused otherwise. One-time local setup:
+
+```powershell
+podman compose up -d                         # or `docker compose up -d` -- starts local Postgres from the root docker-compose.yml
+dotnet user-secrets set ConnectionStrings:RngHelpdeskDB `
+  "Host=localhost;Database=rnghelpdesk_dev;Username=rnghelpdesk_app;Password=rnghelpdesk_dev_password" `
+  --project RngHelpdesk.Api
+dotnet ef database update --project RngHelpdesk.Infrastructure --startup-project RngHelpdesk.Api `
+  --connection "Host=localhost;Database=rnghelpdesk_dev;Username=rnghelpdesk_app;Password=rnghelpdesk_dev_password"
+```
+
+That last command applies `InitAppSchema` to `rnghelpdesk_dev`. It's a one-time step — nothing in
+`Program.cs` calls `Database.Migrate()` at runtime (see "Runtime reality" below), so a freshly
+created database stays schema-less until you run this yourself, and every table read at startup
+(e.g. `PostgresRankThresholdProvider.GetThresholdsAsync`, called before `builder.Build()`) throws
+`42P01: relation "..." does not exist` if you skip it. The `--connection` override is required:
+`AppDbContextFactory` (`Infrastructure/Persistence/Contexts/`, the `IDesignTimeDbContextFactory`
+the `dotnet ef` CLI uses) is hardcoded to a passwordless `rnghelpdesk_design` placeholder database
+for scaffolding new migrations without needing real credentials on hand — it was never meant to be
+the target for `database update` against your actual dev data.
+
+That Postgres instance is persistent local dev state (a named volume, `rnghelpdesk-postgres-data`)
+— distinct from the ephemeral, per-test-run Postgres container `RngHelpdesk.Infrastructure.Tests`
+spins up via Testcontainers, described below. Don't conflate the two.
+
+If the app fails to reach Postgres on `localhost:5432` in a way that looks like it's hitting the
+wrong server entirely (auth failures against a password you're sure is right, or a database/schema
+that shouldn't be missing), check for a second, unrelated Postgres already bound to port 5432 on
+the host — e.g. a native Windows PostgreSQL service (`Get-Service *postgres*`) installed outside
+this repo. On Windows the native process wins that port for host-originated connections even
+though `podman ps` still shows the container's own `0.0.0.0:5432->5432/tcp` mapping, so
+`dotnet run` silently talks to the wrong Postgres instance. Also, after a `podman machine stop`/
+`start` cycle, port-forwarding for already-published containers doesn't come back on its own —
+`podman start <container>` (not just the machine) after the machine's back up.
+
+**VS Code debugging**: `.vscode/launch.json` + `.vscode/tasks.json` (checked in) give an
+"RngHelpdesk.Api" debug config that builds and launches via the `http` profile in
+`RngHelpdesk.Api/Properties/launchsettings.json` (note: lowercase filename on disk, unlike the
+usual `launchSettings.json` casing — `launch.json` points at it explicitly via
+`launchSettingsFilePath` rather than relying on the C# extension's default-casing lookup). That
+profile binds fixed ports — `http://localhost:5080` and `https://localhost:5081` — so a debug
+session's URL doesn't change between runs. `UseHttpsRedirection()` is unconditional in
+`Program.cs`, so hitting the https port avoids an extra redirect hop; the first time, trust the
+local dev cert with `dotnet dev-certs https --trust`. Press F5 with the "RngHelpdesk.Api"
+configuration selected.
+
+**Manual testing with Bruno**: a checked-in collection lives at `bruno/RngHelpdesk-Api/`, one
+request per endpoint, organized into folders matching the controllers. Open the collection in
+Bruno, select the `Local` environment (`baseUrl` already points at `https://localhost:5081`), and
+run `Auth/Login` first — it logs in as the `Development`-seeded `admin`/`password` account and a
+post-response script stashes the JWT into the `token` environment variable, which every other
+request sends via a collection-level bearer-auth setting. `Admin/Promote User` and `Admin/Demote
+User` deliberately default their target id away from the seeded admin's own id (see that folder's
+request docs) — demoting yourself locks the seeded account out of every `AdminPlus` endpoint with
+no way back short of editing Postgres directly.
+
+Four test projects exist and are wired into `RngHelpdesk.slnx`: `RngHelpdesk.Domain.Tests`
+(unit tests against the `User` aggregate's behavior methods), `RngHelpdesk.Operations.Tests`
+(command/query handler tests via a shared `OperationsTestFixture`), `RngHelpdesk.Api.Tests` (controller
+tests that manually wire the same in-memory collaborators as `Program.cs` and construct
+controllers directly, rather than booting a full HTTP host via `WebApplicationFactory`), and
+`RngHelpdesk.Infrastructure.Tests` (integration tests against a real Postgres instance spun up
+per test class via `Testcontainers.PostgreSql` — `MigrationFixture` in `MigrationTests.cs` is the
+shared `IClassFixture` other Postgres-backed tests key off; requires Docker, or a Docker-API-compatible
+engine, to run).
+
+`RngHelpdesk.Infrastructure.Tests` doesn't require Docker Desktop specifically — Podman works too
+(confirmed on Windows with Podman Desktop/`podman machine`). Testcontainers talks to whatever
+`DOCKER_HOST` points at, and Podman's Windows named pipe is Docker-API-compatible:
+
+```powershell
+podman machine start                                   # if not already running
+$env:DOCKER_HOST = "npipe://./pipe/podman-machine-default"
+dotnet test RngHelpdesk.Infrastructure.Tests
+```
+
+Note the pipe URI is `npipe://./pipe/...` (two slashes after the scheme), not the four-slash
+`npipe:////./pipe/...` form some Docker Desktop examples use — Docker.DotNet (which Testcontainers
+uses under the hood) rejects the four-slash form with "The endpoint is not a npipe URI."
+
+The frontend in `web/` (see "Frontend status") has its own npm commands, run from that directory:
+
+```powershell
+npm install
+npm run dev      # http://localhost:5173, proxies /api/* to https://localhost:5081
+npm run build    # tsc -b && vite build
+npm run lint
+npm test         # vitest run
+```
+
+It needs the API running for real data (dev login `admin`/`password`).
+
+## Branching model
+
+All feature work branches off `development`, not `master` — PRs target `development`. `master`
+is updated from `development` in periodic batches and reflects what's actually deployed to the
+production environment; don't target it directly for feature/fix PRs.
+
+## Solution layout (dependency direction)
+
+Strict one-directional Clean/Onion layering — inner layers never reference outer ones:
+
+```
+Domain  ←  Contracts  ←  Infrastructure  ←  Operations  ←  Api
+```
+
+- **RngHelpdesk.Domain** — the aggregate (`User`) and domain events. No package dependencies.
+- **RngHelpdesk.Contracts** — commands/queries/views (the CQRS DTOs) and cross-cutting types
+  shared by Operations and Api (ranks, security enums). Depends only on Domain.
+- **RngHelpdesk.Infrastructure** — event store, projections/read-stores, repositories, EF Core
+  `AppDbContext` + migrations, security/credential storage.
+- **RngHelpdesk.Operations** — application-layer command/query handlers that orchestrate
+  Domain + Infrastructure.
+- **RngHelpdesk.Api** — ASP.NET controllers, JWT auth, FluentValidation, and the full DI
+  composition root in `Program.cs`.
+- **web/** — the React frontend (see "Frontend status"). Talks to `RngHelpdesk.Api` over HTTP
+  only; not referenced by any .NET project and not in `RngHelpdesk.slnx`.
+- **RngHelpdesk.DiscordBot** — a fully standalone minimal-API microservice (not referenced by
+  and doesn't reference any other project). Exposes `GET /discord/users/{discordId}` wrapping
+  `Discord.Rest.DiscordRestClient`. The main Api has a `DiscordBot:BaseUrl` config key and
+  commented-out `HttpClient`/resolver wiring intended to call this over HTTP, but that
+  integration isn't currently connected.
+- **RngHelpdesk.Domain.Tests**, **RngHelpdesk.Operations.Tests**, **RngHelpdesk.Api.Tests**,
+  **RngHelpdesk.Infrastructure.Tests** — test projects paired with the layer they exercise. See
+  "Commands" above.
+- **RngHelpdesk.Handlers** — dead/vestigial. No `.csproj`, not in `RngHelpdesk.slnx`, only
+  stale `bin`/`obj` build cache left over. Ignore it.
+
+## Event sourcing / CQRS pattern
+
+- `User` (`RngHelpdesk.Domain/Users/User.cs`) is the only aggregate, extending
+  `AggregateRoot` (`Domain/Common/AggregateRoot.cs`). Behavior methods validate invariants
+  (throwing `DomainException` on violation) then call `RaiseDomainEvent(...)`, which both
+  applies the event to in-memory state (via the aggregate's `Apply` switch) and queues it as
+  uncommitted. `User.Rehydrate(events)` replays a full event stream via `LoadFromHistory` —
+  **there is no snapshotting**, every load replays from the start of the stream.
+- Domain events live in `Domain/Users/Events/*` and `Domain/Points/ClanPointsChangedEvent.cs`.
+  Each has a static `Create(...)` factory (for domain use, stamping `OccurredAt`); most also have
+  a `[JsonConstructor]` ctor for deserializing stored events, but `RunescapeAccountRenamedEvent`
+  and `RunescapeAccountDelinkedEvent` currently omit the `[JsonConstructor]` attribute on their
+  sole constructor — inconsistent with the rest, not intentional.
+- Not everything goes through the aggregate: role changes (`IUserRoleService.ChangeRoleAsync`,
+  used by `ChangeUserRoleHandler`) append an `IApplicationEvent`
+  (`UserAppRoleChangedEvent`, `Infrastructure/Security/`) directly to the event store, bypassing
+  `User` entirely. `IApplicationEvent` vs `IDomainEvent` is the distinction between
+  cross-cutting/administrative events and events that mutate the aggregate's own invariants.
+- **Handlers** (`RngHelpdesk.Operations/**/*Handler.cs`) follow one of two shapes, both fully
+  async:
+  - *Command handlers*: `repository.GetByIdAsync(...)` → aggregate behavior method →
+    `repository.SaveAsync(user)` (returns the new events) → `eventDispatcher.Dispatch(events)`
+    (dispatch itself is still synchronous), all wrapped in `CommandHandler.ExecuteAsync(...)`
+    (Contracts/Common) which turns exceptions into a `CommandResult`/`CommandResult<T>`
+    (`Success`/`Failure`/`NotFound`).
+  - *Query handlers*: read directly from a projection's read-store interface (e.g.
+    `IUserSummaryReadStore.GetByIdAsync(...)`), map to a Contracts `View`/`Response` record,
+    return `QueryResult<T>`.
+  - `LinkRunescapeAccountHandler` is the only handler doing inline FluentValidation before
+    executing.
+- **Projections** (`RngHelpdesk.Infrastructure/{Users,Points}/*Projection.cs`, plus
+  `Infrastructure/Users/RunescapeAccount/RunescapeAccountHistoryProjection.cs`) are singleton,
+  dictionary-backed read models. Each implements `IProjectionState` (`IsEmpty`, for detecting a
+  restarted/lost in-memory projection) plus `IProjectionHandler<TEvent>` for each event type it
+  cares about. `InMemEventDispatcher` (`Infrastructure/Common/`) uses reflection to route each
+  dispatched event to every registered projection's matching `Project(TEvent)` method — the
+  dispatcher is wired up in `Api/Program.cs` with the exact same singleton instances the
+  read-store interfaces resolve to (comment there calls this out explicitly — don't break that
+  singleton-sharing when adding a new projection).
+- Ranks: `RankResolver` (`Contracts/Common/Ranks/`) takes the resolved `IReadOnlyList<RankThreshold>`
+  directly (not the provider itself) and resolves a user's `Rank` from either an admin-tier
+  `AppRole` override or their total clan points against sorted thresholds. `IRankThresholdProvider`
+  is what supplies those thresholds — it's resolved upstream in `Program.cs` and the result passed
+  into `RankResolver`'s constructor.
+
+## Runtime reality: durable event log, ephemeral read side
+
+`RngHelpdesk.Api/Program.cs` is the DI composition root and is the source of truth for what's
+actually wired up vs. aspirational. As of now:
+
+- **Durable (Postgres-backed) and live**: `PostgresEventStore` (the event log itself) and
+  `PostgresUserRepository` (aggregate persistence/rehydration) — wired live in #44/#45 — plus
+  `PostgresRankThresholdProvider` (`points.rank_thresholds`), wired live in #46, and its write-side
+  counterpart `PostgresRankThresholdRepository` (`IRankThresholdRepository`, also scoped), wired
+  live in #17 behind `RankThresholdsController` (`GET`/`PUT` under `AuthPolicies.AdminPlus`) — the
+  only verbs are "read all" and "update `PointsRequired` for an existing `Rank`", since `Rank` is a
+  fixed enum with one threshold row per point-based rank; there's no create/delete. `AppDbContext`
+  is registered (`AddDbContext` in `Program.cs`), but nothing currently calls `Database.Migrate()`
+  at runtime. `PostgresRankThresholdProvider`/`PostgresRankThresholdRepository` are the only
+  Postgres-backed classes that actually query through `AppDbContext`/EF Core rather than
+  `NpgsqlDataSource`/raw SQL (`PostgresEventStore` and `PostgresUserRepository` still talk to
+  Postgres directly). `IRankThresholdProvider` and `IRankThresholdRepository` are both registered
+  scoped, matching `AppDbContext`'s own scoped lifetime; the old commented-out
+  `CachingRankThresholdProvider` (a singleton-vs-scoped bridge with a manual cache) was dropped as
+  part of #46 rather than revived — with `IRankThresholdProvider` itself registered scoped, there's
+  no lifetime mismatch left to bridge. `RankResolver` still only reads a point-in-time snapshot of
+  thresholds fetched once at startup (via a short-lived `AppDbContext` built ahead of the DI
+  container in `Program.cs`), not the live provider, so a threshold row edited via
+  `RankThresholdsController` (or directly in the database) won't affect rank resolution until the
+  next restart — #17 deliberately left this gap in place rather than fixing it, since the issue's
+  scope was the write path itself, not cache invalidation.
+  `UpdateRankThresholdHandler` (`Operations/Admin/`) enforces monotonic ordering (a rank's
+  threshold must stay strictly between its neighbors') in the handler, using the order
+  `IRankThresholdProvider.GetThresholdsAsync` returns thresholds in (ascending `SortOrder`, which
+  matches ascending `PointsRequired` for every seeded row).
+  `PostgresCredentialStore` (`identity.auth_users`), wired live in #47, is also scoped,
+  matching `AppDbContext`'s lifetime like the two providers above. It's the only Postgres-backed
+  `ICredentialStore` implementation that has ever existed. The `IsDevelopment()` seeding block in
+  `Program.cs` used to cast `ICredentialStore` to the now-removed-from-DI `InMemoryCredentialStore`
+  concrete type (throwing `InvalidCastException` at startup) — fixed in #70 by seeding through the
+  interface instead, since `SeedCredentialsAsync` was already declared there and
+  `PostgresCredentialStore`'s implementation was already an idempotent upsert keyed on `UserId`.
+  #49 remains open for its broader scope (an end-to-end proof that state, including projections,
+  survives a real restart) — #70 only closed the startup-crash gap.
+  `PostgresProjectionCheckpointStore` (`projections.projection_checkpoints`, `IProjectionCheckpointStore`),
+  wired live in #48, is scoped for the same `AppDbContext`-lifetime reason as the providers above,
+  even though its own dependency (`NpgsqlDataSource`) is a singleton — nothing currently requires
+  it to be scoped, that's just the lifetime it shipped with. `ProjectionRunner` (also registered
+  scoped) is resolved from a fresh DI scope once in `Program.cs`, right after `builder.Build()` and
+  before the `IsDevelopment()` seeding block, and `await runner.RunAsync()` replays the full event
+  store into the four in-memory projections (from each projection's last checkpoint, or from 0 if
+  `IProjectionState.IsEmpty` is true) before the app starts accepting requests. Each projection's
+  `Project(TEvent)` invocation is individually try/caught during replay (#48) — a throwing handler
+  in one projection no longer aborts replay for the others queued after it in `ProjectionRunner`'s
+  constructor list, though the checkpoint still advances past the event that caused the throw
+  (no dead-letter/retry queue exists), so a poison event permanently skips that one projection.
+- **Still in-memory, lost on restart**: all four projection read
+  models (`UserSummaryProjection`,
+  `UserLifecycleHistoryProjection`, `RunescapeAccountHistoryProjection`, `PointHistoryProjection`)
+  — plain in-process `Dictionary`s. This is intentional long-term architecture for the
+  projections, not a stopgap: there's no Postgres-backed replacement planned for the dictionaries
+  themselves, only for the checkpoint that tracks each one's replay position (next point), which is
+  now durable (see above). `InMemEventDispatcher` is *also* permanent, despite the naming (tracked
+  in #55) — dispatch is an in-process method call, there's nothing to persist, unlike its `InMem*`
+  siblings above. Note `InMemEventDispatcher` and `ProjectionRunner` are two separate paths into the
+  same projection instances: the dispatcher handles events raised during the current process's live
+  request handling, `ProjectionRunner` handles catch-up replay from the event store at startup.
+- One EF Core migration exists (`Infrastructure/Migrations/20260729040932_InitAppSchema.cs`,
+  schemas: `eventstore`, `projections`, `identity`, `points`).
+- In `Development`, `Program.cs` seeds a hardcoded admin user/credentials in-process at startup
+  (see the block right after `app.Environment.IsDevelopment()`) — the user/role half is guarded
+  by `ExistsAsync` and safe against Postgres persisting across restarts, and the credentials half
+  (`admin`/`password`) now seeds through `ICredentialStore` directly, safe to re-run on every
+  startup since `SeedCredentialsAsync` upserts by `UserId` rather than inserting blindly (see
+  above).
+
+## API layer conventions
+
+- Controllers (`RngHelpdesk.Api/Controllers/`) translate `CommandResult`/`QueryResult` status into
+  `Ok`/`NotFound`/`BadRequest`/`NoContent`. Not perfectly consistent: some actions do this via a
+  `switch` on `ResultStatus` (e.g. `RunescapeAccountsController`, some of `UsersController`);
+  others use an `if (!result.Success)` check instead (e.g. `AdminController`, other `UsersController`
+  query actions). Match the existing style in the controller you're editing.
+- Auth policies (`Security/AuthPolicies.cs`): `AdminPlus` (Administrator/SuperAdministrator/Owner
+  roles), `OwnerOnly`, `DiscordBotOnly` (`client_type` claim). Most controllers apply `AdminPlus`
+  at the class level.
+- `ClaimsPrincipalExtensions.GetUserId()` (`Api/Helpers/`) is the standard way to pull the acting
+  user's ulong ID out of `ClaimTypes.NameIdentifier` in a controller.
+- JWT auth: `AuthController` issues tokens (`auth/login`), `Program.cs` configures
+  `AddJwtBearer` — note `ValidateLifetime = false` is currently set (marked `// dev only` in
+  code, not a mistake to silently "fix").
+  `LoginResponse` carries `MustChangePassword`; `POST auth/change-password` (`[Authorize]`)
+  verifies the current password against the caller's username, then changes it. The login token
+  carries `ClaimTypes.Name` (the credential username) alongside `NameIdentifier` and `Role` —
+  `change-password` reads it from there. The UI still shouldn't decode the token for
+  authorization; it calls `GET auth/me`.
+- `PublicController` (`public/overview`, `public/ranks`, `public/leaderboard`) is
+  `[AllowAnonymous]`, read-only, and exposes only RSN/rank/points aggregates — no ids, no Discord
+  data. See [ADR 0007](docs/adr/0007-ulong-ids-as-json-strings-and-public-read-endpoints.md).
+- Wire format: every `ulong` (user ids, Discord snowflakes) is serialized as a JSON **string** via
+  `UInt64StringJsonConverter` (`Api/Serialization/`, registered in `Program.cs`), because
+  snowflakes exceed JS `Number.MAX_SAFE_INTEGER`. Reads accept strings or numbers. Enums are
+  strings too (`JsonStringEnumConverter`). Tests and Bruno request bodies asserting/sending ids
+  should use strings. Rationale in ADR 0007.
+- `AdminController` also exposes `POST admin/{id}/deactivate` and `POST admin/{id}/reactivate`
+  (#76).
+- CORS: the `DevCors` policy takes its origins from the `Cors:AllowedOrigins` string array. The
+  default in the committed `appsettings.json` is empty (no origin allowed, never
+  `AllowAnyOrigin`); `appsettings.Development.json` is gitignored, so add origins via
+  `dotnet user-secrets` or your local copy if you need a browser to call the API cross-origin
+  (e.g. `http://localhost:5173`) — not needed when going through the Vite proxy.
+- FluentValidation is registered globally (`AddFluentValidationAutoValidation` +
+  `AddValidatorsFromAssemblyContaining<...>`). Validators live under `Validators/`:
+  `Users/LinkRunescapeAccountRequestValidator.cs` and `Auth/ChangePasswordDtoValidator.cs`
+  (new password ≥ 8 chars and different from the current one).
+
+## Contracts naming conventions (not perfectly consistent — match existing style per-folder, don't "fix" globally)
+
+- Commands: mix of `*Request` (mutable classes or records) and `*Command` (records) suffixes.
+- Queries: `*Query` + a paired `*Response`.
+- Read-model DTOs returned to callers: `*View` / `*Item`. `*View` types are `sealed record`
+  (`RunescapeAccountView`, `DiscordAccountView`); `*Item` types are `sealed class`
+  (`PointHistoryItem`, `UserLifecycleHistoryItem`, `RunescapeAccountHistoryItem`) — the suffix
+  tracks the record/class split, it isn't mixed within a suffix.
+- A few files omit their namespace declaration (sit in the global namespace) inconsistently with
+  sibling files in the same folder — this is pre-existing inconsistency, not intentional.
+
+## Frontend status
+
+`web/` is the frontend: React 19 + Vite + TypeScript (strict) + Tailwind CSS v4 + React Router +
+TanStack Query, tested with Vitest + Testing Library. It is a standalone npm project, **not part
+of `RngHelpdesk.slnx`** — `dotnet build`/`dotnet test` never touch it. The old Angular
+`RngHelpdesk.Website/`, the never-buildable `RngHelpdesk.Web/` and the empty earlier `web/`
+scaffold were all removed; nothing else frontend-shaped exists in the repo. Plan and design
+direction live in `docs/ui/PLAN.md`; `web/README.md` has the fuller layout notes.
+
+Layout (`web/src/`): `api/` (typed `fetch` client with base `/api`, bearer token, `ApiError`
+normalization, 401 → clear session and redirect to `/login`; `types.ts` mirrors the API contract
+with ids as `string`; TanStack Query hooks under `api/hooks/`), `auth/` (`AuthProvider`, route
+guards, token kept in `localStorage`), `components/{ui,landing,admin,me}/` (shared primitives, then
+per-area components), `pages/` (lazy route modules), `config/clan.ts` (clan name, tagline,
+Discord invite, copy), `lib/`.
+
+It talks to the API through the Vite dev server's `/api` proxy (`vite.config.ts`: strips `/api`,
+forwards to `https://localhost:5081`, `secure: false`), so no CORS is involved in dev — run the
+API via the VS Code `http` profile first. Public landing page (`/`) reads the anonymous
+`/public/*` endpoints; `/login`, `/account/change-password`, `/me` and the `/admin/*` console
+(`AdminPlus` only: dashboard, members list/detail, add member, rank thresholds) sit behind the
+auth guards. Rank colours are read at runtime via `var(--color-rank-*)`, which is why the theme
+block in `index.css` is `@theme static` — plain `@theme` lets Tailwind v4 drop variables no utility
+class references.
+
+## Maintaining this file
+
+Future sessions trust this file as source of truth — e.g. "Runtime reality" above explicitly
+tells agents to read it before rewriting `Program.cs` wiring, rather than re-deriving what's live
+from scratch. A stale claim here doesn't just go unnoticed, it actively misleads whoever reads it
+next (this happened: the "Runtime reality" section still described `PostgresEventStore` and
+`PostgresUserRepository` as commented-out well after #44/#45 wired them live). If a PR changes
+something this file describes — wires up a class documented here as commented-out, renames or
+removes something referenced here, changes a convention documented here — update the relevant
+section in the same PR instead of leaving it for a future session to rediscover the drift.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues for `ADCogburn/Rng-Helpdesk`, using the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context layout — `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.

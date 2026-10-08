@@ -1,0 +1,17 @@
+meta {
+  name: Get Leaderboard
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/public/leaderboard?top=25
+  body: none
+  auth: none
+}
+
+docs {
+  Anonymous top active members by clan points. `top` is clamped to 1..100 by
+  the API (default 25). Each entry shows the member's first RSN only. No token
+  needed -- auth is set to none.
+}

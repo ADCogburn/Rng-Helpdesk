@@ -81,12 +81,6 @@ public sealed class AppDbContext : DbContext
 
     private static void ConfigureIdentity(ModelBuilder model)
     {
-        model.Entity<ActorUserLinkRow>(e =>
-        {
-            e.ToTable("actor_user_links", "identity");
-            e.HasKey(x => new { x.ActorId, x.ActorType });
-        });
-
         model.Entity<AuthUserRow>(e =>
         {
             e.ToTable("auth_users", "identity");

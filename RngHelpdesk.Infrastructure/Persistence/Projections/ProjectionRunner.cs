@@ -3,7 +3,6 @@ using RngHelpdesk.Infrastructure.Common; // where IProjectionHandler<T> lives
 using RngHelpdesk.Infrastructure.Persistence.EventStore;
 using System.Collections.Concurrent;
 using System.Reflection;
-using System.Text.Json;
 
 namespace RngHelpdesk.Infrastructure.Persistence.Projections;
 
@@ -15,11 +14,6 @@ public sealed class ProjectionRunner
     private readonly IEnumerable<object> _projectionInstances;
 
     private readonly ConcurrentDictionary<Type, List<(object instance, MethodInfo method, string projectionName)>> _dispatchMap = new();
-
-    private static readonly JsonSerializerOptions SerializerOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
 
     public ProjectionRunner(
         IEventStore eventStore,
@@ -63,26 +57,27 @@ public sealed class ProjectionRunner
                 if (!TryGetHandlersFor(projectionName, clrType, out var handlers))
                     continue;
 
-                var domainEvent = DeserializeDomainEvent(stored, clrType);
+                var deserializedEvent = StoredEventDeserializer.Deserialize(stored, clrType);
 
                 foreach (var (instance, method, _) in handlers)
                 {
-                    // Calls projection.Project((TEvent)domainEvent)
-                    method.Invoke(instance, new object[] { domainEvent });
+                    try
+                    {
+                        // Calls projection.Project((TEvent)deserializedEvent)
+                        method.Invoke(instance, new object[] { deserializedEvent });
+                    }
+                    catch (Exception)
+                    {
+                        // Isolate one broken projection handler from the rest of replay -- an
+                        // unhandled throw here would otherwise propagate out of RunAsync and abort
+                        // the outer foreach, so every projection queued after this one in
+                        // _projectionInstances would silently never get replayed at all.
+                    }
                 }
 
                 await _checkpoints.SavePositionAsync(projectionName, stored.GlobalPosition);
             }
         }
-    }
-
-    private IDomainEvent DeserializeDomainEvent(StoredEvent stored, Type clrType)
-    {
-        var obj = JsonSerializer.Deserialize(stored.PayloadJson, clrType, SerializerOptions);
-        if (obj is not IDomainEvent ev)
-            throw new InvalidOperationException($"Deserialized event was not IDomainEvent. EventType={stored.EventType}");
-
-        return ev;
     }
 
     private bool TryGetHandlersFor(string projectionName, Type eventClrType,

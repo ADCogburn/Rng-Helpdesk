@@ -1,0 +1,18 @@
+meta {
+  name: Promote User
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/admin/222222222/promote
+  body: none
+  auth: inherit
+}
+
+docs {
+  Sets the target user's AppRole to Administrator. Replace 222222222 with a
+  real user id (e.g. one returned by Create User) -- deliberately NOT
+  defaulted to {{adminUserId}}, since that account already seeds as Owner
+  and promoting it would downgrade it to Administrator.
+}

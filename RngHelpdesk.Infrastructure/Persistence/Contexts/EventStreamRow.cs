@@ -3,7 +3,7 @@
 internal sealed class EventStreamRow
 {
     public string StreamType { get; set; } = default!;
-    public int StreamId { get; set; }
+    public long StreamId { get; set; }
 
     public int CurrentVersion { get; set; }
 

@@ -17,81 +17,101 @@ public sealed class RunescapeAccountHistoryProjection :
 
     private readonly Dictionary<string, HashSet<ulong>> _historicalUsernameIndex = new(StringComparer.OrdinalIgnoreCase); // Match a given RSN to all Users who have used it before (inclusive to currently using it).
     private readonly Dictionary<ulong, HashSet<string>> _previousUsernames = new(); // Match a given UserId to all RSNs they have ever used before excluding those they are currently using.
+    private readonly object _lock = new();
 
-    public bool IsEmpty => _history.Count == 0;
-
-    public IReadOnlyList<RunescapeAccountView> GetPreviousRunescapeAccounts(ulong userId)
+    public bool IsEmpty
     {
-        return _previousUsernames.TryGetValue(userId, out var accounts)
-            ? accounts.Select(a => new RunescapeAccountView(a)).ToList()
-            : [];
+        get { lock (_lock) { return _history.Count == 0; } }
     }
 
-    public IReadOnlyList<RunescapeAccountHistoryItem> GetHistory(ulong userId)
-    => _history.TryGetValue(userId, out var list)
-        ? list
-        : Array.Empty<RunescapeAccountHistoryItem>();
+    public Task<IReadOnlyList<RunescapeAccountView>> GetPreviousRunescapeAccountsAsync(ulong userId, CancellationToken ct = default)
+    {
+        lock (_lock)
+        {
+            return Task.FromResult<IReadOnlyList<RunescapeAccountView>>(_previousUsernames.TryGetValue(userId, out var accounts)
+                ? accounts.Select(a => new RunescapeAccountView(a)).ToList()
+                : []);
+        }
+    }
 
-    public bool TryGetUserIdsByHistoricalRunescapeUsername(string username, out IReadOnlyCollection<ulong> userIds)
+    public Task<IReadOnlyList<RunescapeAccountHistoryItem>> GetHistoryAsync(ulong userId, CancellationToken ct = default)
+    {
+        lock (_lock)
+        {
+            return Task.FromResult<IReadOnlyList<RunescapeAccountHistoryItem>>(_history.TryGetValue(userId, out var list)
+                ? list.ToList()
+                : Array.Empty<RunescapeAccountHistoryItem>());
+        }
+    }
+
+    public Task<IReadOnlyCollection<ulong>?> GetUserIdsByHistoricalRunescapeUsernameAsync(string username, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(username))
             throw new ArgumentException("Username must be provided.", nameof(username));
 
-        if (!_historicalUsernameIndex.TryGetValue(username, out var foundUserIds))
+        lock (_lock)
         {
-            userIds = Array.Empty<ulong>();
-            return false;
-        }
+            if (!_historicalUsernameIndex.TryGetValue(username, out var foundUserIds))
+                return Task.FromResult<IReadOnlyCollection<ulong>?>(null);
 
-        userIds = foundUserIds.ToList();
-        return true;
+            return Task.FromResult<IReadOnlyCollection<ulong>?>(foundUserIds.ToList());
+        }
     }
 
     #region Projections
 
     public void Project(RunescapeAccountLinkedEvent e)
     {
-        Add(e.UserId, new RunescapeAccountHistoryItem
+        lock (_lock)
         {
-            ChangeType = RunescapeAccountChangeType.Linked,
-            Username = e.Username,
-            OccurredAt = e.OccurredAt
-        });
+            Add(e.UserId, new RunescapeAccountHistoryItem
+            {
+                ChangeType = RunescapeAccountChangeType.Linked,
+                Username = e.Username,
+                OccurredAt = e.OccurredAt
+            });
 
-        RemovePrevious(e.UserId, e.Username);
+            RemovePrevious(e.UserId, e.Username);
 
-        Index(e.Username, e.UserId);
+            Index(e.Username, e.UserId);
+        }
     }
 
     public void Project(RunescapeAccountRenamedEvent e)
     {
-        Add(e.UserId, new RunescapeAccountHistoryItem
+        lock (_lock)
         {
-            ChangeType = RunescapeAccountChangeType.Renamed,
-            OldUsername = e.OldUsername,
-            NewUsername = e.NewUsername,
-            OccurredAt = e.OccurredAt
-        });
+            Add(e.UserId, new RunescapeAccountHistoryItem
+            {
+                ChangeType = RunescapeAccountChangeType.Renamed,
+                OldUsername = e.OldUsername,
+                NewUsername = e.NewUsername,
+                OccurredAt = e.OccurredAt
+            });
 
-        AddPrevious(e.UserId, e.OldUsername);
-        RemovePrevious(e.UserId, e.NewUsername);
+            AddPrevious(e.UserId, e.OldUsername);
+            RemovePrevious(e.UserId, e.NewUsername);
 
-        Index(e.OldUsername, e.UserId);
-        Index(e.NewUsername, e.UserId);
+            Index(e.OldUsername, e.UserId);
+            Index(e.NewUsername, e.UserId);
+        }
     }
 
     public void Project(RunescapeAccountDelinkedEvent e)
     {
-        Add(e.UserId, new RunescapeAccountHistoryItem
+        lock (_lock)
         {
-            ChangeType = RunescapeAccountChangeType.Delinked,
-            Username = e.Username,
-            OccurredAt = e.OccurredAt
-        });
+            Add(e.UserId, new RunescapeAccountHistoryItem
+            {
+                ChangeType = RunescapeAccountChangeType.Delinked,
+                Username = e.Username,
+                OccurredAt = e.OccurredAt
+            });
 
-        AddPrevious(e.UserId, e.Username);
+            AddPrevious(e.UserId, e.Username);
 
-        Index(e.Username, e.UserId);
+            Index(e.Username, e.UserId);
+        }
     }
 
     private void Add(ulong userId, RunescapeAccountHistoryItem item)

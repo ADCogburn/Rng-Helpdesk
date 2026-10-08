@@ -1,23 +1,18 @@
 using RngHelpdesk.Contracts.Common;
 using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Infrastructure.Users;
+using RngHelpdesk.Operations.Common;
 
 namespace RngHelpdesk.Operations.Users;
 
-public sealed class GetAllUsersHandler(IUserSummaryReadStore userSummaryReadStore)
+public sealed class GetAllUsersHandler(IUserSummaryReadStore userSummaryReadStore) : IQueryHandler<GetAllUsersQuery, GetAllUsersResponse>
 {
-    public QueryResult<GetAllUsersResponse> Handle()
+    public async Task<QueryResult<GetAllUsersResponse>> Handle(GetAllUsersQuery query, CancellationToken cancellationToken = default)
     {
-        var users = userSummaryReadStore.GetAll()
-            .Select(u => new GetUserResponse(
-                Id: u.UserId,
-                AppRole: u.AppRole,
-                ClanPoints: u.ClanPoints,
-                Rank: u.Rank,
-                IsActive: u.IsActive,
-                DateCreated: u.DateCreated,
-                DiscordAccount: u.DiscordAccount,
-                RunescapeAccounts: u.RunescapeAccounts.ToList()))
+        var allUsers = await userSummaryReadStore.GetAllAsync(cancellationToken);
+
+        var users = allUsers
+            .Select(GetUserResponseMapper.MapToResponse)
             .ToList();
 
         return QueryResult<GetAllUsersResponse>.Ok(new GetAllUsersResponse

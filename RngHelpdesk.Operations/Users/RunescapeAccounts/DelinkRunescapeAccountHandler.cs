@@ -2,22 +2,23 @@
 using RngHelpdesk.Contracts.Users.Commands;
 using RngHelpdesk.Infrastructure.Common;
 using RngHelpdesk.Infrastructure.Users;
+using RngHelpdesk.Operations.Common;
 
 namespace RngHelpdesk.Operations.Users.RunescapeAccounts;
 
 public sealed class DelinkRunescapeAccountHandler(
     IUserRepository userRepository,
-    IEventDispatcher eventDispatcher)
+    IEventDispatcher eventDispatcher) : ICommandHandler<DelinkRunescapeAccountRequest>
 {
-    public CommandResult Handle(DelinkRunescapeAccountRequest request)
+    public async Task<CommandResult> Handle(DelinkRunescapeAccountRequest request, CancellationToken cancellationToken = default)
     {
-        return CommandHandler.Execute(() =>
+        return await CommandHandler.ExecuteAsync(async () =>
         {
-            var user = userRepository.GetById(request.UserId);
+            var user = await userRepository.GetByIdAsync(request.UserId, cancellationToken);
 
             user.RemoveRunescapeAccount(request.ActingUserId, request.Username);
 
-            var events = userRepository.Save(user);
+            var events = await userRepository.SaveAsync(user, cancellationToken);
 
             eventDispatcher.Dispatch(events);
         });

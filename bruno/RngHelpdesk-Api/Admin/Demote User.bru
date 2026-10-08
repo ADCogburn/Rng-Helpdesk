@@ -1,0 +1,19 @@
+meta {
+  name: Demote User
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/admin/222222222/demote
+  body: none
+  auth: inherit
+}
+
+docs {
+  Sets the target user's AppRole to Member. Replace 222222222 with a real
+  user id. Deliberately NOT defaulted to {{adminUserId}} -- Member isn't in
+  the AdminPlus policy, so demoting the seeded admin would lock that account
+  out of every AdminPlus-guarded endpoint (including this one) with no way
+  back except editing identity.auth_users/the aggregate directly in Postgres.
+}

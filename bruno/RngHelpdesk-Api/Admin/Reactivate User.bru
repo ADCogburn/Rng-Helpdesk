@@ -1,0 +1,17 @@
+meta {
+  name: Reactivate User
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/admin/222222222/reactivate
+  body: none
+  auth: inherit
+}
+
+docs {
+  Reactivates a previously deactivated clan member. Replace 222222222 with a
+  real user id. Deliberately NOT defaulted to {{adminUserId}}, matching Deactivate
+  User. Returns 400 if the user is already active.
+}

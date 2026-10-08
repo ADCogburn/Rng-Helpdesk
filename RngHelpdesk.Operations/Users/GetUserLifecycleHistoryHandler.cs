@@ -1,23 +1,26 @@
 ﻿using RngHelpdesk.Contracts.Common;
 using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Infrastructure.Users;
+using RngHelpdesk.Operations.Common;
 
 namespace RngHelpdesk.Operations.Users;
 
 public sealed class GetUserLifecycleHistoryHandler(
     IUserLifecycleHistoryReadStore userLifecycleHistoryReadStore,
-    IUserSummaryReadStore userSummaryReadStore)
+    IUserSummaryReadStore userSummaryReadStore) : IQueryHandler<GetUserLifecycleHistoryQuery, GetUserLifecycleHistoryResponse>
 {
-    public CommandResult<GetUserLifecycleHistoryResponse> Handle(GetUserLifecycleHistoryQuery query)
+    public async Task<QueryResult<GetUserLifecycleHistoryResponse>> Handle(GetUserLifecycleHistoryQuery query, CancellationToken cancellationToken = default)
     {
-        if (!userSummaryReadStore.TryGetById(query.UserId, out _))
-            return CommandResult<GetUserLifecycleHistoryResponse>.Fail("User not found.");
+        var user = await userSummaryReadStore.GetByIdAsync(query.UserId, cancellationToken);
 
-        return CommandResult<GetUserLifecycleHistoryResponse>.Ok(
+        if (user is null)
+            return QueryResult<GetUserLifecycleHistoryResponse>.Fail("User not found.");
+
+        return QueryResult<GetUserLifecycleHistoryResponse>.Ok(
             new GetUserLifecycleHistoryResponse
             {
                 UserId = query.UserId,
-                History = userLifecycleHistoryReadStore.GetLifecycleHistoryForUserById(query.UserId)
+                History = await userLifecycleHistoryReadStore.GetLifecycleHistoryForUserByIdAsync(query.UserId, cancellationToken)
             });
     }
 }

@@ -5,7 +5,7 @@
 /// </summary>
 public interface IUserLookupReadStore
 {
-    bool ExistsWithDiscordId(ulong discordId);
-    bool ExistsWithDiscordUsername(string username);
-    bool ExistsWithRunescapeUsername(string rsn);
+    Task<bool> ExistsWithDiscordIdAsync(ulong discordId, CancellationToken ct = default);
+    Task<bool> ExistsWithDiscordUsernameAsync(string username, CancellationToken ct = default);
+    Task<bool> ExistsWithRunescapeUsernameAsync(string rsn, CancellationToken ct = default);
 }

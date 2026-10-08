@@ -1,0 +1,26 @@
+meta {
+  name: Update Rank Threshold
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{baseUrl}}/rankthresholds/Bronze
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "pointsRequired": 0
+  }
+}
+
+docs {
+  Rank is one of: Bronze, Iron, Steel, Mithril, Adamant, Rune, Dragon,
+  Sapphire, Emerald, Ruby, Diamond, Dragonstone, Onyx, Zenyte.
+
+  UpdateRankThresholdHandler enforces that a rank's new threshold stays
+  strictly between its neighbors' thresholds (ascending SortOrder) -- picking
+  a value outside that range returns a BadRequest.
+}

@@ -6,11 +6,11 @@
 /// </summary>
 public static class CommandHandler
 {
-    public static CommandResult Execute(Action action)
+    public static async Task<CommandResult> ExecuteAsync(Func<Task> action)
     {
         try
         {
-            action();
+            await action();
             return CommandResult.Ok();
 
         }
@@ -24,11 +24,11 @@ public static class CommandHandler
         }
     }
 
-    public static CommandResult<T> Execute<T>(Func<T> action)
+    public static async Task<CommandResult<T>> ExecuteAsync<T>(Func<Task<T>> action)
     {
         try
         {
-            var value = action();
+            var value = await action();
             return CommandResult<T>.Ok(value);
         }
         catch (Exception ex)

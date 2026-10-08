@@ -4,6 +4,6 @@ namespace RngHelpdesk.Infrastructure.Points;
 
 public interface IPointHistoryReadStore
 {
-    IReadOnlyList<PointHistoryItem> GetPointHistoryForUser(ulong userId);
-    int GetCountForUser(ulong userId);
+    Task<IReadOnlyList<PointHistoryItem>> GetPointHistoryForUserAsync(ulong userId, CancellationToken ct = default);
+    Task<int> GetCountForUserAsync(ulong userId, CancellationToken ct = default);
 }
