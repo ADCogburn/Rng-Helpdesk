@@ -1,13 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
 using RngHelpdesk.Api.DTOs;
+using RngHelpdesk.Api.Security;
 using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Infrastructure.Security;
 using RngHelpdesk.Infrastructure.Users;
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace RngHelpdesk.Api.Controllers;
@@ -17,7 +17,8 @@ namespace RngHelpdesk.Api.Controllers;
 public sealed class AuthController(
     ICredentialStore credentialStore,
     IConfiguration config,
-    IUserSummaryReadStore userSummaryReadStore) : ControllerBase
+    IUserSummaryReadStore userSummaryReadStore,
+    JwtTokenIssuer tokenIssuer) : ControllerBase
 {
     [Authorize]
     [HttpGet("me")]
@@ -67,30 +68,69 @@ public sealed class AuthController(
             new Claim(ClaimTypes.NameIdentifier, authenticatedUser.UserId.ToString()),
             new Claim(ClaimTypes.Name, authenticatedUser.Username),
             new Claim(ClaimTypes.Role, user.AppRole.ToString())
-
-            // Later:
-            // Discord Bot flow should also issue this same normal user JWT after validating the Discord snowflake through a bot-only endpoint.
         };
 
-        var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(config["Jwt:Key"]!)
-        );
-
-        var token = new JwtSecurityToken(
-            issuer: config["Jwt:Issuer"],
-            audience: config["Jwt:Audience"],
-            claims: claims,
-            expires: DateTime.UtcNow.AddHours(8),
-            signingCredentials: new SigningCredentials(
-                key,
-                SecurityAlgorithms.HmacSha256
-            )
-        );
+        var issued = tokenIssuer.Issue(claims, JwtTokenIssuer.LoginLifetime);
 
         return Ok(new LoginResponse
         {
-            Token = new JwtSecurityTokenHandler().WriteToken(token),
+            Token = issued.Token,
             MustChangePassword = authenticatedUser.MustChangePassword
+        });
+    }
+
+    /// <summary>
+    /// Step 1 of the Discord bot flow: trades the shared secret (<c>DiscordBot:ApiKey</c>) for a
+    /// bot-only JWT. Disabled (always 401) while the key is unset/blank.
+    /// </summary>
+    [HttpPost("bot/token")]
+    public IActionResult BotToken([FromBody] BotTokenRequest request)
+    {
+        var configuredKey = config["DiscordBot:ApiKey"];
+
+        if (string.IsNullOrWhiteSpace(configuredKey))
+            return Unauthorized();
+
+        var expected = Encoding.UTF8.GetBytes(configuredKey);
+        var provided = Encoding.UTF8.GetBytes(request.ApiKey ?? string.Empty);
+
+        if (!CryptographicOperations.FixedTimeEquals(expected, provided))
+            return Unauthorized();
+
+        var issued = tokenIssuer.IssueBotToken();
+
+        return Ok(new BotTokenResponse { Token = issued.Token, ExpiresAt = issued.ExpiresAt });
+    }
+
+    /// <summary>
+    /// Step 2 of the Discord bot flow: trades the bot JWT plus a Discord snowflake for a short-lived
+    /// normal user JWT. Deliberately omits <c>ClaimTypes.Name</c> so <c>change-password</c> rejects it.
+    /// </summary>
+    [Authorize(Policy = AuthPolicies.DiscordBotOnly)]
+    [HttpPost("discord")]
+    public async Task<IActionResult> DiscordExchange([FromBody] DiscordExchangeRequest request, CancellationToken cancellationToken)
+    {
+        var user = await userSummaryReadStore.GetByIdAsync(request.DiscordId, cancellationToken);
+
+        if (user is null)
+            return NotFound("No helpdesk user is registered for that Discord id.");
+
+        if (!user.IsActive)
+            return StatusCode(StatusCodes.Status403Forbidden);
+
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
+            new Claim(ClaimTypes.Role, user.AppRole.ToString())
+        };
+
+        var issued = tokenIssuer.Issue(claims, JwtTokenIssuer.DiscordUserTokenLifetime);
+
+        return Ok(new DiscordExchangeResponse
+        {
+            Token = issued.Token,
+            ExpiresAt = issued.ExpiresAt,
+            AppRole = user.AppRole
         });
     }
 

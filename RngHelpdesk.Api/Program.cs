@@ -122,6 +122,8 @@ builder.Services.AddAuthorization(opt =>
         policy.RequireClaim("client_type", "discord_bot"));
 });
 
+builder.Services.AddSingleton<JwtTokenIssuer>();
+
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<LinkRunescapeAccountRequestValidator>();
 

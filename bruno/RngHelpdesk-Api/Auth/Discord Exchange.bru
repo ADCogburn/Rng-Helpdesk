@@ -1,0 +1,28 @@
+meta {
+  name: Discord Exchange
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/auth/discord
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{botToken}}
+}
+
+body:json {
+  {
+    "discordId": "{{adminUserId}}"
+  }
+}
+
+docs {
+  Step 2 of the Discord bot flow. Run Auth/Bot Token first. Sends the bot JWT plus a Discord
+  snowflake (a JSON string) and returns a 15 min normal user JWT for that user (`token`,
+  `expiresAt`, `appRole`). 404 if no user has that id, 403 if the user is deactivated.
+  The returned token has no username claim, so `auth/change-password` rejects it.
+}

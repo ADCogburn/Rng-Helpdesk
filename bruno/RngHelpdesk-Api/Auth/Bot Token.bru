@@ -1,0 +1,30 @@
+meta {
+  name: Bot Token
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/auth/bot/token
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "apiKey": "{{botApiKey}}"
+  }
+}
+
+script:post-response {
+  if (res.body && res.body.token) {
+    bru.setEnvVar("botToken", res.body.token);
+  }
+}
+
+docs {
+  Step 1 of the Discord bot flow. Trades the shared secret (API config `DiscordBot:ApiKey`)
+  for a 1 h bot-only JWT (`client_type=discord_bot`, no identity, no role) and saves it into
+  {{botToken}}. Set `botApiKey` in the Local environment to the same value you put in
+  `dotnet user-secrets`. Always 401 while `DiscordBot:ApiKey` is unset/blank.
+}
