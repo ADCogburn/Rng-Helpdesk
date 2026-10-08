@@ -198,7 +198,7 @@ projects green. Every frontend task: `npm run build`, `npm run lint`, `npm test`
 | B4 | H | todo |
 | B5 | H | todo |
 | F1 | S | done |
-| F2 | S | todo |
+| F2 | S | done |
 | F3 | S | todo |
 | F4 | S | todo |
 | F5 | S | todo |

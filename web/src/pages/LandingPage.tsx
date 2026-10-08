@@ -1,5 +1,25 @@
-import { PlaceholderPage } from '@/components/layout/PlaceholderPage'
+﻿import {
+  AboutSection,
+  Hero,
+  JoinSection,
+  Leaderboard,
+  LandingFooter,
+  LandingNav,
+  RankLadder,
+} from '@/components/landing'
 
 export function Component() {
-  return <PlaceholderPage title="Landing" task="F2" />
+  return (
+    <div className="bg-bg min-h-screen">
+      <LandingNav />
+      <main>
+        <Hero />
+        <AboutSection />
+        <RankLadder />
+        <Leaderboard />
+        <JoinSection />
+      </main>
+      <LandingFooter />
+    </div>
+  )
 }
