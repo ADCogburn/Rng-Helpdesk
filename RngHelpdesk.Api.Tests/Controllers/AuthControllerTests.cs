@@ -109,4 +109,91 @@ public class AuthControllerTests
 
         Assert.IsType<BadRequestObjectResult>(result);
     }
+
+    [Fact]
+    public async Task Login_TemporaryCredentials_ReportsMustChangePassword()
+    {
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var (username, password) = await _fixture.CredentialStore.CreateTemporaryCredentialsAsync(user.Id, "temp-user");
+        var controller = CreateController();
+
+        var result = await controller.Login(new LoginRequest { Username = username, Password = password }, CancellationToken.None);
+
+        var response = Assert.IsType<LoginResponse>(Assert.IsType<OkObjectResult>(result).Value);
+        Assert.True(response.MustChangePassword);
+    }
+
+    [Fact]
+    public async Task Login_SeededCredentials_DoesNotReportMustChangePassword()
+    {
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        await _fixture.CredentialStore.SeedCredentialsAsync(user.Id, "login-user", "correct-password");
+        var controller = CreateController();
+
+        var result = await controller.Login(new LoginRequest { Username = "login-user", Password = "correct-password" }, CancellationToken.None);
+
+        var response = Assert.IsType<LoginResponse>(Assert.IsType<OkObjectResult>(result).Value);
+        Assert.False(response.MustChangePassword);
+    }
+
+    private static void SetActingUser(ControllerBase controller, ulong userId, string? username)
+    {
+        var claims = new List<Claim> { new(ClaimTypes.NameIdentifier, userId.ToString()) };
+        if (username is not null)
+            claims.Add(new Claim(ClaimTypes.Name, username));
+
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(claims, "TestAuth")) }
+        };
+    }
+
+    [Fact]
+    public async Task ChangePassword_CorrectCurrentPassword_ReturnsNoContentAndClearsFlag()
+    {
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var (username, temporaryPassword) = await _fixture.CredentialStore.CreateTemporaryCredentialsAsync(user.Id, "temp-user");
+        var controller = CreateController();
+        SetActingUser(controller, user.Id, username);
+
+        var result = await controller.ChangePassword(
+            new ChangePasswordDto { CurrentPassword = temporaryPassword, NewPassword = "a-new-password" },
+            CancellationToken.None);
+
+        Assert.IsType<NoContentResult>(result);
+        Assert.Null(await _fixture.CredentialStore.ValidateCredentialsAsync(username, temporaryPassword));
+        var after = await _fixture.CredentialStore.ValidateCredentialsAsync(username, "a-new-password");
+        Assert.NotNull(after);
+        Assert.False(after.MustChangePassword);
+    }
+
+    [Fact]
+    public async Task ChangePassword_WrongCurrentPassword_ReturnsBadRequestAndKeepsPassword()
+    {
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        await _fixture.CredentialStore.SeedCredentialsAsync(user.Id, "login-user", "correct-password");
+        var controller = CreateController();
+        SetActingUser(controller, user.Id, "login-user");
+
+        var result = await controller.ChangePassword(
+            new ChangePasswordDto { CurrentPassword = "wrong-password", NewPassword = "a-new-password" },
+            CancellationToken.None);
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.IsType<string>(badRequest.Value);
+        Assert.NotNull(await _fixture.CredentialStore.ValidateCredentialsAsync("login-user", "correct-password"));
+    }
+
+    [Fact]
+    public async Task ChangePassword_MissingUsernameClaim_ReturnsUnauthorized()
+    {
+        var controller = CreateController();
+        SetActingUser(controller, userId: 1, username: null);
+
+        var result = await controller.ChangePassword(
+            new ChangePasswordDto { CurrentPassword = "x", NewPassword = "a-new-password" },
+            CancellationToken.None);
+
+        Assert.IsType<UnauthorizedResult>(result);
+    }
 }

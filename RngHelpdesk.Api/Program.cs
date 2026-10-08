@@ -6,12 +6,14 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Npgsql;
 using RngHelpdesk.Api.Security;
+using RngHelpdesk.Api.Serialization;
 using RngHelpdesk.Api.Validators.Users;
 using RngHelpdesk.Contracts.Common.Ranks;
 using RngHelpdesk.Contracts.Common.Ranks.Commands;
 using RngHelpdesk.Contracts.Common.Ranks.Queries;
 using RngHelpdesk.Contracts.Points.Commands;
 using RngHelpdesk.Contracts.Points.Queries;
+using RngHelpdesk.Contracts.Public;
 using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Commands;
 using RngHelpdesk.Contracts.Users.Queries;
@@ -27,6 +29,7 @@ using RngHelpdesk.Infrastructure.Users.RunescapeAccount;
 using RngHelpdesk.Operations.Admin;
 using RngHelpdesk.Operations.Common;
 using RngHelpdesk.Operations.Points;
+using RngHelpdesk.Operations.Public;
 using RngHelpdesk.Operations.Services;
 using RngHelpdesk.Operations.Users;
 using RngHelpdesk.Operations.Users.RunescapeAccounts;
@@ -42,6 +45,8 @@ builder.Services.AddControllers()
     {
         o.JsonSerializerOptions.Converters.Add(
             new JsonStringEnumConverter());
+        o.JsonSerializerOptions.Converters.Add(
+            new UInt64StringJsonConverter());
     });
 
 builder.Services.AddEndpointsApiExplorer();
@@ -87,12 +92,15 @@ builder.Services
         };
     });
 
+// Empty Cors:AllowedOrigins means no origin is allowed (never AllowAnyOrigin).
+var allowedCorsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("DevCors", policy =>
     {
         policy
-            .WithOrigins("http://localhost:55751")
+            .WithOrigins(allowedCorsOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -181,6 +189,10 @@ builder.Services.AddScoped<IQueryHandler<GetPointHistoryForUserQuery, GetPointHi
 
 builder.Services.AddScoped<IQueryHandler<GetRankThresholdsQuery, GetRankThresholdsResponse>, GetRankThresholdsHandler>();
 builder.Services.AddScoped<ICommandHandler<UpdateRankThresholdCommand>, UpdateRankThresholdHandler>();
+
+builder.Services.AddScoped<IQueryHandler<GetPublicOverviewQuery, GetPublicOverviewResponse>, GetPublicOverviewHandler>();
+builder.Services.AddScoped<IQueryHandler<GetPublicRanksQuery, GetPublicRanksResponse>, GetPublicRanksHandler>();
+builder.Services.AddScoped<IQueryHandler<GetPublicLeaderboardQuery, GetPublicLeaderboardResponse>, GetPublicLeaderboardHandler>();
 
 // -- Repositories --
 

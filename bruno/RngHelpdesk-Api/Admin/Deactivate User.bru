@@ -1,0 +1,18 @@
+meta {
+  name: Deactivate User
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/admin/222222222/deactivate
+  body: none
+  auth: inherit
+}
+
+docs {
+  Deactivates the target clan member. Replace 222222222 with a real user id
+  (e.g. one returned by Create User). Deliberately NOT defaulted to
+  {{adminUserId}} -- the seeded admin should not be deactivated by accident.
+  Returns 400 if the user is already deactivated.
+}

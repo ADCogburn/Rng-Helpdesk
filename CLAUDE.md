@@ -6,9 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 RngHelpdesk is a backend for tracking a Runescape clan's Discord members, their linked
 Runescape accounts, and a clan-points/rank system. It's a .NET 10 solution using event
-sourcing + CQRS, plus a Discord bot microservice for resolving Discord usernames. There is
-currently no working frontend (see "Frontend status" below) — the only thing that actually
-runs today is `RngHelpdesk.Api`, tested via Swagger and covered by the test projects below.
+sourcing + CQRS, plus a Discord bot microservice for resolving Discord usernames. The
+backend that actually runs is `RngHelpdesk.Api` (tested via Swagger/Bruno and the test projects
+below); `web/` is a React frontend (landing page, login, member and admin UI — see "Frontend
+status") that talks to it.
 
 ## Commands
 
@@ -108,8 +109,17 @@ Note the pipe URI is `npipe://./pipe/...` (two slashes after the scheme), not th
 `npipe:////./pipe/...` form some Docker Desktop examples use — Docker.DotNet (which Testcontainers
 uses under the hood) rejects the four-slash form with "The endpoint is not a npipe URI."
 
-`RngHelpdesk.Website` (Angular 17, under `RngHelpdesk.Website/`) is `npm install` + `npm start`
-if you need to poke at it, but see "Frontend status" — it's out of sync with the current API.
+The frontend in `web/` (see "Frontend status") has its own npm commands, run from that directory:
+
+```powershell
+npm install
+npm run dev      # http://localhost:5173, proxies /api/* to https://localhost:5081
+npm run build    # tsc -b && vite build
+npm run lint
+npm test         # vitest run
+```
+
+It needs the API running for real data (dev login `admin`/`password`).
 
 ## Branching model
 
@@ -134,6 +144,8 @@ Domain  ←  Contracts  ←  Infrastructure  ←  Operations  ←  Api
   Domain + Infrastructure.
 - **RngHelpdesk.Api** — ASP.NET controllers, JWT auth, FluentValidation, and the full DI
   composition root in `Program.cs`.
+- **web/** — the React frontend (see "Frontend status"). Talks to `RngHelpdesk.Api` over HTTP
+  only; not referenced by any .NET project and not in `RngHelpdesk.slnx`.
 - **RngHelpdesk.DiscordBot** — a fully standalone minimal-API microservice (not referenced by
   and doesn't reference any other project). Exposes `GET /discord/users/{discordId}` wrapping
   `Discord.Rest.DiscordRestClient`. The main Api has a `DiscordBot:BaseUrl` config key and
@@ -276,9 +288,30 @@ actually wired up vs. aspirational. As of now:
 - JWT auth: `AuthController` issues tokens (`auth/login`), `Program.cs` configures
   `AddJwtBearer` — note `ValidateLifetime = false` is currently set (marked `// dev only` in
   code, not a mistake to silently "fix").
+  `LoginResponse` carries `MustChangePassword`; `POST auth/change-password` (`[Authorize]`)
+  verifies the current password against the caller's username, then changes it. The login token
+  carries `ClaimTypes.Name` (the credential username) alongside `NameIdentifier` and `Role` —
+  `change-password` reads it from there. The UI still shouldn't decode the token for
+  authorization; it calls `GET auth/me`.
+- `PublicController` (`public/overview`, `public/ranks`, `public/leaderboard`) is
+  `[AllowAnonymous]`, read-only, and exposes only RSN/rank/points aggregates — no ids, no Discord
+  data. See [ADR 0007](docs/adr/0007-ulong-ids-as-json-strings-and-public-read-endpoints.md).
+- Wire format: every `ulong` (user ids, Discord snowflakes) is serialized as a JSON **string** via
+  `UInt64StringJsonConverter` (`Api/Serialization/`, registered in `Program.cs`), because
+  snowflakes exceed JS `Number.MAX_SAFE_INTEGER`. Reads accept strings or numbers. Enums are
+  strings too (`JsonStringEnumConverter`). Tests and Bruno request bodies asserting/sending ids
+  should use strings. Rationale in ADR 0007.
+- `AdminController` also exposes `POST admin/{id}/deactivate` and `POST admin/{id}/reactivate`
+  (#76).
+- CORS: the `DevCors` policy takes its origins from the `Cors:AllowedOrigins` string array. The
+  default in the committed `appsettings.json` is empty (no origin allowed, never
+  `AllowAnyOrigin`); `appsettings.Development.json` is gitignored, so add origins via
+  `dotnet user-secrets` or your local copy if you need a browser to call the API cross-origin
+  (e.g. `http://localhost:5173`) — not needed when going through the Vite proxy.
 - FluentValidation is registered globally (`AddFluentValidationAutoValidation` +
-  `AddValidatorsFromAssemblyContaining<...>`) but only one validator actually exists today
-  (`Validators/Users/LinkRunescapeAccountRequestValidator.cs`).
+  `AddValidatorsFromAssemblyContaining<...>`). Validators live under `Validators/`:
+  `Users/LinkRunescapeAccountRequestValidator.cs` and `Auth/ChangePasswordDtoValidator.cs`
+  (new password ≥ 8 chars and different from the current one).
 
 ## Contracts naming conventions (not perfectly consistent — match existing style per-folder, don't "fix" globally)
 
@@ -293,22 +326,28 @@ actually wired up vs. aspirational. As of now:
 
 ## Frontend status
 
-None of the three frontend-adjacent directories are part of `RngHelpdesk.slnx` or currently
-functional:
+`web/` is the frontend: React 19 + Vite + TypeScript (strict) + Tailwind CSS v4 + React Router +
+TanStack Query, tested with Vitest + Testing Library. It is a standalone npm project, **not part
+of `RngHelpdesk.slnx`** — `dotnet build`/`dotnet test` never touch it. The old Angular
+`RngHelpdesk.Website/`, the never-buildable `RngHelpdesk.Web/` and the empty earlier `web/`
+scaffold were all removed; nothing else frontend-shaped exists in the repo. Plan and design
+direction live in `docs/ui/PLAN.md`; `web/README.md` has the fuller layout notes.
 
-- **`RngHelpdesk.Website/`** — git-tracked Angular 17 app, proxies `/api` to the API's HTTPS
-  port (`src/proxy.conf.js`), but its `api.service.ts` calls a hardcoded `localhost:5000` and a
-  `POST /dev/auth/token` endpoint that doesn't exist in the current `AuthController`. Out of
-  sync with the current API — treat as legacy/reference only.
-- **`RngHelpdesk.Web/`** — referenced by `RngHelpdesk.slnLaunch.user` as the intended SPA host
-  project, but `RngHelpdesk.Web.csproj` doesn't exist on disk and the directory is untracked in
-  git. Not currently buildable.
-- **`web/`** — appears to be a newer scaffold attempt but has no `package.json`, no app code, and
-  is untracked in git. Effectively empty.
+Layout (`web/src/`): `api/` (typed `fetch` client with base `/api`, bearer token, `ApiError`
+normalization, 401 → clear session and redirect to `/login`; `types.ts` mirrors the API contract
+with ids as `string`; TanStack Query hooks under `api/hooks/`), `auth/` (`AuthProvider`, route
+guards, token kept in `localStorage`), `components/{ui,landing,admin,me}/` (shared primitives, then
+per-area components), `pages/` (lazy route modules), `config/clan.ts` (clan name, tagline,
+Discord invite, copy), `lib/`.
 
-If asked to build or fix "the frontend," clarify which of these three the user means before
-assuming — none of them is an obvious default, and building on top of any of them may mean
-finishing scaffolding first.
+It talks to the API through the Vite dev server's `/api` proxy (`vite.config.ts`: strips `/api`,
+forwards to `https://localhost:5081`, `secure: false`), so no CORS is involved in dev — run the
+API via the VS Code `http` profile first. Public landing page (`/`) reads the anonymous
+`/public/*` endpoints; `/login`, `/account/change-password`, `/me` and the `/admin/*` console
+(`AdminPlus` only: dashboard, members list/detail, add member, rank thresholds) sit behind the
+auth guards. Rank colours are read at runtime via `var(--color-rank-*)`, which is why the theme
+block in `index.css` is `@theme static` — plain `@theme` lets Tailwind v4 drop variables no utility
+class references.
 
 ## Maintaining this file
 

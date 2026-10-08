@@ -13,7 +13,7 @@ post {
 body:json {
   {
     "discordAccount": {
-      "discordId": 222222222,
+      "discordId": "222222222",
       "username": "ExampleDiscordUser"
     },
     "runescapeAccounts": []
@@ -29,9 +29,8 @@ docs {
   discordAccount.DiscordId), which is why Promote/Demote User default their
   target to 222222222 -- run this request first and those two work as-is.
 
-  Real Discord snowflakes exceed 2^53 and can lose precision if entered
-  through a UI that round-trips the body via JS numbers (e.g. Bruno's visual
-  JSON editor). Edit this body in raw/code mode instead of the tree view to
-  keep the literal digits intact -- the Api has no JsonNumberHandling
-  configured, so a quoted string here would fail to deserialize.
+  Real Discord snowflakes exceed 2^53, so ulong ids are sent and returned as
+  JSON strings API-wide (UInt64StringJsonConverter). Keep discordId quoted --
+  a bare number is still accepted for backwards compat, but loses precision if
+  anything round-trips it through a JS number.
 }

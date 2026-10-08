@@ -10,6 +10,7 @@ using RngHelpdesk.Infrastructure.Users;
 using RngHelpdesk.Infrastructure.Users.RunescapeAccount;
 using RngHelpdesk.Operations.Admin;
 using RngHelpdesk.Operations.Points;
+using RngHelpdesk.Operations.Public;
 using RngHelpdesk.Operations.Services;
 using RngHelpdesk.Operations.Users;
 using RngHelpdesk.Operations.Users.RunescapeAccounts;
@@ -96,6 +97,17 @@ internal sealed class ApiTestFixture
 
     public UpdateRankThresholdHandler CreateUpdateRankThresholdHandler()
         => new(RankThresholdProvider, RankThresholdProvider);
+
+    // -- Public --
+
+    public GetPublicOverviewHandler CreateGetPublicOverviewHandler()
+        => new(UserSummaryProjection, RankThresholdProvider);
+
+    public GetPublicRanksHandler CreateGetPublicRanksHandler()
+        => new(RankThresholdProvider);
+
+    public GetPublicLeaderboardHandler CreateGetPublicLeaderboardHandler()
+        => new(UserSummaryProjection);
 
     // -- Users --
 
