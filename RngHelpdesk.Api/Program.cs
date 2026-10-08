@@ -123,6 +123,8 @@ builder.Services.AddValidatorsFromAssemblyContaining<LinkRunescapeAccountRequest
 
 builder.Services.AddScoped<ICommandHandler<ChangeUserRoleCommand>, ChangeUserRoleHandler>();
 builder.Services.AddScoped<IUserRoleService, UserRoleService>();
+builder.Services.AddScoped<ICommandHandler<DeactivateUserRequest>, DeactivateUserHandler>();
+builder.Services.AddScoped<ICommandHandler<ReactivateUserRequest>, ReactivateUserHandler>();
 
 var connectionString = builder.Configuration.GetConnectionString("RngHelpdeskDB")
     ?? throw new InvalidOperationException("Missing required connection string 'RngHelpdeskDB'.");
