@@ -14,7 +14,9 @@ public class AdminControllerTests
     {
         var controller = new AdminController(
             _fixture.CreateChangeUserRoleHandler(),
-            _fixture.CreateCreateUserHandler());
+            _fixture.CreateCreateUserHandler(),
+            _fixture.CreateDeactivateUserHandler(),
+            _fixture.CreateReactivateUserHandler());
 
         ControllerTestHelpers.SetActingUser(controller, TestUsers.DefaultActingUserId);
         return controller;
@@ -110,6 +112,57 @@ public class AdminControllerTests
         var controller = CreateController();
 
         var result = await controller.DeAdminUser(999, CancellationToken.None);
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal("User not found.", badRequest.Value);
+    }
+
+    [Fact]
+    public async Task DeactivateUser_TargetUserExists_ReturnsNoContentAndMarksInactive()
+    {
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        var controller = CreateController();
+
+        var result = await controller.DeactivateUser(user.Id, CancellationToken.None);
+
+        Assert.IsType<NoContentResult>(result);
+        var summary = await _fixture.UserSummaryProjection.GetByIdAsync(user.Id);
+        Assert.NotNull(summary);
+        Assert.False(summary!.IsActive);
+    }
+
+    [Fact]
+    public async Task DeactivateUser_TargetUserDoesNotExist_ReturnsBadRequestWithHandlerError()
+    {
+        var controller = CreateController();
+
+        var result = await controller.DeactivateUser(999, CancellationToken.None);
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal("User not found.", badRequest.Value);
+    }
+
+    [Fact]
+    public async Task ReactivateUser_TargetUserExists_ReturnsNoContentAndMarksActive()
+    {
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        await CreateController().DeactivateUser(user.Id, CancellationToken.None);
+        var controller = CreateController();
+
+        var result = await controller.ReactivateUser(user.Id, CancellationToken.None);
+
+        Assert.IsType<NoContentResult>(result);
+        var summary = await _fixture.UserSummaryProjection.GetByIdAsync(user.Id);
+        Assert.NotNull(summary);
+        Assert.True(summary!.IsActive);
+    }
+
+    [Fact]
+    public async Task ReactivateUser_TargetUserDoesNotExist_ReturnsBadRequestWithHandlerError()
+    {
+        var controller = CreateController();
+
+        var result = await controller.ReactivateUser(999, CancellationToken.None);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
         Assert.Equal("User not found.", badRequest.Value);

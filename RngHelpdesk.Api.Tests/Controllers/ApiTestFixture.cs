@@ -83,6 +83,12 @@ internal sealed class ApiTestFixture
     public ChangeUserRoleHandler CreateChangeUserRoleHandler()
         => new(UserRoleService, UserSummaryProjection, EventDispatcher);
 
+    public DeactivateUserHandler CreateDeactivateUserHandler()
+        => new(UserRepository, EventDispatcher);
+
+    public ReactivateUserHandler CreateReactivateUserHandler()
+        => new(UserRepository, EventDispatcher);
+
     // -- Ranks --
 
     public GetRankThresholdsHandler CreateGetRankThresholdsHandler()

@@ -15,4 +15,4 @@ Operations handlers were plain concrete classes with no abstraction behind them,
 
 - `GetPointHistoryForUserHandler` and `GetUserLifecycleHistoryHandler` returned `CommandResult<T>` despite being query-shaped, and `GetAllUsersHandler`/`GetPreviousRunescapeAccountHandler`/`GetRunescapeAccountHistoryHandler` took no request object or a raw `ulong` instead of a request record. These 5 handlers were normalized (to `QueryResult<T>` and proper request records respectively) as a prerequisite, so every handler actually implements the interface it's given rather than baking the inconsistency into a brand-new abstraction.
 - Every live Operations handler and its Api controller call site changes signature (adds `CancellationToken`, wraps currently-sync bodies in `Task.FromResult`).
-- `DeactivateUserHandler` and `ReactivateUserHandler` remain empty/unimplemented and are excluded from this change until a separate issue fills them in.
+- `DeactivateUserHandler` and `ReactivateUserHandler` were implemented against `ICommandHandler<TRequest>` in #76, resolving the carve-out above.
