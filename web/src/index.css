@@ -66,7 +66,9 @@
   --color-warning: var(--warning);
 }
 
-@theme {
+/* `static`: emit every variable even if no utility class references it -- rank colours are read
+   at runtime through var(--color-rank-*) (lib/ranks.ts rankColorVar), which Tailwind can't see. */
+@theme static {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-display: 'Cinzel', 'Times New Roman', serif;
 

@@ -82,7 +82,9 @@ export function RankLadder() {
                   fill="currentColor"
                   fillOpacity={0.25}
                 />
-                <h3 className="font-display text-lg font-semibold">{rankLabel(r.rank)}</h3>
+                <h3 className="font-display text-base font-semibold whitespace-nowrap sm:text-lg lg:text-sm lg:tracking-tight">
+                  {rankLabel(r.rank)}
+                </h3>
                 <p className="text-muted mt-1 text-sm tabular-nums">
                   {r.pointsRequired === 0
                     ? 'Starting rank'

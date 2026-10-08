@@ -1,4 +1,4 @@
-﻿import { Search, UserPlus } from 'lucide-react'
+import { Search, UserPlus } from 'lucide-react'
 import { useState, type KeyboardEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { useUsers, useUsersByHistoricalRsn } from '@/api/hooks/users'
@@ -209,7 +209,7 @@ export function Component() {
       <EmptyState
         icon={<Search aria-hidden />}
         title="No matches"
-        description={`Nobody has used â€œ${term}â€ as a current or previous RSN.`}
+        description={`Nobody has used “${term}” as a current or previous RSN.`}
       />
     )
   } else {
