@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using RngHelpdesk.Api.Controllers;
 using RngHelpdesk.Api.DTOs;
 using RngHelpdesk.Api.Security;
+using RngHelpdesk.Contracts.Points.Queries;
 using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Commands;
 using RngHelpdesk.Contracts.Users.Queries;
@@ -23,7 +24,35 @@ public class AuthControllerTests
     private AuthController CreateController(string? botApiKey)
     {
         var config = CreateJwtConfig(botApiKey);
-        return new(_fixture.CredentialStore, config, _fixture.UserSummaryProjection, new JwtTokenIssuer(config));
+        return new(_fixture.CredentialStore, config, _fixture.UserSummaryProjection, new JwtTokenIssuer(config),
+            _fixture.CreateGetPointHistoryForUserHandler());
+    }
+
+    [Fact]
+    public async Task GetMyPointHistory_ClaimMatchesExistingUser_ReturnsOkWithOwnHistory()
+    {
+        var user = await _fixture.CreateAndDispatchUserAsync(TestUsers.DefaultActingUserId, TestUsers.ValidDiscordAccount());
+        user.AddClanPoints(TestUsers.DefaultActingUserId, 50, "Boss kill");
+        _fixture.EventDispatcher.Dispatch(await _fixture.UserRepository.SaveAsync(user));
+        var controller = CreateController();
+        ControllerTestHelpers.SetActingUser(controller, user.Id);
+
+        var result = await controller.GetMyPointHistory(CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<GetPointHistoryForUserResponse>(ok.Value);
+        Assert.Equal(2, response.TotalEventCount);
+    }
+
+    [Fact]
+    public async Task GetMyPointHistory_NoNameIdentifierClaim_ReturnsUnauthorized()
+    {
+        var controller = CreateController();
+        SetAnonymousUser(controller);
+
+        var result = await controller.GetMyPointHistory(CancellationToken.None);
+
+        Assert.IsType<UnauthorizedResult>(result.Result);
     }
 
     private static IConfiguration CreateJwtConfig(string? botApiKey = null) =>

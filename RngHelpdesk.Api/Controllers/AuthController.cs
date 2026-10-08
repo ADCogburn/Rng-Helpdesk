@@ -2,10 +2,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RngHelpdesk.Api.DTOs;
 using RngHelpdesk.Api.Security;
+using RngHelpdesk.Contracts.Common;
+using RngHelpdesk.Contracts.Points.Queries;
 using RngHelpdesk.Contracts.Security;
 using RngHelpdesk.Contracts.Users.Queries;
 using RngHelpdesk.Infrastructure.Security;
 using RngHelpdesk.Infrastructure.Users;
+using RngHelpdesk.Operations.Common;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -18,8 +21,24 @@ public sealed class AuthController(
     ICredentialStore credentialStore,
     IConfiguration config,
     IUserSummaryReadStore userSummaryReadStore,
-    JwtTokenIssuer tokenIssuer) : ControllerBase
+    JwtTokenIssuer tokenIssuer,
+    IQueryHandler<GetPointHistoryForUserQuery, GetPointHistoryForUserResponse> getPointHistoryHandler) : ControllerBase
 {
+    [Authorize]
+    [HttpGet("me/point-history")]
+    public async Task<ActionResult<GetPointHistoryForUserResponse>> GetMyPointHistory(CancellationToken cancellationToken)
+    {
+        if (!ulong.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId))
+            return Unauthorized();
+
+        var result = await getPointHistoryHandler.Handle(new GetPointHistoryForUserQuery { UserId = userId }, cancellationToken);
+
+        if (!result.Success)
+            return NotFound(result.Error);
+
+        return Ok(result.Value);
+    }
+
     [Authorize]
     [HttpGet("me")]
     public async Task<ActionResult<GetUserResponse>> GetCurrentUser(CancellationToken cancellationToken)

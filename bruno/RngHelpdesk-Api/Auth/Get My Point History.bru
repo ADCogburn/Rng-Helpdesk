@@ -1,0 +1,16 @@
+meta {
+  name: Get My Point History
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/auth/me/point-history
+  body: none
+  auth: inherit
+}
+
+docs {
+  Point history for the logged-in user (any role). Run Auth/Login first.
+  401 without a user token (a bot-only token has no NameIdentifier).
+}
