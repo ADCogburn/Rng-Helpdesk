@@ -1,7 +1,6 @@
 using Discord.Interactions;
 using Microsoft.Extensions.Logging;
 using RngHelpdesk.DiscordBot.Api;
-using RngHelpdesk.DiscordBot.Api.Models;
 using RngHelpdesk.DiscordBot.Formatting;
 
 namespace RngHelpdesk.DiscordBot.Interactions;
@@ -15,22 +14,8 @@ public sealed class ProfileModule(RngApiClient api, ILogger<ProfileModule> logge
         await DeferAsync(ephemeral: true);
 
         var user = await api.GetMeAsync(Context.User.Id);
-        var thresholds = await TryGetThresholdsAsync();
+        var thresholds = await RankLadderLookup.TryGetAsync(api, logger);
 
         await ModifyOriginalResponseAsync(m => m.Embed = Embeds.Profile(user, thresholds, "Your profile"));
-    }
-
-    /// <summary>The progress field is nice-to-have; a failed ladder fetch must not fail the whole command.</summary>
-    private async Task<IReadOnlyList<RankThresholdDto>?> TryGetThresholdsAsync()
-    {
-        try
-        {
-            return (await api.GetRanksAsync()).Ranks;
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Could not load rank ladder for /profile; showing profile without progress.");
-            return null;
-        }
     }
 }

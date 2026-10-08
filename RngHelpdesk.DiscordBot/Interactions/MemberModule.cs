@@ -15,8 +15,8 @@ public sealed class MemberModule(RngApiClient api, ILogger<MemberModule> logger)
     {
         await DeferAsync(ephemeral: true);
         var member = await api.GetUserAsync(Context.User.Id, user.Id);
-        var ranks = await api.GetRanksAsync();
-        await FollowupAsync(embed: Embeds.Profile(member, ranks.Ranks, "Member profile"), ephemeral: true);
+        var ranks = await RankLadderLookup.TryGetAsync(api, logger);
+        await FollowupAsync(embed: Embeds.Profile(member, ranks, "Member profile"), ephemeral: true);
     }
 
     [SlashCommand("find", "Find who owns (or previously used) a RuneScape name.")]
@@ -28,8 +28,8 @@ public sealed class MemberModule(RngApiClient api, ILogger<MemberModule> logger)
         try
         {
             var owner = await api.GetUserByRsnAsync(actor, rsn);
-            var ranks = await api.GetRanksAsync();
-            await FollowupAsync(embed: Embeds.Profile(owner, ranks.Ranks, $"Current owner of {rsn}"), ephemeral: true);
+            var ranks = await RankLadderLookup.TryGetAsync(api, logger);
+            await FollowupAsync(embed: Embeds.Profile(owner, ranks, $"Current owner of {rsn}"), ephemeral: true);
             return;
         }
         catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound && ex is not TokenExchangeException)
