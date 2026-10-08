@@ -1,0 +1,16 @@
+meta {
+  name: Get Overview
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/public/overview
+  body: none
+  auth: none
+}
+
+docs {
+  Anonymous clan-wide headline stats for the landing page: active member count,
+  total clan points and members per rank. No token needed -- auth is set to none.
+}
