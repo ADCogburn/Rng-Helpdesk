@@ -13,7 +13,7 @@ const cases: [string, string][] = [
   ['/admin', 'Dashboard'],
   ['/admin/members', 'Members'],
   ['/admin/members/new', 'Add member'],
-  ['/admin/members/123456789012345678', 'Member detail'],
+  ['/admin/members/123456789012345678', 'Member not found'],
   ['/admin/ranks', 'Rank thresholds'],
   ['/nope', 'Page not found'],
 ]
