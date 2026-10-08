@@ -65,6 +65,7 @@ public sealed class AuthController(
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, authenticatedUser.UserId.ToString()),
+            new Claim(ClaimTypes.Name, authenticatedUser.Username),
             new Claim(ClaimTypes.Role, user.AppRole.ToString())
 
             // Later:
@@ -88,7 +89,30 @@ public sealed class AuthController(
 
         return Ok(new LoginResponse
         {
-            Token = new JwtSecurityTokenHandler().WriteToken(token)
+            Token = new JwtSecurityTokenHandler().WriteToken(token),
+            MustChangePassword = authenticatedUser.MustChangePassword
         });
+    }
+
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto request, CancellationToken cancellationToken)
+    {
+        var username = User.FindFirst(ClaimTypes.Name)?.Value;
+
+        if (!ulong.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId) || string.IsNullOrEmpty(username))
+            return Unauthorized();
+
+        var authenticatedUser = await credentialStore.ValidateCredentialsAsync(
+            username,
+            request.CurrentPassword,
+            cancellationToken);
+
+        if (authenticatedUser is null || authenticatedUser.UserId != userId)
+            return BadRequest("Current password is incorrect.");
+
+        await credentialStore.ChangePasswordAsync(userId, request.NewPassword, cancellationToken);
+
+        return NoContent();
     }
 }
