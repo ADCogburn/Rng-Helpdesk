@@ -6,10 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 RngHelpdesk is a backend for tracking a Runescape clan's Discord members, their linked
 Runescape accounts, and a clan-points/rank system. It's a .NET 10 solution using event
-sourcing + CQRS, plus a Discord bot microservice for resolving Discord usernames. The
-backend that actually runs is `RngHelpdesk.Api` (tested via Swagger/Bruno and the test projects
-below); `web/` is a React frontend (landing page, login, member and admin UI — see "Frontend
-status") that talks to it.
+sourcing + CQRS, plus a Discord slash-command bot (`RngHelpdesk.DiscordBot`) that acts as an HTTP
+client of the API on behalf of the Discord user who runs each command. The backend that actually
+runs is `RngHelpdesk.Api` (tested via Swagger/Bruno and the test projects below); `web/` is a React
+frontend (landing page, login, member and admin UI — see "Frontend status") that talks to it.
 
 ## Commands
 
@@ -17,7 +17,8 @@ status") that talks to it.
 dotnet build RngHelpdesk.slnx                # build everything
 dotnet test RngHelpdesk.slnx                 # run all tests
 dotnet run --project RngHelpdesk.Api         # run the API (Swagger UI at /swagger in Development)
-dotnet run --project RngHelpdesk.DiscordBot  # run the Discord bot (needs Discord:BotToken config)
+dotnet run --project RngHelpdesk.DiscordBot  # run the Discord bot (needs Discord:BotToken, Discord:GuildId, Api:BotApiKey; see its README)
+dotnet test RngHelpdesk.DiscordBot.Tests     # bot tests only
 ```
 
 `RngHelpdesk.Api` needs a reachable Postgres to start — this applies in `Development` too, not
@@ -85,7 +86,7 @@ User` deliberately default their target id away from the seeded admin's own id (
 request docs) — demoting yourself locks the seeded account out of every `AdminPlus` endpoint with
 no way back short of editing Postgres directly.
 
-Four test projects exist and are wired into `RngHelpdesk.slnx`: `RngHelpdesk.Domain.Tests`
+Five test projects exist and are wired into `RngHelpdesk.slnx`: `RngHelpdesk.Domain.Tests`
 (unit tests against the `User` aggregate's behavior methods), `RngHelpdesk.Operations.Tests`
 (command/query handler tests via a shared `OperationsTestFixture`), `RngHelpdesk.Api.Tests` (controller
 tests that manually wire the same in-memory collaborators as `Program.cs` and construct
@@ -93,7 +94,9 @@ controllers directly, rather than booting a full HTTP host via `WebApplicationFa
 `RngHelpdesk.Infrastructure.Tests` (integration tests against a real Postgres instance spun up
 per test class via `Testcontainers.PostgreSql` — `MigrationFixture` in `MigrationTests.cs` is the
 shared `IClassFixture` other Postgres-backed tests key off; requires Docker, or a Docker-API-compatible
-engine, to run).
+engine, to run), and `RngHelpdesk.DiscordBot.Tests` (xUnit against the bot's own code only: `RngApiClient`
+and `ApiTokenService` with a fake `HttpMessageHandler`, `ErrorReplies`, `BotOptions` validation, and
+`Formatting/`; no API or Discord connection, so no Docker needed).
 
 `RngHelpdesk.Infrastructure.Tests` doesn't require Docker Desktop specifically — Podman works too
 (confirmed on Windows with Podman Desktop/`podman machine`). Testcontainers talks to whatever
@@ -121,6 +124,13 @@ npm test         # vitest run
 
 It needs the API running for real data (dev login `admin`/`password`).
 
+**Discord bot**: `RngHelpdesk.DiscordBot/README.md` has the full setup (Developer Portal application,
+guild id, `dotnet user-secrets` for both projects, run order and the command reference). The shared
+secret lives in two places — `Api:BotApiKey` on the bot and `DiscordBot:ApiKey` on the API — and
+leaving `DiscordBot:ApiKey` unset keeps the bot-token endpoint disabled. A gitignored
+`appsettings.Development.json` in the bot folder overrides the committed `appsettings.json`, so stale
+values there (an old `Api:BaseUrl`, say) win; check it before debugging connection errors.
+
 ## Branching model
 
 All feature work branches off `development`, not `master` — PRs target `development`. `master`
@@ -146,14 +156,20 @@ Domain  ←  Contracts  ←  Infrastructure  ←  Operations  ←  Api
   composition root in `Program.cs`.
 - **web/** — the React frontend (see "Frontend status"). Talks to `RngHelpdesk.Api` over HTTP
   only; not referenced by any .NET project and not in `RngHelpdesk.slnx`.
-- **RngHelpdesk.DiscordBot** — a fully standalone minimal-API microservice (not referenced by
-  and doesn't reference any other project). Exposes `GET /discord/users/{discordId}` wrapping
-  `Discord.Rest.DiscordRestClient`. The main Api has a `DiscordBot:BaseUrl` config key and
-  commented-out `HttpClient`/resolver wiring intended to call this over HTTP, but that
-  integration isn't currently connected.
+- **RngHelpdesk.DiscordBot** — a standalone Discord gateway bot (`Discord.Net`, `WebSocket` + `Interactions`)
+  that registers guild slash commands and calls the API over HTTP, one typed client method per endpoint
+  (`Api/RngApiClient.cs`). It's the only project that talks to Discord. It doesn't reference any other
+  project, and it has its own DTOs (`Api/Models/`) and ulong-as-string converter rather than sharing
+  `Contracts`. Modules live in `Interactions/`; formatting (embeds, rank colours, progress) is pure code
+  in `Formatting/`. Authorization stays in the API: the bot exchanges a shared secret for a bot JWT, then
+  for a user JWT per invoking Discord id (`ApiTokenService`), so `AdminPlus` checks apply as the member
+  who ran the command. Still hosts the old `GET /discord/users/{discordId}` resolver endpoint (backed by
+  the gateway client's REST client). The main Api has a `DiscordBot:BaseUrl` config key and commented-out
+  `HttpClient`/resolver wiring intended to call that endpoint; that integration still isn't connected.
+  See `RngHelpdesk.DiscordBot/README.md` and [ADR 0008](docs/adr/0008-discord-bot-per-user-token-exchange.md).
 - **RngHelpdesk.Domain.Tests**, **RngHelpdesk.Operations.Tests**, **RngHelpdesk.Api.Tests**,
-  **RngHelpdesk.Infrastructure.Tests** — test projects paired with the layer they exercise. See
-  "Commands" above.
+  **RngHelpdesk.Infrastructure.Tests**, **RngHelpdesk.DiscordBot.Tests** — test projects paired with the
+  layer they exercise. See "Commands" above.
 - **RngHelpdesk.Handlers** — dead/vestigial. No `.csproj`, not in `RngHelpdesk.slnx`, only
   stale `bin`/`obj` build cache left over. Ignore it.
 
@@ -281,13 +297,26 @@ actually wired up vs. aspirational. As of now:
   others use an `if (!result.Success)` check instead (e.g. `AdminController`, other `UsersController`
   query actions). Match the existing style in the controller you're editing.
 - Auth policies (`Security/AuthPolicies.cs`): `AdminPlus` (Administrator/SuperAdministrator/Owner
-  roles), `OwnerOnly`, `DiscordBotOnly` (`client_type` claim). Most controllers apply `AdminPlus`
-  at the class level.
+  roles), `OwnerOnly`, `DiscordBotOnly` (`client_type=discord_bot` claim; used by `auth/discord` below).
+  Most controllers apply `AdminPlus` at the class level.
 - `ClaimsPrincipalExtensions.GetUserId()` (`Api/Helpers/`) is the standard way to pull the acting
   user's ulong ID out of `ClaimTypes.NameIdentifier` in a controller.
-- JWT auth: `AuthController` issues tokens (`auth/login`), `Program.cs` configures
+- JWT auth: `AuthController` issues tokens (`auth/login`, and the two bot endpoints below), but the
+  token creation itself lives in `JwtTokenIssuer` (`Api/Security/`, singleton, reads `Jwt:*` config),
+  which `Login` also uses with unchanged claims and lifetime (8 h). `Program.cs` configures
   `AddJwtBearer` — note `ValidateLifetime = false` is currently set (marked `// dev only` in
   code, not a mistake to silently "fix").
+- Discord bot auth ([ADR 0008](docs/adr/0008-discord-bot-per-user-token-exchange.md)):
+  - `POST auth/bot/token` (anonymous) takes `{apiKey}` and compares it to `DiscordBot:ApiKey` with
+    `CryptographicOperations.FixedTimeEquals`. Returns a 1 h JWT with only `client_type=discord_bot`
+    (no `NameIdentifier`, no `Role`). Always 401 while `DiscordBot:ApiKey` is unset or blank, so the
+    feature is off by default; the value is a user-secret, never committed.
+  - `POST auth/discord` (`DiscordBotOnly`) takes `{discordId}` (a string on the wire) and returns a
+    15 min user JWT with `NameIdentifier` and `Role` but deliberately no `ClaimTypes.Name`, so
+    `change-password` rejects it. 404 for an unknown id, 403 for a deactivated user.
+  - `GET auth/me/point-history` (`[Authorize]`) is the self-service point history used by the bot's
+    `/points mine`. It returns 401 without a `NameIdentifier`, which is also why a bot JWT can't use it.
+  - A bot JWT can't satisfy `AdminPlus` (no role claim); keep it that way.
   `LoginResponse` carries `MustChangePassword`; `POST auth/change-password` (`[Authorize]`)
   verifies the current password against the caller's username, then changes it. The login token
   carries `ClaimTypes.Name` (the credential username) alongside `NameIdentifier` and `Role` —
@@ -300,7 +329,8 @@ actually wired up vs. aspirational. As of now:
   `UInt64StringJsonConverter` (`Api/Serialization/`, registered in `Program.cs`), because
   snowflakes exceed JS `Number.MAX_SAFE_INTEGER`. Reads accept strings or numbers. Enums are
   strings too (`JsonStringEnumConverter`). Tests and Bruno request bodies asserting/sending ids
-  should use strings. Rationale in ADR 0007.
+  should use strings. Rationale in ADR 0007. The bot keeps its own converter with the same semantics
+  (`RngHelpdesk.DiscordBot/Api/Serialization/`) since it doesn't reference the API's assembly.
 - `AdminController` also exposes `POST admin/{id}/deactivate` and `POST admin/{id}/reactivate`
   (#76).
 - CORS: the `DevCors` policy takes its origins from the `Cors:AllowedOrigins` string array. The

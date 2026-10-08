@@ -239,13 +239,13 @@ questions) and never commit.
 
 | Task | Model | State |
 |---|---|---|
-| A1 | S | todo |
-| A2 | H | todo |
-| K1 | S | todo |
-| K2 | H | todo |
-| K3 | H | todo |
-| K4 | S | todo |
-| K5 | H | todo |
-| K6 | H | todo |
-| D1 | H | todo |
+| A1 | S | done |
+| A2 | H | done |
+| K1 | S | done |
+| K2 | H | done |
+| K3 | H | done |
+| K4 | S | done |
+| K5 | H | done |
+| K6 | H | done |
+| D1 | H | done |
 | Q1 | — | todo |
