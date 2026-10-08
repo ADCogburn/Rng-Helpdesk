@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Npgsql;
 using RngHelpdesk.Api.Security;
+using RngHelpdesk.Api.Serialization;
 using RngHelpdesk.Api.Validators.Users;
 using RngHelpdesk.Contracts.Common.Ranks;
 using RngHelpdesk.Contracts.Common.Ranks.Commands;
@@ -42,6 +43,8 @@ builder.Services.AddControllers()
     {
         o.JsonSerializerOptions.Converters.Add(
             new JsonStringEnumConverter());
+        o.JsonSerializerOptions.Converters.Add(
+            new UInt64StringJsonConverter());
     });
 
 builder.Services.AddEndpointsApiExplorer();
