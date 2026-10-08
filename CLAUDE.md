@@ -344,8 +344,10 @@ It talks to the API through the Vite dev server's `/api` proxy (`vite.config.ts`
 forwards to `https://localhost:5081`, `secure: false`), so no CORS is involved in dev — run the
 API via the VS Code `http` profile first. Public landing page (`/`) reads the anonymous
 `/public/*` endpoints; `/login`, `/account/change-password`, `/me` and the `/admin/*` console
-(`AdminPlus` only) sit behind the auth guards. The admin pages are still being built — check
-`docs/ui/PLAN.md`'s status table rather than assuming a page is finished.
+(`AdminPlus` only: dashboard, members list/detail, add member, rank thresholds) sit behind the
+auth guards. Rank colours are read at runtime via `var(--color-rank-*)`, which is why the theme
+block in `index.css` is `@theme static` — plain `@theme` lets Tailwind v4 drop variables no utility
+class references.
 
 ## Maintaining this file
 
