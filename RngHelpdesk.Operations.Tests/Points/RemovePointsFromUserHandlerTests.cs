@@ -12,14 +12,14 @@ public class RemovePointsFromUserHandlerTests
         => new(_fixture.UserRepository, _fixture.EventDispatcher);
 
     [Fact]
-    public async Task Handle_UserDoesNotExist_ReturnsFailure()
+    public async Task Handle_UserDoesNotExist_ReturnsNotFound()
     {
         var handler = CreateHandler();
         var request = new RemovePointsFromUserRequest { ActingUserId = TestUsers.DefaultActingUserId, UserId = 999, Points = 10, Reason = "Rule violation" };
 
         var result = await handler.Handle(request);
 
-        Assert.Equal(ResultStatus.Failure, result.Status);
+        Assert.Equal(ResultStatus.NotFound, result.Status);
         Assert.Equal("User not found.", result.Error);
     }
 

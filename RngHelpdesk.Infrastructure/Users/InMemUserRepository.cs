@@ -1,5 +1,6 @@
 using RngHelpdesk.Domain.Common;
 using RngHelpdesk.Domain.Users;
+using RngHelpdesk.Domain.Users.Events;
 using RngHelpdesk.Infrastructure.Common;
 
 namespace RngHelpdesk.Infrastructure.Users;
@@ -44,13 +45,18 @@ public sealed class InMemUserRepository : IUserRepository
         _events[userId] = new List<IDomainEvent>(events);
     }
 
-    public Task<bool> UserExistsWithDiscordIdAsync(ulong discordId, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
+    // The user ID is the Discord ID (set from DiscordAccount.DiscordId in UserCreatedEvent),
+    // so an existence check by Discord ID is the same as checking the stream keyed on that ID.
+    public Task<bool> UserExistsWithDiscordIdAsync(ulong discordId, CancellationToken ct = default) =>
+        ExistsAsync(discordId, ct);
 
     public Task<bool> UserExistsWithDiscordUsernameAsync(string username, CancellationToken ct = default)
     {
-        throw new NotImplementedException();
+        var exists = _events.Values
+            .Select(stream => stream.OfType<UserCreatedEvent>().FirstOrDefault())
+            .Where(e => e is not null)
+            .Any(e => e!.DiscordAccount.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
+
+        return Task.FromResult(exists);
     }
 }

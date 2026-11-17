@@ -23,13 +23,13 @@ public class LinkRunescapeAccountHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ValidRequestUserDoesNotExist_ReturnsFailure()
+    public async Task Handle_ValidRequestUserDoesNotExist_ReturnsNotFound()
     {
         var handler = CreateHandler(FakeLinkRunescapeAccountValidator.Passing());
 
         var result = await handler.Handle(new LinkRunescapeAccountRequest(TestUsers.DefaultActingUserId, UserId: 999, Username: "Zezima"));
 
-        Assert.Equal(ResultStatus.Failure, result.Status);
+        Assert.Equal(ResultStatus.NotFound, result.Status);
         Assert.Equal("User not found.", result.Error);
     }
 
