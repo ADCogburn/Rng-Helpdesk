@@ -176,14 +176,14 @@ public class UsersControllerTests
     }
 
     [Fact]
-    public async Task AddPoints_UserDoesNotExist_ReturnsBadRequestWithHandlerError()
+    public async Task AddPoints_UserDoesNotExist_ReturnsNotFoundWithHandlerError()
     {
         var controller = CreateController();
 
         var result = await controller.AddPoints(999, new AddPointsDto { Points = 50, Reason = "Boss kill" }, CancellationToken.None);
 
-        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
-        Assert.Equal("User not found.", badRequest.Value);
+        var notFound = Assert.IsType<NotFoundObjectResult>(result);
+        Assert.Equal("User not found.", notFound.Value);
     }
 
     [Fact]

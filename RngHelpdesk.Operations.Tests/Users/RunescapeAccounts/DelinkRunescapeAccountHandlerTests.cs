@@ -13,13 +13,13 @@ public class DelinkRunescapeAccountHandlerTests
         => new(_fixture.UserRepository, _fixture.EventDispatcher);
 
     [Fact]
-    public async Task Handle_UserDoesNotExist_ReturnsFailure()
+    public async Task Handle_UserDoesNotExist_ReturnsNotFound()
     {
         var handler = CreateHandler();
 
         var result = await handler.Handle(new DelinkRunescapeAccountRequest(TestUsers.DefaultActingUserId, UserId: 999, Username: "Zezima"));
 
-        Assert.Equal(ResultStatus.Failure, result.Status);
+        Assert.Equal(ResultStatus.NotFound, result.Status);
         Assert.Equal("User not found.", result.Error);
     }
 

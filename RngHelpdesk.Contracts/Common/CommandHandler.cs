@@ -1,4 +1,6 @@
-﻿namespace RngHelpdesk.Contracts.Common;
+using RngHelpdesk.Domain.Common;
+
+namespace RngHelpdesk.Contracts.Common;
 
 /// <summary>
 /// Command Handler wraps the try/catch pattern around handler logic that calls Domain or Infra work.
@@ -14,7 +16,7 @@ public static class CommandHandler
             return CommandResult.Ok();
 
         }
-        catch (AggregateException ex)
+        catch (AggregateNotFoundException ex)
         {
             return CommandResult.NotFound(ex.Message);
         }

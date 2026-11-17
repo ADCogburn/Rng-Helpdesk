@@ -12,16 +12,14 @@ public class AddPointsToUserHandlerTests
         => new(_fixture.UserRepository, _fixture.EventDispatcher);
 
     [Fact]
-    public async Task Handle_UserDoesNotExist_ReturnsFailure()
+    public async Task Handle_UserDoesNotExist_ReturnsNotFound()
     {
-        // AggregateNotFoundException isn't a System.AggregateException, so CommandHandler.Execute's
-        // AggregateException->NotFound branch never triggers here; it falls through to Fail.
         var handler = CreateHandler();
         var request = new AddPointsToUserRequest { ActingUserId = TestUsers.DefaultActingUserId, UserId = 999, Points = 10, Reason = "Boss kill" };
 
         var result = await handler.Handle(request);
 
-        Assert.Equal(ResultStatus.Failure, result.Status);
+        Assert.Equal(ResultStatus.NotFound, result.Status);
         Assert.Equal("User not found.", result.Error);
     }
 
