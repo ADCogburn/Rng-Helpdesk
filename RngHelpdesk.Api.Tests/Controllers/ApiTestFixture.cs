@@ -50,7 +50,7 @@ internal sealed class ApiTestFixture
         UserSummaryProjection = new UserSummaryProjection(RankResolver);
         PointHistoryProjection = new PointHistoryProjection(RankResolver);
 
-        EventDispatcher = new InMemEventDispatcher(new object[]
+        EventDispatcher = new SynchronousEventDispatcher(new object[]
         {
             PointHistoryProjection,
             UserSummaryProjection,

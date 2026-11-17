@@ -48,7 +48,7 @@ public sealed class ChangeUserRoleHandlerIntegrationTests : IClassFixture<Migrat
 
         var rankResolver = new RankResolver(await new InMemoryRankThresholdProvider().GetThresholdsAsync());
         var userSummaryProjection = new UserSummaryProjection(rankResolver);
-        var dispatcher = new InMemEventDispatcher([userSummaryProjection]);
+        var dispatcher = new SynchronousEventDispatcher([userSummaryProjection]);
         var userRoleService = new UserRoleService(eventStore);
 
         var userId = NewStreamId();
