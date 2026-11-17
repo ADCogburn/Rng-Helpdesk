@@ -15,13 +15,13 @@ public class DeactivateReactivateUserHandlerTests
         => new(_fixture.UserRepository, _fixture.EventDispatcher);
 
     [Fact]
-    public async Task Deactivate_UserDoesNotExist_ReturnsFailure()
+    public async Task Deactivate_UserDoesNotExist_ReturnsNotFound()
     {
         var handler = CreateDeactivateHandler();
 
         var result = await handler.Handle(new DeactivateUserRequest(TestUsers.DefaultActingUserId, UserId: 999));
 
-        Assert.Equal(ResultStatus.Failure, result.Status);
+        Assert.Equal(ResultStatus.NotFound, result.Status);
         Assert.Equal("User not found.", result.Error);
     }
 
@@ -53,13 +53,13 @@ public class DeactivateReactivateUserHandlerTests
     }
 
     [Fact]
-    public async Task Reactivate_UserDoesNotExist_ReturnsFailure()
+    public async Task Reactivate_UserDoesNotExist_ReturnsNotFound()
     {
         var handler = CreateReactivateHandler();
 
         var result = await handler.Handle(new ReactivateUserRequest(TestUsers.DefaultActingUserId, UserId: 999));
 
-        Assert.Equal(ResultStatus.Failure, result.Status);
+        Assert.Equal(ResultStatus.NotFound, result.Status);
         Assert.Equal("User not found.", result.Error);
     }
 

@@ -112,14 +112,14 @@ public class RunescapeAccountsControllerTests
     }
 
     [Fact]
-    public async Task LinkRunescapeAccount_UserDoesNotExist_ReturnsBadRequestWithHandlerError()
+    public async Task LinkRunescapeAccount_UserDoesNotExist_ReturnsNotFoundWithHandlerError()
     {
         var controller = CreateController();
 
         var result = await controller.LinkRunescapeAccount(999, new RunescapeAccountDto { Username = "Zezima" }, CancellationToken.None);
 
-        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
-        Assert.Equal("User not found.", badRequest.Value);
+        var notFound = Assert.IsType<NotFoundObjectResult>(result);
+        Assert.Equal("User not found.", notFound.Value);
     }
 
     [Fact]

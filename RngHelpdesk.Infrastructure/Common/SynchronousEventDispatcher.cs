@@ -2,11 +2,11 @@
 
 namespace RngHelpdesk.Infrastructure.Common;
 
-public class InMemEventDispatcher : IEventDispatcher
+public class SynchronousEventDispatcher : IEventDispatcher
 {
     private readonly IEnumerable<object> _handlers;
 
-    public InMemEventDispatcher(IEnumerable<object> handlers)
+    public SynchronousEventDispatcher(IEnumerable<object> handlers)
     {
         _handlers = handlers;
     }

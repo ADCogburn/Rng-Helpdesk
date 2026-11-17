@@ -213,7 +213,7 @@ builder.Services.AddScoped<ICredentialStore, PostgresCredentialStore>();
 //builder.Services.AddScoped<RngHelpdesk.Contracts.Discord.IDiscordUsernameResolver>(
 //    sp => sp.GetRequiredService<RngHelpdesk.Infrastructure.Discord.HttpDiscordUsernameResolver>());
 
-// -- Projection (Singleton so read models are shared; InMemEventDispatcher captures them) --
+// -- Projection (Singleton so read models are shared; SynchronousEventDispatcher captures them) --
 
 builder.Services.AddSingleton<PointHistoryProjection>();
 builder.Services.AddSingleton<IPointHistoryReadStore>(sp =>
@@ -233,7 +233,7 @@ builder.Services.AddSingleton<RunescapeAccountHistoryProjection>();
 builder.Services.AddSingleton<IRunescapeAccountHistoryReadStore>(sp =>
     sp.GetRequiredService<RunescapeAccountHistoryProjection>());
 
-// -- In-memory event dispatcher --
+// -- Synchronous event dispatcher --
 // Important: dispatcher and ProjectionRunner both receive the exact same singleton
 // projection instances that the read-store interfaces resolve to.
 
@@ -246,7 +246,7 @@ static object[] GetProjectionInstances(IServiceProvider sp) => new object[]
 };
 
 builder.Services.AddSingleton<IEventDispatcher>(sp =>
-    new InMemEventDispatcher(GetProjectionInstances(sp)));
+    new SynchronousEventDispatcher(GetProjectionInstances(sp)));
 
 builder.Services.AddScoped<IProjectionCheckpointStore, PostgresProjectionCheckpointStore>();
 

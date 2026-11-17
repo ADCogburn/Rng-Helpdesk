@@ -50,7 +50,7 @@ public sealed class AddPointsToUserHandlerIntegrationTests : IClassFixture<Migra
 
         await repo.SaveAsync(user);
 
-        var handler = new AddPointsToUserHandler(repo, new InMemEventDispatcher([]));
+        var handler = new AddPointsToUserHandler(repo, new SynchronousEventDispatcher([]));
         var request = new AddPointsToUserRequest { ActingUserId = 1, UserId = userId, Points = 50, Reason = "Boss kill" };
 
         var result = await handler.Handle(request);
